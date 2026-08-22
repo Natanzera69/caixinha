@@ -33,7 +33,7 @@ h1,h2,h3,p{margin:0;}
 a{color:inherit;}
 
 /* ---------- Lock screen ---------- */
-#lockScreen{
+#lockScreen,#loginScreen,#loadingScreen{
   position:fixed; inset:0; background:linear-gradient(160deg,#4f46e5,#312e81);
   display:flex; align-items:center; justify-content:center; z-index:999; padding:20px;
 }
@@ -216,6 +216,23 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
 </head>
 <body>
 
+<div id="loadingScreen">
+  <div class="lock-card"><div class="emoji">🧮</div><p style="margin:0">Carregando…</p></div>
+</div>
+
+<div id="loginScreen" class="hidden">
+  <div class="lock-card">
+    <div class="emoji">👤</div>
+    <h2>Caixinha</h2>
+    <p>Entre com seu e-mail para sincronizar seus dados entre aparelhos</p>
+    <div class="field" style="text-align:left"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="username"></div>
+    <div class="field" style="text-align:left"><label>Senha</label><input id="loginSenha" type="password" autocomplete="current-password"></div>
+    <div id="loginError" style="color:var(--expense); font-size:.85rem; min-height:18px; margin-bottom:8px"></div>
+    <button class="btn btn-primary btn-block" onclick="fbLogin()">Entrar</button>
+    <button class="btn btn-ghost btn-block mt16" onclick="fbSignup()">Criar conta nova</button>
+  </div>
+</div>
+
 <div id="lockScreen" class="hidden">
   <div class="lock-card">
     <div class="emoji">🔒</div>
@@ -334,6 +351,7 @@ function salvarEstado(){
   }catch(e){
     alert('Não foi possível salvar os dados neste navegador (armazenamento local indisponível ou cheio). Faça um backup manual pelo botão "Fazer backup" para não perder nada.');
   }
+  if(typeof sincronizarComFirestore==='function') sincronizarComFirestore();
 }
 function tocar(obj){ obj.updatedAt=nowISO(); return obj; }
 
@@ -1403,6 +1421,12 @@ function renderConfig(){
   const el=document.getElementById('tab-config');
   const suportaFS = 'showSaveFilePicker' in window;
   el.innerHTML=`
+    <div class="section-title"><h2>Sincronização</h2></div>
+    <div class="card">
+      <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
+      <button class="btn btn-danger mt16" onclick="fbLogout()">Sair da conta</button>
+    </div>
+
     <div class="section-title"><h2>Backup dos dados</h2></div>
     <div class="card">
       <p class="hint">Como este app não tem servidor, a forma de manter PC e celular com os mesmos dados é: fazer backup no aparelho que você usou por último e importar no outro. A importação mescla os dados (não apaga nada por acidente).</p>
@@ -1557,9 +1581,9 @@ function abrirModal(){ document.getElementById('modalRoot').classList.remove('hi
 function fecharModal(){ document.getElementById('modalRoot').classList.add('hidden'); document.getElementById('modalCard').innerHTML=''; }
 
 /* ================= Init ================= */
-function init(){
-  carregarEstado();
-  gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+function mostrarAppLogado(){
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('loginScreen').classList.add('hidden');
   if(state.config.pinHash){
     document.getElementById('lockScreen').classList.remove('hidden');
   }else{
@@ -1567,10 +1591,125 @@ function init(){
   }
   switchTab('dashboard');
 }
+function init(){
+  carregarEstado();
+  gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+}
 init();
+
+/* ================= Firebase: login e sincronização ================= */
+window.onFbAuthChange = async function(user){
+  if(!user){
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    return;
+  }
+  await iniciarSincronizacao(user);
+  mostrarAppLogado();
+};
+
+async function fbLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const senha=document.getElementById('loginSenha').value;
+  const erro=document.getElementById('loginError'); erro.textContent='';
+  try{
+    await window.fbSignIn(window.fbAuth, email, senha);
+  }catch(e){
+    erro.textContent='Não foi possível entrar. Confira e-mail e senha.';
+  }
+}
+async function fbSignup(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const senha=document.getElementById('loginSenha').value;
+  const erro=document.getElementById('loginError'); erro.textContent='';
+  if(senha.length<6){ erro.textContent='A senha precisa ter pelo menos 6 caracteres.'; return; }
+  try{
+    await window.fbSignUp(window.fbAuth, email, senha);
+  }catch(e){
+    erro.textContent='Não foi possível criar a conta (talvez esse e-mail já tenha uma conta — tente Entrar).';
+  }
+}
+
+let fbUnsub=null;
+let fbSaveTimeout=null;
+let fbAplicandoRemoto=false;
+
+async function iniciarSincronizacao(user){
+  const ref=window.fbDoc(window.fbDb,'users',user.uid);
+  try{
+    const snap=await window.fbGetDoc(ref);
+    if(snap.exists()){
+      mesclarEstado(snap.data());
+      gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+      salvarEstado();
+    }
+  }catch(e){ /* offline no primeiro acesso — segue só com o que já está local */ }
+
+  if(fbUnsub) fbUnsub();
+  fbUnsub=window.fbOnSnapshot(ref, snap=>{
+    if(!snap.exists()) return;
+    fbAplicandoRemoto=true;
+    mesclarEstado(snap.data());
+    gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+    salvarEstado();
+    renderTudo();
+    fbAplicandoRemoto=false;
+  });
+
+  window.fbUid=user.uid;
+}
+
+function sincronizarComFirestore(){
+  if(!window.fbUid || fbAplicandoRemoto) return;
+  clearTimeout(fbSaveTimeout);
+  fbSaveTimeout=setTimeout(()=>{
+    const ref=window.fbDoc(window.fbDb,'users',window.fbUid);
+    const paraEnviar={...state, config:{...state.config, pinHash:null}};
+    window.fbSetDoc(ref, paraEnviar).catch(()=>{ /* sem internet: fica só local, sincroniza quando voltar */ });
+  },1500);
+}
+
+function fbLogout(){
+  if(fbUnsub){ fbUnsub(); fbUnsub=null; }
+  window.fbUid=null;
+  window.fbSignOutFn(window.fbAuth);
+}
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js');
 }
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence }
+    from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA2apkng_GFReA86eVcmY9aK_nY814d4jY",
+    authDomain: "caixinha-531d2.firebaseapp.com",
+    projectId: "caixinha-531d2",
+    storageBucket: "caixinha-531d2.firebasestorage.app",
+    messagingSenderId: "150521256334",
+    appId: "1:150521256334:web:ce6cc02287beefec85acdf"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  window.fbAuth = getAuth(fbApp);
+  window.fbDb = getFirestore(fbApp);
+  enableIndexedDbPersistence(window.fbDb).catch(()=>{ /* aba duplicada ou navegador sem suporte: segue sem cache offline do Firestore, localStorage ainda cobre */ });
+  window.fbSignIn = signInWithEmailAndPassword;
+  window.fbSignUp = createUserWithEmailAndPassword;
+  window.fbSignOutFn = signOut;
+  window.fbDoc = doc;
+  window.fbGetDoc = getDoc;
+  window.fbSetDoc = setDoc;
+  window.fbOnSnapshot = onSnapshot;
+
+  onAuthStateChanged(window.fbAuth, user => window.onFbAuthChange(user));
 </script>
 </body>
 </html>
