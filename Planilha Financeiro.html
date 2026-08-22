@@ -68,7 +68,8 @@ a{color:inherit;}
 }
 .topbar .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.05rem;}
 .topbar .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--primary);}
-.topbar .brand img{height:28px; width:auto;}
+.topbar .brand img{height:52px; width:auto;}
+@media(max-width:680px){.topbar .brand img{height:40px;}}
 .topbar .actions{display:flex; gap:8px;}
 .icon-btn{
   width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
@@ -84,6 +85,7 @@ nav.tabs button{
   border-radius:9px; font-weight:600; font-size:.82rem; color:var(--text-muted);
 }
 nav.tabs button.active{background:var(--primary); color:var(--primary-ink);}
+.tab-config-mobile{display:none;}
 
 section.tab{display:none;}
 section.tab.active{display:block; animation:fade .15s ease;}
@@ -188,6 +190,8 @@ section.tab.active{display:block; animation:fade .15s ease;}
   }
   nav.tabs button{font-size:.66rem; padding:8px 4px; display:flex; flex-direction:column; gap:2px;}
   nav.tabs button .ico{font-size:1.05rem;}
+  .tab-config-mobile{display:flex;}
+  .topbar .actions{display:none;}
   #app{padding:0 10px;}
 }
 .ico{display:none;}
@@ -258,6 +262,7 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
     <button data-tab="contas" onclick="switchTab('contas')"><span class="ico">🏦</span>Contas</button>
     <button data-tab="parcelamentos" onclick="switchTab('parcelamentos')"><span class="ico">📆</span>Fixos</button>
     <button data-tab="investimentos" onclick="switchTab('investimentos')"><span class="ico">📈</span>Invest.</button>
+    <button data-tab="config" class="tab-config-mobile" onclick="switchTab('config')"><span class="ico">⚙️</span>Config</button>
   </nav>
 
   <main>
