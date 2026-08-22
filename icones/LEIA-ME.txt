@@ -1,0 +1,8 @@
+Coloque aqui a logo da Caixinha em dois tamanhos PNG quadrados:
+
+  icon-192.png  (192x192 pixels)
+  icon-512.png  (512x512 pixels)
+
+Sao esses dois arquivos que o manifest.json e o <head> do HTML ja
+referenciam (icone do app instalado no celular, aba do navegador, etc).
+Assim que colocar os arquivos aqui, tudo ja funciona sem editar mais nada.
