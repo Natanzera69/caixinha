@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-22 — Hospedagem, PWA e sincronização via Firebase
+
+Pedido do usuário: levar o app pra fora do Google Drive local — hospedar num link fixo, dar pra instalar como app no Android, e sincronizar de verdade entre PC e celular (sem depender de backup manual). Também quer, mais pra frente, um perfil separado pra namorada.
+
+- **GitHub Pages**: repositório `Natanzera69/caixinha` público, publicado em `https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html`. `.gitignore` protege a pasta `backups/` (nunca vai pro repositório público).
+- **PWA**: `manifest.json`, `sw.js` (cache do shell pra funcionar offline) e ícones (`icones/icon-192.png`, `icon-512.png`, gerados a partir da arte fornecida pelo usuário com fundo removido). Logo (`icones/logo-web.png`) substituiu o "dot + texto" no topo do app. App renomeado de "Planilha Financeiro" pra **Caixinha** em todo o HTML (title, topbar, rodapé de Config).
+- **Login por e-mail/senha (Firebase Auth)**: substituiu a auth anônima cogitada inicialmente — necessário porque o usuário quer perfis separados (dele e da namorada), e auth anônima identifica o *aparelho*, não a *pessoa*. Tela de login (`#loginScreen`) com Entrar/Criar conta nova, aparece quando não há sessão válida. Sessão persiste entre aberturas (não pede login toda vez).
+- **Sincronização em tempo real (Firestore)**: cada usuário tem um documento próprio em `users/{uid}` (regra de segurança do Firestore restringe leitura/escrita ao dono do uid). `salvarEstado()` agora também dispara `sincronizarComFirestore()` (debounce de 1.5s) além de gravar no `localStorage` como sempre fez. Listener `onSnapshot` aplica mudanças vindas de outro aparelho via `mesclarEstado()` (mesma função já usada no import de backup) e re-renderiza. Firestore com persistência offline habilitada (`enableIndexedDbPersistence`) — o app continua funcionando sem internet, sincroniza sozinho quando a conexão volta.
+- **PIN nunca sincroniza**: igual já acontecia no backup manual, `pinHash` sempre vai `null` pro Firestore — cada aparelho mantém o próprio PIN local.
+- Corrigido durante o teste: no primeiro login de um aparelho "novo" (localStorage vazio) que já tinha dado na nuvem, o app criava a conta "Carteira" padrão local E trazia a da nuvem, duplicando. Agora, se o aparelho nunca teve dado local e já existe algo na nuvem, usa a nuvem direto em vez de mesclar com os defaults recém-criados.
+- **Perfis separados (namorada)**: registrado como decisão pra próxima etapa em [Mudanças Futuras.md](Mudanças%20Futuras.md) — hoje cada login (e-mail/senha) já isola completamente os dados por `uid`, então criar uma segunda conta já resolve; falta só ela criar a própria conta quando quiser começar a usar.
+- Testado via automação: criação de conta, sincronização de uma conta bancária nova pro Firestore em ~2s, sessão persistindo após reload com localStorage limpo (simulando "segundo aparelho"), dados chegando via `onSnapshot` sem duplicar.
+- **Nota de arquitetura**: o app deixou de ser "100% offline, zero dependência externa" — agora carrega o SDK do Firebase via CDN. Ver [01-arquitetura.md](01-arquitetura.md).
+
 ## 2026-08-21 — Criação do app
 
 - Criado `Planilha Financeiro.html` do zero: dashboard, lançamentos (com quick-add e parcelamento automático), contas & cartões (com cálculo de fatura/dívida), parcelamentos & financiamentos, investimentos, config (backup/import com merge, PIN, categorias).
