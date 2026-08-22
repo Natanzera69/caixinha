@@ -335,11 +335,12 @@ function estadoInicial(){
     config:{pinHash:null}
   };
 }
+let estadoEraNovo=false;
 function carregarEstado(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw) state=JSON.parse(raw); else state=estadoInicial();
-  }catch(e){ state=estadoInicial(); }
+    if(raw) state=JSON.parse(raw); else { state=estadoInicial(); estadoEraNovo=true; }
+  }catch(e){ state=estadoInicial(); estadoEraNovo=true; }
   if(!state.financiamentos) state.financiamentos=[];
   if(!state.recorrencias) state.recorrencias=[];
   state.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
@@ -1641,11 +1642,21 @@ async function iniciarSincronizacao(user){
   try{
     const snap=await window.fbGetDoc(ref);
     if(snap.exists()){
-      mesclarEstado(snap.data());
+      if(estadoEraNovo){
+        // aparelho novo (nunca teve dado local) + já existe dado na nuvem: usa a nuvem direto,
+        // em vez de mesclar — evita duplicar a "Carteira"/categorias padrão criadas localmente à toa
+        state=snap.data();
+        if(!state.financiamentos) state.financiamentos=[];
+        if(!state.recorrencias) state.recorrencias=[];
+        if(!state.config) state.config={pinHash:null};
+      }else{
+        mesclarEstado(snap.data());
+      }
       gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
       salvarEstado();
     }
   }catch(e){ /* offline no primeiro acesso — segue só com o que já está local */ }
+  estadoEraNovo=false;
 
   if(fbUnsub) fbUnsub();
   fbUnsub=window.fbOnSnapshot(ref, snap=>{
