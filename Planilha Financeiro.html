@@ -68,8 +68,8 @@ a{color:inherit;}
 }
 .topbar .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.05rem;}
 .topbar .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--primary);}
-.topbar .brand img{height:52px; width:auto;}
-@media(max-width:680px){.topbar .brand img{height:40px;}}
+.topbar .brand img{height:72px; width:auto;}
+@media(max-width:680px){.topbar .brand img{height:52px;}}
 .topbar .actions{display:flex; gap:8px;}
 .icon-btn{
   width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
@@ -327,6 +327,8 @@ function categoriasDefault(){
   rec.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'receita',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
   return out;
 }
+const CHAVES_SINCRONIZAVEIS=['contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias'];
+
 function estadoInicial(){
   return {
     version:1,
@@ -337,7 +339,8 @@ function estadoInicial(){
     financiamentos:[],
     investimentos:[],
     recorrencias:[],
-    config:{pinHash:null}
+    config:{pinHash:null},
+    _tombstones:{}
   };
 }
 let estadoEraNovo=false;
@@ -348,8 +351,19 @@ function carregarEstado(){
   }catch(e){ state=estadoInicial(); estadoEraNovo=true; }
   if(!state.financiamentos) state.financiamentos=[];
   if(!state.recorrencias) state.recorrencias=[];
+  if(!state._tombstones) state._tombstones={};
   state.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
   if(!state.config) state.config={pinHash:null};
+}
+// Exclusão registra um "tombstone" (marcador de excluído) em vez de só sumir do array —
+// sem isso, sincronizar com outro aparelho traria o registro apagado de volta (merge só sabe unir, não apagar).
+function excluirRegistro(chave,id){
+  const arr=state[chave];
+  const idx=arr.findIndex(r=>r.id===id);
+  if(idx===-1) return;
+  arr.splice(idx,1);
+  if(!state._tombstones[chave]) state._tombstones[chave]=[];
+  state._tombstones[chave].push({id,updatedAt:nowISO()});
 }
 function salvarEstado(){
   try{
@@ -770,7 +784,7 @@ function renderListaLancamentos(){
 }
 function excluirTransacao(id){
   if(!confirm('Excluir este lançamento?')) return;
-  state.transacoes=state.transacoes.filter(t=>t.id!==id);
+  excluirRegistro('transacoes', id);
   salvarEstado(); renderTudo(); toast('Lançamento excluído.');
 }
 
@@ -999,7 +1013,7 @@ function abrirFormConta(id){
 function excluirConta(id){
   if(state.transacoes.some(t=>t.contaId===id||t.contaDestinoId===id)){ alert('Essa conta tem lançamentos vinculados. Exclua ou edite os lançamentos antes.'); return; }
   if(!confirm('Excluir esta conta?')) return;
-  state.contas=state.contas.filter(c=>c.id!==id); salvarEstado(); renderTudo(); toast('Conta excluída.');
+  excluirRegistro('contas', id); salvarEstado(); renderTudo(); toast('Conta excluída.');
 }
 function abrirFormCartao(id){
   const c=id? cartaoById(id):null;
@@ -1076,7 +1090,7 @@ function abrirFormCartao(id){
 function excluirCartao(id){
   if(state.transacoes.some(t=>t.cartaoId===id)){ alert('Esse cartão tem lançamentos vinculados. Exclua ou edite os lançamentos antes.'); return; }
   if(!confirm('Excluir este cartão?')) return;
-  state.cartoes=state.cartoes.filter(c=>c.id!==id); salvarEstado(); renderTudo(); toast('Cartão excluído.');
+  excluirRegistro('cartoes', id); salvarEstado(); renderTudo(); toast('Cartão excluído.');
 }
 function registrarPagamentoCartao(cartaoId){
   const c=cartaoById(cartaoId); if(!c) return;
@@ -1295,7 +1309,7 @@ function toggleRecorrencia(id){
 }
 function excluirRecorrencia(id){
   if(!confirm('Excluir este fixo mensal? Os lançamentos que ele já gerou continuam existindo, só a recorrência futura para.')) return;
-  state.recorrencias=state.recorrencias.filter(r=>r.id!==id);
+  excluirRegistro('recorrencias', id);
   salvarEstado(); renderTudo(); toast('Fixo mensal excluído.');
 }
 function abrirFormFinanciamento(){
@@ -1343,7 +1357,7 @@ function pagarParcelaFinanciamento(id){
 }
 function excluirFinanciamento(id){
   if(!confirm('Excluir este financiamento? (os lançamentos de parcelas já pagas não serão apagados)')) return;
-  state.financiamentos=state.financiamentos.filter(f=>f.id!==id); salvarEstado(); renderTudo(); toast('Financiamento excluído.');
+  excluirRegistro('financiamentos', id); salvarEstado(); renderTudo(); toast('Financiamento excluído.');
 }
 
 /* ================= Investimentos ================= */
@@ -1418,7 +1432,7 @@ function abrirFormInvestimento(id){
 }
 function excluirInvestimento(id){
   if(!confirm('Excluir este investimento?')) return;
-  state.investimentos=state.investimentos.filter(i=>i.id!==id); salvarEstado(); renderTudo(); toast('Investimento excluído.');
+  excluirRegistro('investimentos', id); salvarEstado(); renderTudo(); toast('Investimento excluído.');
 }
 
 /* ================= Config / Backup ================= */
@@ -1509,7 +1523,7 @@ function definirIconeCategoria(id,valor){
 function excluirCategoria(id){
   if(state.transacoes.some(t=>t.categoriaId===id)){ alert('Essa categoria está em uso em algum lançamento.'); return; }
   if(!confirm('Excluir esta categoria?')) return;
-  state.categorias=state.categorias.filter(c=>c.id!==id); salvarEstado(); renderConfig(); toast('Categoria excluída.');
+  excluirRegistro('categorias', id); salvarEstado(); renderConfig(); toast('Categoria excluída.');
 }
 function definirOrcamento(categoriaId,valor){
   const c=categoriaById(categoriaId); if(!c) return;
@@ -1570,16 +1584,31 @@ function importarBackup(file){
   document.getElementById('inputImportar').value='';
 }
 function mesclarEstado(incoming){
-  ['contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias'].forEach(chave=>{
+  if(!state._tombstones) state._tombstones={};
+  const tumbasIncoming=incoming._tombstones||{};
+
+  CHAVES_SINCRONIZAVEIS.forEach(chave=>{
+    // 1) mescla os tombstones (mantém o mais recente por id)
+    const tumbaPorId={};
+    (state._tombstones[chave]||[]).forEach(t=>tumbaPorId[t.id]=t);
+    (tumbasIncoming[chave]||[]).forEach(t=>{
+      const atual=tumbaPorId[t.id];
+      if(!atual || new Date(t.updatedAt) > new Date(atual.updatedAt)) tumbaPorId[t.id]=t;
+    });
+    state._tombstones[chave]=Object.values(tumbaPorId);
+
+    // 2) mescla os registros normais, mas exclusão vence se for mais recente que a versão recebida
     const local=state[chave]||[]; const vindos=incoming[chave]||[];
-    const porId={}; local.forEach(r=>porId[r.id]=r);
+    const porId={}; local.forEach(r=>{ if(!tumbaPorId[r.id]) porId[r.id]=r; });
     vindos.forEach(r=>{
+      const tumba=tumbaPorId[r.id];
+      if(tumba && new Date(tumba.updatedAt) >= new Date(r.updatedAt||0)) return;
       const atual=porId[r.id];
       if(!atual || new Date(r.updatedAt||0) > new Date(atual.updatedAt||0)) porId[r.id]=r;
     });
     state[chave]=Object.values(porId);
   });
-  // o PIN nunca viaja pelo backup — cada aparelho mantém o seu próprio
+  // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
 }
 
 /* ================= Modal genérico ================= */
@@ -1693,7 +1722,15 @@ function fbLogout(){
   window.fbSignOutFn(window.fbAuth);
 }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.register('sw.js').then(reg=>reg.update());
+  // quando uma versão nova assume o controle (skipWaiting+clients.claim no sw.js),
+  // recarrega sozinho uma vez — sem isso o usuário fica preso na versão antiga em cache
+  let jaRecarregou=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(jaRecarregou) return;
+    jaRecarregou=true;
+    location.reload();
+  });
 }
 </script>
 
