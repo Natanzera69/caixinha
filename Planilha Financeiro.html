@@ -65,6 +65,11 @@ a{color:inherit;}
 .topbar{
   position:sticky; top:0; z-index:50; background:var(--bg);
   padding:14px 0 10px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  max-height:320px; overflow:hidden; transition:max-height .25s ease, padding .25s ease, opacity .2s ease;
+}
+body.header-collapsed .topbar{max-height:0; padding-top:0; padding-bottom:0; opacity:0; pointer-events:none;}
+@media(min-width:681px){
+  body.header-collapsed nav.tabs{position:sticky; top:0; z-index:55;}
 }
 .topbar .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.05rem;}
 .topbar .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--primary);}
@@ -85,7 +90,8 @@ nav.tabs button{
   border-radius:9px; font-weight:600; font-size:.82rem; color:var(--text-muted);
 }
 nav.tabs button.active{background:var(--primary); color:var(--primary-ink);}
-.tab-config-mobile{display:none;}
+.tab-config-btn{display:none;}
+body.header-collapsed .tab-config-btn{display:flex;}
 
 section.tab{display:none;}
 section.tab.active{display:block; animation:fade .15s ease;}
@@ -190,7 +196,7 @@ section.tab.active{display:block; animation:fade .15s ease;}
   }
   nav.tabs button{font-size:.66rem; padding:8px 4px; display:flex; flex-direction:column; gap:2px;}
   nav.tabs button .ico{font-size:1.05rem;}
-  .tab-config-mobile{display:flex;}
+  .tab-config-btn{display:flex;}
   .topbar .actions{display:none;}
   #app{padding:0 10px;}
 }
@@ -262,7 +268,7 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
     <button data-tab="contas" onclick="switchTab('contas')"><span class="ico">🏦</span>Contas</button>
     <button data-tab="parcelamentos" onclick="switchTab('parcelamentos')"><span class="ico">📆</span>Fixos</button>
     <button data-tab="investimentos" onclick="switchTab('investimentos')"><span class="ico">📈</span>Invest.</button>
-    <button data-tab="config" class="tab-config-mobile" onclick="switchTab('config')"><span class="ico">⚙️</span>Config</button>
+    <button data-tab="config" class="tab-config-btn" onclick="switchTab('config')"><span class="ico">⚙️</span>Config</button>
   </nav>
 
   <main>
@@ -411,6 +417,16 @@ function bloquearApp(){
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden && state?.config?.pinHash) bloquearApp();
 });
+
+/* ================= Header retrátil ao rolar ================= */
+let headerColapsado=false;
+window.addEventListener('scroll',()=>{
+  const deveColapsar=window.scrollY>24;
+  if(deveColapsar!==headerColapsado){
+    headerColapsado=deveColapsar;
+    document.body.classList.toggle('header-collapsed',deveColapsar);
+  }
+},{passive:true});
 
 /* ================= Navegação ================= */
 let abaAtual='dashboard';
