@@ -1257,16 +1257,15 @@ function abrirFormRecorrencia(id){
         <div class="field"><label>Valor (R$)</label><input required type="number" step="0.01" min="0" name="valor" value="${r?r.valor:''}"></div>
         <div class="field"><label>Todo dia</label><input required type="number" min="1" max="31" name="diaDoMes" value="${r?r.diaDoMes:'5'}"></div>
       </div>
+      <div class="field"><label>Repete</label>
+        <div class="seg" id="segModoRec">
+          <button type="button" data-v="meses" class="${(!r||r.intervaloMeses<12)?'active':''}">De X em X meses</button>
+          <button type="button" data-v="ano" class="${r&&r.intervaloMeses===12?'active':''}">Todo ano</button>
+        </div>
+      </div>
       <div class="row2">
-        <div class="field"><label>Repete</label>
-          <select name="intervaloMeses" id="selIntervaloRec">
-            <option value="1" ${(!r||r.intervaloMeses===1)?'selected':''}>Todo mês</option>
-            <option value="2" ${r&&r.intervaloMeses===2?'selected':''}>A cada 2 meses</option>
-            <option value="3" ${r&&r.intervaloMeses===3?'selected':''}>A cada 3 meses</option>
-            <option value="4" ${r&&r.intervaloMeses===4?'selected':''}>A cada 4 meses</option>
-            <option value="6" ${r&&r.intervaloMeses===6?'selected':''}>A cada 6 meses</option>
-            <option value="12" ${r&&r.intervaloMeses===12?'selected':''}>Todo ano</option>
-          </select>
+        <div class="field" id="campoQtdMesesRec"><label>A cada quantos meses</label>
+          <input type="number" min="1" max="11" name="intervaloMesesQtd" value="${r&&r.intervaloMeses<12?r.intervaloMeses:1}">
         </div>
         <div class="field ${(!r||r.intervaloMeses===1)?'hidden':''}" id="campoMesInicioRec"><label>A partir de</label>
           <input type="month" name="mesInicio" value="${r&&r.mesInicio?r.mesInicio:anoMesStr(new Date().getFullYear(),new Date().getMonth())}">
@@ -1315,9 +1314,21 @@ function abrirFormRecorrencia(id){
   }
   form.metodoPagamento.addEventListener('change',metodoMudou);
   metodoMudou();
-  form.intervaloMeses.addEventListener('change',()=>{
-    document.getElementById('campoMesInicioRec').classList.toggle('hidden', form.intervaloMeses.value==='1');
-  });
+
+  const segModoBtns=form.querySelectorAll('#segModoRec button');
+  function atualizaCamposRepeticao(){
+    const modo=form.querySelector('#segModoRec button.active').dataset.v;
+    const ehAnual=modo==='ano';
+    document.getElementById('campoQtdMesesRec').classList.toggle('hidden',ehAnual);
+    const mensal=!ehAnual && parseInt(form.intervaloMesesQtd.value)===1;
+    document.getElementById('campoMesInicioRec').classList.toggle('hidden',mensal);
+  }
+  segModoBtns.forEach(b=>b.addEventListener('click',()=>{
+    segModoBtns.forEach(x=>x.classList.toggle('active',x===b));
+    atualizaCamposRepeticao();
+  }));
+  form.intervaloMesesQtd.addEventListener('input',atualizaCamposRepeticao);
+  atualizaCamposRepeticao();
 
   form.addEventListener('submit',e=>{
     e.preventDefault();
@@ -1330,7 +1341,8 @@ function abrirFormRecorrencia(id){
       return;
     }
     const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
-    const intervaloMeses=parseInt(fd.get('intervaloMeses'))||1;
+    const modoRepeticao=form.querySelector('#segModoRec button.active').dataset.v;
+    const intervaloMeses = modoRepeticao==='ano' ? 12 : Math.min(11,Math.max(1,parseInt(fd.get('intervaloMesesQtd'))||1));
     const dados={
       descricao:fd.get('descricao').trim(),
       valor:round2(parseFloat(fd.get('valor'))),
