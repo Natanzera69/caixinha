@@ -35,7 +35,8 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   -webkit-font-smoothing:antialiased; padding-bottom:76px;
 }
-button,input,select,textarea{font-family:inherit; font-size:1rem;}
+button,input,select,textarea{font-family:inherit; font-size:1rem; color:inherit;}
+input::placeholder,textarea::placeholder{color:var(--text-faint); opacity:1;}
 button{cursor:pointer;}
 h1,h2,h3,p{margin:0;}
 .hidden{display:none !important;}
