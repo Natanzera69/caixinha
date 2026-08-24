@@ -19,6 +19,15 @@
   --radius:14px; --radius-sm:9px;
   --shadow:0 1px 2px rgba(20,24,40,.04),0 8px 24px -12px rgba(20,24,40,.12);
 }
+html.dark{
+  --bg:#12141c; --surface:#1b1f2b; --surface-2:#242a3b; --border:#333a52;
+  --text:#e8eaf2; --text-muted:#9aa1b8; --text-faint:#6b7280;
+  --primary:#6366f1; --primary-ink:#ffffff; --primary-soft:#252a4d;
+  --income:#22c55e; --income-soft:#12331f;
+  --expense:#f43f5e; --expense-soft:#3a1420;
+  --warning:#fbbf24; --warning-soft:#3a2c0c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
@@ -63,19 +72,13 @@ a{color:inherit;}
 /* ---------- App shell ---------- */
 #app{max-width:1080px; margin:0 auto; padding:0 14px;}
 .topbar{
-  position:sticky; top:0; z-index:50; background:var(--bg);
+  background:var(--bg);
   padding:14px 0 10px; display:flex; align-items:center; justify-content:space-between; gap:10px;
-  max-height:320px; overflow:hidden; transition:max-height .25s ease, padding .25s ease, opacity .2s ease;
-}
-body.header-collapsed .topbar{max-height:0; padding-top:0; padding-bottom:0; opacity:0; pointer-events:none;}
-@media(min-width:681px){
-  body.header-collapsed nav.tabs{position:sticky; top:0; z-index:55;}
 }
 .topbar .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:1.05rem;}
 .topbar .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--primary);}
 .topbar .brand img{width:min(60vw,460px); height:auto; display:block;}
 @media(max-width:680px){.topbar .brand img{width:min(80vw,380px);}}
-.topbar .actions{display:flex; gap:8px;}
 .icon-btn{
   width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
   display:flex; align-items:center; justify-content:center; font-size:1rem;
@@ -84,14 +87,13 @@ body.header-collapsed .topbar{max-height:0; padding-top:0; padding-bottom:0; opa
 nav.tabs{
   display:flex; gap:4px; background:var(--surface); border:1px solid var(--border);
   border-radius:12px; padding:4px; margin-bottom:16px; overflow-x:auto;
+  position:sticky; top:0; z-index:55;
 }
 nav.tabs button{
   flex:1; white-space:nowrap; border:none; background:transparent; padding:9px 10px;
   border-radius:9px; font-weight:600; font-size:.82rem; color:var(--text-muted);
 }
 nav.tabs button.active{background:var(--primary); color:var(--primary-ink);}
-.tab-config-btn{display:none;}
-body.header-collapsed .tab-config-btn{display:flex;}
 
 section.tab{display:none;}
 section.tab.active{display:block; animation:fade .15s ease;}
@@ -196,8 +198,6 @@ section.tab.active{display:block; animation:fade .15s ease;}
   }
   nav.tabs button{font-size:.66rem; padding:8px 4px; display:flex; flex-direction:column; gap:2px;}
   nav.tabs button .ico{font-size:1.05rem;}
-  .tab-config-btn{display:flex;}
-  .topbar .actions{display:none;}
   #app{padding:0 10px;}
 }
 .ico{display:none;}
@@ -257,9 +257,6 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
 <div id="app" class="hidden">
   <div class="topbar">
     <div class="brand"><img src="icones/logo-web.png" alt="Caixinha"></div>
-    <div class="actions">
-      <button class="icon-btn" title="Config" onclick="switchTab('config')">⚙️</button>
-    </div>
   </div>
 
   <nav class="tabs">
@@ -268,7 +265,7 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
     <button data-tab="contas" onclick="switchTab('contas')"><span class="ico">🏦</span>Contas</button>
     <button data-tab="parcelamentos" onclick="switchTab('parcelamentos')"><span class="ico">📆</span>Fixos</button>
     <button data-tab="investimentos" onclick="switchTab('investimentos')"><span class="ico">📈</span>Invest.</button>
-    <button data-tab="config" class="tab-config-btn" onclick="switchTab('config')"><span class="ico">⚙️</span>Config</button>
+    <button data-tab="config" onclick="switchTab('config')"><span class="ico">⚙️</span>Config</button>
   </nav>
 
   <main>
@@ -362,6 +359,13 @@ function carregarEstado(){
   state.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
   if(!state.config) state.config={pinHash:null};
 }
+function aplicarTema(){
+  document.documentElement.classList.toggle('dark', !!state.config.temaEscuro);
+}
+function definirTema(escuro){
+  state.config.temaEscuro=escuro;
+  salvarEstado(); aplicarTema(); renderConfig();
+}
 // Exclusão registra um "tombstone" (marcador de excluído) em vez de só sumir do array —
 // sem isso, sincronizar com outro aparelho traria o registro apagado de volta (merge só sabe unir, não apagar).
 function excluirRegistro(chave,id){
@@ -417,16 +421,6 @@ function bloquearApp(){
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden && state?.config?.pinHash) bloquearApp();
 });
-
-/* ================= Header retrátil ao rolar ================= */
-let headerColapsado=false;
-window.addEventListener('scroll',()=>{
-  const deveColapsar=window.scrollY>24;
-  if(deveColapsar!==headerColapsado){
-    headerColapsado=deveColapsar;
-    document.body.classList.toggle('header-collapsed',deveColapsar);
-  }
-},{passive:true});
 
 /* ================= Navegação ================= */
 let abaAtual='dashboard';
@@ -1496,6 +1490,14 @@ function renderConfig(){
   const el=document.getElementById('tab-config');
   const suportaFS = 'showSaveFilePicker' in window;
   el.innerHTML=`
+    <div class="section-title" style="margin-top:0"><h2>Aparência</h2></div>
+    <div class="card">
+      <div class="seg">
+        <button type="button" onclick="definirTema(false)" class="${!state.config.temaEscuro?'active':''}">☀️ Claro</button>
+        <button type="button" onclick="definirTema(true)" class="${state.config.temaEscuro?'active':''}">🌙 Escuro</button>
+      </div>
+    </div>
+
     <div class="section-title"><h2>Sincronização</h2></div>
     <div class="card">
       <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
@@ -1631,7 +1633,7 @@ function importarBackup(file){
       const incoming=JSON.parse(reader.result);
       mesclarEstado(incoming);
       gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
-      salvarEstado(); renderTudo();
+      salvarEstado(); aplicarTema(); renderTudo();
       toast('Backup importado e mesclado com sucesso.');
     }catch(e){ alert('Arquivo inválido.'); }
   };
@@ -1683,6 +1685,7 @@ function mostrarAppLogado(){
 }
 function init(){
   carregarEstado();
+  aplicarTema();
   gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
 }
 init();
@@ -1743,6 +1746,7 @@ async function iniciarSincronizacao(user){
       }
       gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
       salvarEstado();
+      aplicarTema();
     }
   }catch(e){ /* offline no primeiro acesso — segue só com o que já está local */ }
   estadoEraNovo=false;
@@ -1754,6 +1758,7 @@ async function iniciarSincronizacao(user){
     mesclarEstado(snap.data());
     gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
     salvarEstado();
+    aplicarTema();
     renderTudo();
     fbAplicandoRemoto=false;
   });

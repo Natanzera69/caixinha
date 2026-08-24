@@ -53,6 +53,7 @@ Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...
 
 ## `config`
 - `pinHash` (string ou null) — hash SHA-256 (ou fallback) do PIN de acesso; ver [01-arquitetura.md](01-arquitetura.md)
+- `temaEscuro` (boolean, default false) — modo escuro, alternado em Config → Aparência. Ao contrário do PIN, sincroniza normalmente entre aparelhos (via backup e Firestore). Aplicado via `aplicarTema()`, que só troca a classe `dark` no `<html>` — todas as cores do app usam variáveis CSS (`--bg`, `--surface`, etc.) redefinidas em `html.dark{...}`.
 
 ## Cálculos globais (não armazenados, sempre derivados)
 - `saldoConta(id)`, `saldoTotalContas()`, `faturaAtualCartao(id)`, `divendaTotalCartao(id)`, `totalDividaCartoes()`, `totalInvestimentos()`, `patrimonioLiquido()` = contas + investimentos − dívida em cartões
