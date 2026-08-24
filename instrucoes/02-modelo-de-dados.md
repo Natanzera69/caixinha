@@ -40,9 +40,11 @@ Empréstimos/financiamentos de longo prazo (carro, casa...). Ao contrário de pa
 - Clicar "Marcar parcela paga" incrementa `parcelasPagas` **e** cria uma `transacao` de despesa avulsa (categoria "Taxas & Juros", método débito na `contaId` do financiamento)
 
 ## `recorrencias[]`
-Receitas/despesas fixas mensais (salário, aluguel, telefone...) — template gerenciado na aba Fixos.
+Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...) — template gerenciado na aba Fixos.
 - `descricao`, `valor`, `diaDoMes` (1-31, ajustado pro último dia do mês quando não existe, ex: dia 31 em fevereiro), `tipo` (`receita`|`despesa`), `categoriaId`, `metodoPagamento`, `contaId`/`cartaoId`, `ativo` (pausável sem excluir)
-- `mesesGerados[]` — lista de `"YYYY-MM"` já materializados como `transacao` real; evita duplicar o lançamento do mesmo mês
+- `intervaloMeses` (número, default 1) — de quantos em quantos meses repete: `1`=mensal, `3`=a cada 3 meses, `12`=anual (IPVA etc.). Recorrências antigas sem esse campo são migradas pra `1` no `carregarEstado()`.
+- `mesInicio` (`"YYYY-MM"`, só quando `intervaloMeses>1`) — mês âncora a partir do qual a contagem começa; `recorrenciaDevidaNoMes()` calcula se um mês é "vez de gerar" comparando a distância em meses até essa âncora, módulo `intervaloMeses`.
+- `mesesGerados[]` — lista de `"YYYY-MM"` já materializados como `transacao` real; evita duplicar o lançamento do mesmo mês (só entra nessa lista quando o mês era mesmo "devido")
 - Ver "Como funciona" em [01-arquitetura.md](01-arquitetura.md)
 
 ## `investimentos[]`

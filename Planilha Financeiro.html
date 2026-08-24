@@ -351,6 +351,7 @@ function carregarEstado(){
   }catch(e){ state=estadoInicial(); estadoEraNovo=true; }
   if(!state.financiamentos) state.financiamentos=[];
   if(!state.recorrencias) state.recorrencias=[];
+  state.recorrencias.forEach(r=>{ if(!r.intervaloMeses) r.intervaloMeses=1; });
   if(!state._tombstones) state._tombstones={};
   state.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
   if(!state.config) state.config={pinHash:null};
@@ -520,6 +521,22 @@ function rangeDoMes(ano,mesIdx){
 }
 
 /* ================= Recorrências (receitas/despesas fixas) ================= */
+// intervaloMeses=1 é mensal (padrão); 3 = a cada 3 meses (ex: revisão); 12 = anual (ex: IPVA).
+// mesInicio (YYYY-MM) é a âncora: o mês em que a repetição começa a contar.
+function descricaoFrequenciaRecorrencia(r){
+  const intervalo=r.intervaloMeses||1;
+  if(intervalo===1) return `Todo dia ${r.diaDoMes}`;
+  if(intervalo===12) return `Todo ano, dia ${r.diaDoMes}`;
+  return `A cada ${intervalo} meses, dia ${r.diaDoMes}`;
+}
+function recorrenciaDevidaNoMes(r,ano,mesIdx){
+  const intervalo=r.intervaloMeses||1;
+  if(intervalo<=1) return true;
+  if(!r.mesInicio) return true;
+  const [ai,mi]=r.mesInicio.split('-').map(Number);
+  const diff=(ano*12+mesIdx)-(ai*12+(mi-1));
+  return diff>=0 && diff%intervalo===0;
+}
 function gerarTransacoesRecorrentesDoMes(ano,mesIdx){
   const anoMes=anoMesStr(ano,mesIdx);
   const hoje=todayStr();
@@ -527,6 +544,7 @@ function gerarTransacoesRecorrentesDoMes(ano,mesIdx){
   (state.recorrencias||[]).forEach(r=>{
     if(r.ativo===false) return;
     if((r.mesesGerados||[]).includes(anoMes)) return;
+    if(!recorrenciaDevidaNoMes(r,ano,mesIdx)) return;
     const dia=Math.min(r.diaDoMes||1, ultimoDiaDoMes(ano,mesIdx));
     const data=`${anoMes}-${pad2(dia)}`;
     state.transacoes.push(tocar({id:uuid(),descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
@@ -546,7 +564,7 @@ function transacoesEfetivasDoMes(ano,mesIdx){
   const anoMesAtual=anoMesStr(new Date().getFullYear(),new Date().getMonth());
   if(anoMes<anoMesAtual) return reais;
   const idsComReal=new Set(reais.filter(t=>t.recorrenciaId).map(t=>t.recorrenciaId));
-  const virtuais=(state.recorrencias||[]).filter(r=>r.ativo!==false && !idsComReal.has(r.id) && !(r.mesesGerados||[]).includes(anoMes)).map(r=>{
+  const virtuais=(state.recorrencias||[]).filter(r=>r.ativo!==false && !idsComReal.has(r.id) && !(r.mesesGerados||[]).includes(anoMes) && recorrenciaDevidaNoMes(r,ano,mesIdx)).map(r=>{
     const dia=Math.min(r.diaDoMes||1, ultimoDiaDoMes(ano,mesIdx));
     const data=`${anoMes}-${pad2(dia)}`;
     return {id:'virtual_'+r.id+'_'+anoMes,descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
@@ -1147,7 +1165,7 @@ function renderParcelamentos(){
 
   el.innerHTML=`
     <div class="section-title" style="margin-top:0"><h2>Receitas & despesas fixas</h2><button class="btn btn-primary btn-sm" onclick="abrirFormRecorrencia()">+ Novo</button></div>
-    <p class="hint" style="margin:-6px 0 10px">Coisas que se repetem todo mês com o mesmo valor: salário, aluguel, telefone, streaming... Elas viram lançamento sozinhas assim que o mês começa.</p>
+    <p class="hint" style="margin:-6px 0 10px">Coisas que se repetem com o mesmo valor — todo mês (salário, aluguel), a cada alguns meses (revisão do carro) ou todo ano (IPVA). Elas viram lançamento sozinhas quando chega o mês certo.</p>
     <div class="list">${(state.recorrencias&&state.recorrencias.length)? state.recorrencias.map(r=>{
       const cat=categoriaById(r.categoriaId);
       const local = r.metodoPagamento==='credito'? cartaoById(r.cartaoId)?.nome : contaById(r.contaId)?.nome;
@@ -1156,7 +1174,7 @@ function renderParcelamentos(){
         <div class="row-icon">${cat?cat.icone:'🔁'}</div>
         <div class="row-main">
           <div class="t1">${escapeHtml(r.descricao)}${pausado?' <span class="badge pendente">pausado</span>':''}</div>
-          <div class="t2">Todo dia ${r.diaDoMes} · ${metodoInfo(r.metodoPagamento).nome}${local?' · '+escapeHtml(local):''}</div>
+          <div class="t2">${descricaoFrequenciaRecorrencia(r)} · ${metodoInfo(r.metodoPagamento).nome}${local?' · '+escapeHtml(local):''}</div>
         </div>
         <div class="row-value ${r.tipo==='receita'?'income':'expense'}">${r.tipo==='receita'?'+':'-'}${fmtMoney(r.valor)}</div>
         <div class="row-actions">
@@ -1228,6 +1246,21 @@ function abrirFormRecorrencia(id){
         <div class="field"><label>Valor (R$)</label><input required type="number" step="0.01" min="0" name="valor" value="${r?r.valor:''}"></div>
         <div class="field"><label>Todo dia</label><input required type="number" min="1" max="31" name="diaDoMes" value="${r?r.diaDoMes:'5'}"></div>
       </div>
+      <div class="row2">
+        <div class="field"><label>Repete</label>
+          <select name="intervaloMeses" id="selIntervaloRec">
+            <option value="1" ${(!r||r.intervaloMeses===1)?'selected':''}>Todo mês</option>
+            <option value="2" ${r&&r.intervaloMeses===2?'selected':''}>A cada 2 meses</option>
+            <option value="3" ${r&&r.intervaloMeses===3?'selected':''}>A cada 3 meses</option>
+            <option value="4" ${r&&r.intervaloMeses===4?'selected':''}>A cada 4 meses</option>
+            <option value="6" ${r&&r.intervaloMeses===6?'selected':''}>A cada 6 meses</option>
+            <option value="12" ${r&&r.intervaloMeses===12?'selected':''}>Todo ano</option>
+          </select>
+        </div>
+        <div class="field ${(!r||r.intervaloMeses===1)?'hidden':''}" id="campoMesInicioRec"><label>A partir de</label>
+          <input type="month" name="mesInicio" value="${r&&r.mesInicio?r.mesInicio:anoMesStr(new Date().getFullYear(),new Date().getMonth())}">
+        </div>
+      </div>
       <div class="field"><label>Categoria</label>
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo).map(c=>`<option value="${c.id}" ${r&&r.categoriaId===c.id?'selected':''}>${c.icone} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
@@ -1271,6 +1304,9 @@ function abrirFormRecorrencia(id){
   }
   form.metodoPagamento.addEventListener('change',metodoMudou);
   metodoMudou();
+  form.intervaloMeses.addEventListener('change',()=>{
+    document.getElementById('campoMesInicioRec').classList.toggle('hidden', form.intervaloMeses.value==='1');
+  });
 
   form.addEventListener('submit',e=>{
     e.preventDefault();
@@ -1283,10 +1319,13 @@ function abrirFormRecorrencia(id){
       return;
     }
     const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
+    const intervaloMeses=parseInt(fd.get('intervaloMeses'))||1;
     const dados={
       descricao:fd.get('descricao').trim(),
       valor:round2(parseFloat(fd.get('valor'))),
       diaDoMes:Math.min(31,Math.max(1,parseInt(fd.get('diaDoMes')))),
+      intervaloMeses,
+      mesInicio: intervaloMeses>1 ? fd.get('mesInicio') : null,
       tipo:tipoSel,
       categoriaId:fd.get('categoriaId'),
       metodoPagamento:metodo,
