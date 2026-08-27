@@ -260,6 +260,7 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
 <div id="app" class="hidden">
   <div class="topbar">
     <div class="brand"><img src="icones/logo-web.png" alt="Caixinha"></div>
+    <div id="seletorPerfil"></div>
   </div>
 
   <nav class="tabs">
@@ -318,8 +319,10 @@ function toast(msg){
 const PALETA=['#4f46e5','#16a34a','#e11d48','#f59e0b','#0891b2','#9333ea','#db2777','#65a30d','#0284c7','#ea580c','#475569','#7c3aed'];
 
 /* ================= Estado / Storage ================= */
-const STORAGE_KEY='planilhaFinanceiro_v1';
+function storageKey(perfil){ return perfil==='pj' ? 'planilhaFinanceiro_v1_pj' : 'planilhaFinanceiro_v1'; }
 let state=null;
+let perfilAtivo='pessoal';
+const estados={pessoal:null, pj:null}; // os dois perfis ficam em memória o tempo todo, sincronizando em paralelo
 
 function categoriasDefault(){
   const desp=[['Alimentação','🍔'],['Mercado','🛒'],['Transporte','🚗'],['Moradia','🏠'],
@@ -328,6 +331,15 @@ function categoriasDefault(){
     ['Viagem','✈️'],['Presentes & Doações','🎁'],['Taxas & Juros','🏦'],['Outros','📦']];
   const rec=[['Salário','💼'],['Freelance','💻'],['Rendimentos','📈'],['Presente Recebido','🎉'],
     ['Reembolso','↩️'],['Outros (receita)','💰']];
+  let i=0; const out=[];
+  desp.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'despesa',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
+  rec.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'receita',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
+  return out;
+}
+function categoriasDefaultPJ(){
+  const desp=[['Impostos (DAS)','🧾'],['Pró-labore','💸'],['Contador','📋'],['Fornecedores','📦'],
+    ['Ferramentas & Softwares','💻'],['Marketing','📣'],['Taxas Bancárias','🏦'],['Outros (PJ)','📎']];
+  const rec=[['Nota Fiscal Emitida','🧾'],['Vendas & Serviços','💰'],['Outros (receita PJ)','💰']];
   let i=0; const out=[];
   desp.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'despesa',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
   rec.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'receita',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
@@ -345,22 +357,63 @@ function estadoInicial(){
     financiamentos:[],
     investimentos:[],
     recorrencias:[],
-    config:{pinHash:null},
+    config:{pinHash:null,onboardingConcluido:false},
     _tombstones:{}
   };
 }
+function estadoInicialPJ(nomeEmpresa){
+  return {
+    version:1,
+    empresaNome:nomeEmpresa||'',
+    contas:[],
+    cartoes:[],
+    categorias:categoriasDefaultPJ(),
+    transacoes:[],
+    financiamentos:[],
+    investimentos:[],
+    recorrencias:[],
+    config:{pinHash:null,onboardingConcluido:true},
+    _tombstones:{}
+  };
+}
+function estadoVazio(){
+  return {version:1,contas:[],cartoes:[],categorias:[],transacoes:[],financiamentos:[],investimentos:[],recorrencias:[],config:{pinHash:null},_tombstones:{}};
+}
+function normalizarEstado(alvo){
+  if(!alvo.financiamentos) alvo.financiamentos=[];
+  if(!alvo.recorrencias) alvo.recorrencias=[];
+  alvo.recorrencias.forEach(r=>{ if(!r.intervaloMeses) r.intervaloMeses=1; });
+  if(!alvo._tombstones) alvo._tombstones={};
+  alvo.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
+  if(!alvo.config) alvo.config={pinHash:null};
+  if(alvo.config.onboardingConcluido===undefined){
+    // usuário de antes desse recurso existir: se já tem dado de verdade, não é "primeira vez"
+    alvo.config.onboardingConcluido = alvo.transacoes.length>0 || alvo.contas.length>1 || alvo.recorrencias.length>0 || alvo.cartoes.length>0;
+  }
+  return alvo;
+}
 let estadoEraNovo=false;
-function carregarEstado(){
+function carregarPerfilLocal(perfil){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw) state=JSON.parse(raw); else { state=estadoInicial(); estadoEraNovo=true; }
-  }catch(e){ state=estadoInicial(); estadoEraNovo=true; }
-  if(!state.financiamentos) state.financiamentos=[];
-  if(!state.recorrencias) state.recorrencias=[];
-  state.recorrencias.forEach(r=>{ if(!r.intervaloMeses) r.intervaloMeses=1; });
-  if(!state._tombstones) state._tombstones={};
-  state.cartoes.forEach(c=>{ if(!c.tipo) c.tipo='credito'; });
-  if(!state.config) state.config={pinHash:null};
+    const raw=localStorage.getItem(storageKey(perfil));
+    if(raw) return normalizarEstado(JSON.parse(raw));
+  }catch(e){ /* segue pro fallback abaixo */ }
+  return null;
+}
+function carregarEstado(){
+  estados.pessoal=carregarPerfilLocal('pessoal');
+  if(!estados.pessoal){ estados.pessoal=estadoInicial(); estadoEraNovo=true; }
+  estados.pj=carregarPerfilLocal('pj'); // fica null se o usuário nunca criou perfil PJ
+  perfilAtivo = (localStorage.getItem('planilhaFinanceiro_perfilAtivo')==='pj' && estados.pj) ? 'pj' : 'pessoal';
+  state=estados[perfilAtivo];
+}
+function trocarPerfil(perfil){
+  if(perfil==='pj' && !estados.pj) return;
+  perfilAtivo=perfil;
+  localStorage.setItem('planilhaFinanceiro_perfilAtivo',perfil);
+  state=estados[perfil];
+  aplicarTema();
+  renderTudo();
 }
 function aplicarTema(){
   document.documentElement.classList.toggle('dark', !!state.config.temaEscuro);
@@ -381,7 +434,7 @@ function excluirRegistro(chave,id){
 }
 function salvarEstado(){
   try{
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    localStorage.setItem(storageKey(perfilAtivo),JSON.stringify(state));
   }catch(e){
     alert('Não foi possível salvar os dados neste navegador (armazenamento local indisponível ou cheio). Faça um backup manual pelo botão "Fazer backup" para não perder nada.');
   }
@@ -409,6 +462,7 @@ async function tentarDesbloquear(){
     document.getElementById('app').classList.remove('hidden');
     input.value='';
     document.getElementById('lockError').textContent='';
+    possivelmenteAbrirWizard();
   }else{
     document.getElementById('lockError').textContent='PIN incorreto.';
   }
@@ -424,6 +478,217 @@ function bloquearApp(){
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden && state?.config?.pinHash) bloquearApp();
 });
+
+/* ================= Onboarding (primeiro login) =================
+   Cada resposta grava direto nas entidades que já existem (contas,
+   categorias, recorrências, config) — nada de tabela nova só pro wizard.
+   Tudo dá pra editar depois normalmente em Config/Contas/Fixos. */
+let wizardOrigemConfig=false;
+function possivelmenteAbrirWizard(){
+  if(state.config.onboardingConcluido) return;
+  wizardOrigemConfig=false;
+  abrirModal();
+  abrirWizardBoasVindas();
+}
+function finalizarWizard(){
+  state.config.onboardingConcluido=true;
+  salvarEstado();
+  fecharModal();
+  renderTudo();
+  toast('Tudo pronto! Pode ajustar qualquer coisa em Config.');
+}
+function abrirWizardBoasVindas(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Vamos deixar o Caixinha do seu jeito?</h2>
+    <p class="hint">Leva menos de um minuto — e dá pra mudar tudo depois em Config.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="finalizarWizard()">Pular tudo</button>
+      <button class="btn btn-primary" onclick="abrirWizardContaPrincipal()">Continuar</button>
+    </div>`;
+}
+function abrirWizardContaPrincipal(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Qual sua conta principal?</h2>
+    <p class="hint">Vamos usar esse nome no lugar de "Carteira".</p>
+    <div class="field"><label>Nome do banco/carteira</label><input id="wizContaNome" placeholder="Ex: Nubank, Itaú, Carteira..."></div>
+    <div class="field"><label>Tipo</label>
+      <select id="wizContaTipo">
+        <option value="corrente">Conta corrente</option>
+        <option value="poupanca">Poupança</option>
+        <option value="dinheiro">Dinheiro</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="finalizarWizard()">Pular tudo</button>
+      <button class="btn btn-primary" onclick="wizardSalvarConta()">Continuar</button>
+    </div>`;
+}
+function wizardSalvarConta(){
+  const nome=document.getElementById('wizContaNome').value.trim();
+  const contaSeed=state.contas[0];
+  if(nome && contaSeed && contaSeed.nome==='Carteira'){
+    contaSeed.nome=nome;
+    contaSeed.tipo=document.getElementById('wizContaTipo').value;
+    tocar(contaSeed);
+  }
+  salvarEstado();
+  abrirWizardDiaRecebimento();
+}
+function abrirWizardDiaRecebimento(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Tem um dia fixo que você recebe?</h2>
+    <p class="hint">Salário, pró-labore, renda principal... isso já deixa o mês pronto sozinho em Fixos.</p>
+    <div class="seg" id="segRecebe">
+      <button type="button" data-v="sim" class="active">Sim</button>
+      <button type="button" data-v="nao">Não</button>
+    </div>
+    <div class="row2 mt16" id="camposRecebeDia">
+      <div class="field"><label>Todo dia</label><input id="wizDiaReceb" type="number" min="1" max="31" value="5"></div>
+      <div class="field"><label>Valor (opcional)</label><input id="wizValorReceb" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="finalizarWizard()">Pular tudo</button>
+      <button class="btn btn-primary" onclick="wizardSalvarRecebimento()">Continuar</button>
+    </div>`;
+  document.querySelectorAll('#segRecebe button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#segRecebe button').forEach(x=>x.classList.toggle('active',x===b));
+    document.getElementById('camposRecebeDia').classList.toggle('hidden', b.dataset.v==='nao');
+  }));
+}
+function wizardSalvarRecebimento(){
+  const sim=document.querySelector('#segRecebe button.active').dataset.v==='sim';
+  if(sim){
+    const dia=Math.min(31,Math.max(1,parseInt(document.getElementById('wizDiaReceb').value)||5));
+    const valor=round2(parseFloat(document.getElementById('wizValorReceb').value))||0;
+    const catReceita=state.categorias.find(c=>c.tipo==='receita' && c.nome==='Salário')||state.categorias.find(c=>c.tipo==='receita');
+    state.recorrencias.push(tocar({id:uuid(),descricao:'Salário',valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
+      tipo:'receita',categoriaId:catReceita.id,metodoPagamento:'transferencia',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
+    salvarEstado();
+    gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+  }
+  abrirWizardContasFixas();
+}
+let wizContasFixasTemp=[];
+function abrirWizardContasFixas(){
+  wizContasFixasTemp=[{desc:'',valor:'',dia:'10'}];
+  renderWizardContasFixas();
+}
+function renderWizardContasFixas(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Quer já cadastrar contas fixas?</h2>
+    <p class="hint">Aluguel, internet, streaming... até 3 de uma vez (dá pra adicionar mais depois em Fixos). Pode deixar em branco e pular.</p>
+    <div id="wizContasFixasLista">${wizContasFixasTemp.map((c,i)=>`
+      <div class="field"><label>Descrição ${i+1}</label><input data-i="${i}" data-campo="desc" value="${escapeHtml(c.desc)}" placeholder="Ex: Aluguel"></div>
+      <div class="row2 mt16" style="margin-bottom:8px">
+        <div class="field"><label>Valor</label><input data-i="${i}" data-campo="valor" type="number" step="0.01" min="0" value="${c.valor}"></div>
+        <div class="field"><label>Todo dia</label><input data-i="${i}" data-campo="dia" type="number" min="1" max="31" value="${c.dia}"></div>
+      </div>`).join('')}
+    </div>
+    ${wizContasFixasTemp.length<3?'<button type="button" class="btn btn-sm" onclick="wizAdicionarLinhaContaFixa()">+ Adicionar outra</button>':''}
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="finalizarWizard()">Pular tudo</button>
+      <button class="btn btn-primary" onclick="wizardSalvarContasFixas()">Continuar</button>
+    </div>`;
+  document.querySelectorAll('#wizContasFixasLista input').forEach(inp=>{
+    inp.addEventListener('input',()=>{ wizContasFixasTemp[inp.dataset.i][inp.dataset.campo]=inp.value; });
+  });
+}
+function wizAdicionarLinhaContaFixa(){
+  wizContasFixasTemp.push({desc:'',valor:'',dia:'10'});
+  renderWizardContasFixas();
+}
+function wizardSalvarContasFixas(){
+  const catDespesa=state.categorias.find(c=>c.tipo==='despesa');
+  wizContasFixasTemp.forEach(c=>{
+    const desc=(c.desc||'').trim(); const valor=round2(parseFloat(c.valor));
+    if(!desc || !valor) return;
+    const dia=Math.min(31,Math.max(1,parseInt(c.dia)||10));
+    state.recorrencias.push(tocar({id:uuid(),descricao:desc,valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
+      tipo:'despesa',categoriaId:catDespesa.id,metodoPagamento:'pix',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
+  });
+  salvarEstado();
+  gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+  abrirWizardEmpresa();
+}
+function abrirCriarPerfilPJ(){
+  wizardOrigemConfig=true;
+  abrirModal();
+  abrirWizardEmpresa();
+}
+function abrirWizardEmpresa(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Você também tem uma empresa?</h2>
+    <p class="hint">MEI ou outro tipo — se quiser, controlamos ela separada da sua parte pessoal, com categorias próprias (DAS, pró-labore, notas emitidas...), trocável a qualquer momento pelo seletor no topo.</p>
+    <div class="seg" id="segTemPJ">
+      <button type="button" data-v="nao" class="active">Não</button>
+      <button type="button" data-v="sim">Sim</button>
+    </div>
+    <div class="hidden" id="camposPJ" style="margin-top:16px">
+      <div class="field"><label>Nome da empresa</label><input id="wizNomeEmpresa" placeholder="Ex: Minha Empresa LTDA"></div>
+      <div class="row2">
+        <div class="field"><label>Dia do DAS (opcional)</label><input id="wizDiaDAS" type="number" min="1" max="28" placeholder="Ex: 20"></div>
+        <div class="field"><label>Dia do pró-labore (opcional)</label><input id="wizDiaProlabore" type="number" min="1" max="31" placeholder="Ex: 5"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="${wizardOrigemConfig?'fecharModal()':'finalizarWizard()'}">${wizardOrigemConfig?'Cancelar':'Pular tudo'}</button>
+      <button class="btn btn-primary" onclick="wizardSalvarEmpresa()">${wizardOrigemConfig?'Criar':'Continuar'}</button>
+    </div>`;
+  document.querySelectorAll('#segTemPJ button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('#segTemPJ button').forEach(x=>x.classList.toggle('active',x===b));
+    document.getElementById('camposPJ').classList.toggle('hidden', b.dataset.v==='nao');
+  }));
+}
+function wizardSalvarEmpresa(){
+  const sim=document.querySelector('#segTemPJ button.active').dataset.v==='sim';
+  if(sim){
+    const nome=document.getElementById('wizNomeEmpresa').value.trim()||'Minha Empresa';
+    estados.pj=estadoInicialPJ(nome);
+    const diaDAS=parseInt(document.getElementById('wizDiaDAS').value);
+    if(diaDAS>=1 && diaDAS<=28){
+      const catDAS=estados.pj.categorias.find(c=>c.nome==='Impostos (DAS)');
+      estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'DAS',valor:0,diaDoMes:diaDAS,intervaloMeses:1,mesInicio:null,
+        tipo:'despesa',categoriaId:catDAS.id,metodoPagamento:'boleto',contaId:null,cartaoId:null,ativo:true,mesesGerados:[]}));
+    }
+    const diaPro=parseInt(document.getElementById('wizDiaProlabore').value);
+    if(diaPro>=1 && diaPro<=31){
+      const catPro=estados.pj.categorias.find(c=>c.nome==='Pró-labore');
+      estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'Pró-labore',valor:0,diaDoMes:diaPro,intervaloMeses:1,mesInicio:null,
+        tipo:'despesa',categoriaId:catPro.id,metodoPagamento:'boleto',contaId:null,cartaoId:null,ativo:true,mesesGerados:[]}));
+    }
+    salvarPerfilLocal('pj');
+    if(window.fbUid){
+      const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj'));
+      window.fbSetDoc(ref, {...estados.pj, config:{...estados.pj.config, pinHash:null}}).catch(()=>{});
+    }
+    renderSeletorPerfil();
+    toast('Perfil PJ criado! Troque pra ele no seletor do topo quando quiser.');
+  }
+  if(wizardOrigemConfig){ wizardOrigemConfig=false; fecharModal(); renderConfig(); }
+  else{ abrirWizardPin(); }
+}
+function abrirWizardPin(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Quer definir um PIN de acesso?</h2>
+    <p class="hint">Pede esse PIN toda vez que o app abrir. Dá pra configurar (ou remover) depois também, em Config.</p>
+    <div class="row2">
+      <div class="field"><label>PIN (mín. 4 dígitos)</label><input id="wizPin1" type="password" inputmode="numeric" maxlength="8"></div>
+      <div class="field"><label>Confirmar</label><input id="wizPin2" type="password" inputmode="numeric" maxlength="8"></div>
+    </div>
+    <div id="wizPinErro" style="color:var(--expense); font-size:.85rem; min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="finalizarWizard()">Concluir sem PIN</button>
+      <button class="btn btn-primary" onclick="wizardSalvarPin()">Concluir</button>
+    </div>`;
+}
+async function wizardSalvarPin(){
+  const a=document.getElementById('wizPin1').value, b=document.getElementById('wizPin2').value;
+  if(!a){ finalizarWizard(); return; }
+  if(a.length<4){ document.getElementById('wizPinErro').textContent='Use pelo menos 4 dígitos.'; return; }
+  if(a!==b){ document.getElementById('wizPinErro').textContent='Os PINs não coincidem.'; return; }
+  state.config.pinHash=await hashTexto(a);
+  finalizarWizard();
+}
 
 /* ================= Navegação ================= */
 let abaAtual='dashboard';
@@ -441,7 +706,17 @@ function renderAba(nome){
   else if(nome==='investimentos') renderInvestimentos();
   else if(nome==='config') renderConfig();
 }
-function renderTudo(){ renderAba(abaAtual); }
+function renderTudo(){ renderAba(abaAtual); renderSeletorPerfil(); }
+function renderSeletorPerfil(){
+  const el=document.getElementById('seletorPerfil');
+  if(!el) return;
+  if(!estados.pj){ el.innerHTML=''; return; }
+  el.innerHTML=`
+    <div class="seg">
+      <button type="button" onclick="trocarPerfil('pessoal')" class="${perfilAtivo==='pessoal'?'active':''}">🏠 Pessoal</button>
+      <button type="button" onclick="trocarPerfil('pj')" class="${perfilAtivo==='pj'?'active':''}">🏢 ${escapeHtml(estados.pj.empresaNome||'PJ')}</button>
+    </div>`;
+}
 
 /* ================= Helpers de domínio ================= */
 function contaById(id){ return state.contas.find(c=>c.id===id); }
@@ -1513,6 +1788,18 @@ function renderConfig(){
       </div>
     </div>
 
+    <div class="section-title"><h2>Perfis</h2></div>
+    <div class="card">
+      ${estados.pj?`
+        <p class="hint">Perfil ativo: <b>${perfilAtivo==='pj'?('🏢 '+escapeHtml(estados.pj.empresaNome||'PJ')):'🏠 Pessoal'}</b>. Troque pelo seletor no topo da tela, ou aqui:</p>
+        <div class="seg mt16">
+          <button type="button" onclick="trocarPerfil('pessoal')" class="${perfilAtivo==='pessoal'?'active':''}">🏠 Pessoal</button>
+          <button type="button" onclick="trocarPerfil('pj')" class="${perfilAtivo==='pj'?'active':''}">🏢 ${escapeHtml(estados.pj.empresaNome||'PJ')}</button>
+        </div>`:`
+        <p class="hint">Tem uma empresa (MEI ou outro tipo) e quer controlar as finanças dela separadas, com categorias próprias (DAS, pró-labore, notas emitidas)?</p>
+        <button class="btn btn-primary mt16" onclick="abrirCriarPerfilPJ()">+ Criar perfil PJ</button>`}
+    </div>
+
     <div class="section-title"><h2>Sincronização</h2></div>
     <div class="card">
       <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
@@ -1655,22 +1942,22 @@ function importarBackup(file){
   reader.readAsText(file);
   document.getElementById('inputImportar').value='';
 }
-function mesclarEstado(incoming){
-  if(!state._tombstones) state._tombstones={};
+function mesclarEstadoEm(alvo,incoming){
+  if(!alvo._tombstones) alvo._tombstones={};
   const tumbasIncoming=incoming._tombstones||{};
 
   CHAVES_SINCRONIZAVEIS.forEach(chave=>{
     // 1) mescla os tombstones (mantém o mais recente por id)
     const tumbaPorId={};
-    (state._tombstones[chave]||[]).forEach(t=>tumbaPorId[t.id]=t);
+    (alvo._tombstones[chave]||[]).forEach(t=>tumbaPorId[t.id]=t);
     (tumbasIncoming[chave]||[]).forEach(t=>{
       const atual=tumbaPorId[t.id];
       if(!atual || new Date(t.updatedAt) > new Date(atual.updatedAt)) tumbaPorId[t.id]=t;
     });
-    state._tombstones[chave]=Object.values(tumbaPorId);
+    alvo._tombstones[chave]=Object.values(tumbaPorId);
 
     // 2) mescla os registros normais, mas exclusão vence se for mais recente que a versão recebida
-    const local=state[chave]||[]; const vindos=incoming[chave]||[];
+    const local=alvo[chave]||[]; const vindos=incoming[chave]||[];
     const porId={}; local.forEach(r=>{ if(!tumbaPorId[r.id]) porId[r.id]=r; });
     vindos.forEach(r=>{
       const tumba=tumbaPorId[r.id];
@@ -1678,10 +1965,11 @@ function mesclarEstado(incoming){
       const atual=porId[r.id];
       if(!atual || new Date(r.updatedAt||0) > new Date(atual.updatedAt||0)) porId[r.id]=r;
     });
-    state[chave]=Object.values(porId);
+    alvo[chave]=Object.values(porId);
   });
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
 }
+function mesclarEstado(incoming){ mesclarEstadoEm(state,incoming); }
 
 /* ================= Modal genérico ================= */
 function abrirModal(){ document.getElementById('modalRoot').classList.remove('hidden'); }
@@ -1695,8 +1983,10 @@ function mostrarAppLogado(){
     document.getElementById('lockScreen').classList.remove('hidden');
   }else{
     document.getElementById('app').classList.remove('hidden');
+    possivelmenteAbrirWizard();
   }
   switchTab('dashboard');
+  renderSeletorPerfil();
 }
 function init(){
   carregarEstado();
@@ -1740,59 +2030,76 @@ async function fbSignup(){
   }
 }
 
-let fbUnsub=null;
-let fbSaveTimeout=null;
-let fbAplicandoRemoto=false;
+let fbUnsub={pessoal:null, pj:null};
+let fbSaveTimeout={pessoal:null, pj:null};
+let fbAplicandoRemoto={pessoal:false, pj:false};
 
-async function iniciarSincronizacao(user){
-  const ref=window.fbDoc(window.fbDb,'users',user.uid);
+function docIdDoPerfil(uid,perfil){ return perfil==='pj' ? uid+'_pj' : uid; }
+function salvarPerfilLocal(perfil){
+  try{ localStorage.setItem(storageKey(perfil), JSON.stringify(estados[perfil])); }catch(e){}
+}
+
+// Os dois perfis (Pessoal e PJ) sincronizam em paralelo o tempo todo, estejam ativos na tela
+// ou não — assim trocar de perfil é instantâneo (o dado já está em memória), sem esperar rede.
+async function iniciarSincronizacaoPerfil(uid,perfil){
+  const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(uid,perfil));
   try{
     const snap=await window.fbGetDoc(ref);
     if(snap.exists()){
-      if(estadoEraNovo){
-        // aparelho novo (nunca teve dado local) + já existe dado na nuvem: usa a nuvem direto,
-        // em vez de mesclar — evita duplicar a "Carteira"/categorias padrão criadas localmente à toa
-        state=snap.data();
-        if(!state.financiamentos) state.financiamentos=[];
-        if(!state.recorrencias) state.recorrencias=[];
-        if(!state.config) state.config={pinHash:null};
+      const eraNovo = perfil==='pessoal' ? estadoEraNovo : !estados.pj;
+      if(eraNovo){
+        // aparelho novo pra esse perfil (nunca teve dado local) + já existe dado na nuvem: usa a
+        // nuvem direto, em vez de mesclar — evita duplicar defaults criados localmente à toa
+        estados[perfil]=normalizarEstado(snap.data());
       }else{
-        mesclarEstado(snap.data());
+        mesclarEstadoEm(estados[perfil],snap.data());
       }
-      gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
-      salvarEstado();
-      aplicarTema();
+      if(perfil===perfilAtivo){
+        state=estados[perfil];
+        gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+        aplicarTema();
+      }
+      salvarPerfilLocal(perfil);
     }
   }catch(e){ /* offline no primeiro acesso — segue só com o que já está local */ }
-  estadoEraNovo=false;
 
-  if(fbUnsub) fbUnsub();
-  fbUnsub=window.fbOnSnapshot(ref, snap=>{
+  if(fbUnsub[perfil]) fbUnsub[perfil]();
+  fbUnsub[perfil]=window.fbOnSnapshot(ref, snap=>{
     if(!snap.exists()) return;
-    fbAplicandoRemoto=true;
-    mesclarEstado(snap.data());
-    gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
-    salvarEstado();
-    aplicarTema();
-    renderTudo();
-    fbAplicandoRemoto=false;
+    fbAplicandoRemoto[perfil]=true;
+    if(!estados[perfil]) estados[perfil]=estadoVazio(); // perfil PJ criado em outro aparelho chegando aqui pela 1ª vez
+    mesclarEstadoEm(estados[perfil],snap.data());
+    if(perfil===perfilAtivo){
+      state=estados[perfil];
+      gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
+      aplicarTema();
+      renderTudo();
+    }
+    salvarPerfilLocal(perfil);
+    renderSeletorPerfil();
+    fbAplicandoRemoto[perfil]=false;
   });
+}
 
+async function iniciarSincronizacao(user){
   window.fbUid=user.uid;
+  await Promise.all(['pessoal','pj'].map(perfil=>iniciarSincronizacaoPerfil(user.uid,perfil)));
+  estadoEraNovo=false;
 }
 
 function sincronizarComFirestore(){
-  if(!window.fbUid || fbAplicandoRemoto) return;
-  clearTimeout(fbSaveTimeout);
-  fbSaveTimeout=setTimeout(()=>{
-    const ref=window.fbDoc(window.fbDb,'users',window.fbUid);
+  const perfil=perfilAtivo;
+  if(!window.fbUid || fbAplicandoRemoto[perfil]) return;
+  clearTimeout(fbSaveTimeout[perfil]);
+  fbSaveTimeout[perfil]=setTimeout(()=>{
+    const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,perfil));
     const paraEnviar={...state, config:{...state.config, pinHash:null}};
     window.fbSetDoc(ref, paraEnviar).catch(()=>{ /* sem internet: fica só local, sincroniza quando voltar */ });
   },1500);
 }
 
 function fbLogout(){
-  if(fbUnsub){ fbUnsub(); fbUnsub=null; }
+  ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } });
   window.fbUid=null;
   window.fbSignOutFn(window.fbAuth);
 }
