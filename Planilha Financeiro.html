@@ -788,11 +788,18 @@ function renderSeletorPerfil(){
   const el=document.getElementById('seletorPerfil');
   if(!el) return;
   if(!estados.pj){ el.innerHTML=''; return; }
-  el.innerHTML=`
-    <div class="seg">
-      <button type="button" onclick="trocarPerfil('pessoal')" class="${perfilAtivo==='pessoal'?'active':''}">🏠 Pessoal</button>
-      <button type="button" onclick="trocarPerfil('pj')" class="${perfilAtivo==='pj'?'active':''}">🏢 ${escapeHtml(estados.pj.empresaNome||'PJ')}</button>
-    </div>`;
+  const label = perfilAtivo==='pessoal' ? '🏢 Trocar para perfil empresarial' : '🏠 Trocar para perfil pessoal';
+  el.innerHTML=`<button type="button" class="btn" onclick="alternarPerfilComLoading()">${label}</button>`;
+}
+function alternarPerfilComLoading(){
+  const proximo = perfilAtivo==='pessoal' ? 'pj' : 'pessoal';
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loadingScreen').classList.remove('hidden');
+  setTimeout(()=>{
+    trocarPerfil(proximo);
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+  },500);
 }
 
 /* ================= Helpers de domínio ================= */
@@ -1868,11 +1875,8 @@ function renderConfig(){
     <div class="section-title"><h2>Perfis</h2></div>
     <div class="card">
       ${estados.pj?`
-        <p class="hint">Perfil ativo: <b>${perfilAtivo==='pj'?('🏢 '+escapeHtml(estados.pj.empresaNome||'PJ')):'🏠 Pessoal'}</b>. Troque pelo seletor no topo da tela, ou aqui:</p>
-        <div class="seg mt16">
-          <button type="button" onclick="trocarPerfil('pessoal')" class="${perfilAtivo==='pessoal'?'active':''}">🏠 Pessoal</button>
-          <button type="button" onclick="trocarPerfil('pj')" class="${perfilAtivo==='pj'?'active':''}">🏢 ${escapeHtml(estados.pj.empresaNome||'PJ')}</button>
-        </div>`:`
+        <p class="hint">Perfil ativo: <b>${perfilAtivo==='pj'?('🏢 '+escapeHtml(estados.pj.empresaNome||'PJ')):'🏠 Pessoal'}</b>.</p>
+        <button type="button" class="btn mt16" onclick="alternarPerfilComLoading()">${perfilAtivo==='pessoal'?'🏢 Trocar para perfil empresarial':'🏠 Trocar para perfil pessoal'}</button>`:`
         <p class="hint">Tem uma empresa (MEI ou outro tipo) e quer controlar as finanças dela separadas, com categorias próprias (DAS, pró-labore, notas emitidas)?</p>
         <button class="btn btn-primary mt16" onclick="abrirCriarPerfilPJ()">+ Criar perfil PJ</button>`}
       <p class="hint mt16">Quer rever as perguntas de configuração inicial (conta principal, dia de receber, contas fixas...)?</p>
