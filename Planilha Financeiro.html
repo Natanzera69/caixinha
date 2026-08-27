@@ -49,6 +49,11 @@ a{color:inherit;}
   position:fixed; inset:0; background:linear-gradient(160deg,#4f46e5,#312e81);
   display:flex; align-items:center; justify-content:center; z-index:999; padding:20px;
 }
+.loading-content{display:flex; flex-direction:column; align-items:center; gap:24px;}
+.loading-logo{width:104px; height:104px; animation:loading-pulse 1.6s ease-in-out infinite;}
+@keyframes loading-pulse{0%,100%{transform:scale(1); opacity:1;} 50%{transform:scale(1.08); opacity:.8;}}
+.spinner{width:34px; height:34px; border:4px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 .lock-card{
   background:var(--surface); border-radius:20px; padding:32px 28px; width:100%; max-width:340px;
   text-align:center; box-shadow:var(--shadow);
@@ -230,7 +235,10 @@ table.simple td{padding:8px; border-bottom:1px solid var(--border);}
 <body>
 
 <div id="loadingScreen">
-  <div class="lock-card"><div class="emoji">🧮</div><p style="margin:0">Carregando…</p></div>
+  <div class="loading-content">
+    <img src="icones/icon-192.png" alt="" class="loading-logo">
+    <div class="spinner"></div>
+  </div>
 </div>
 
 <div id="loginScreen" class="hidden">
@@ -615,6 +623,11 @@ function abrirCriarPerfilPJ(){
   abrirModal();
   abrirWizardEmpresa();
 }
+function refazerOnboarding(){
+  wizardOrigemConfig=false;
+  abrirModal();
+  abrirWizardBoasVindas();
+}
 function abrirWizardEmpresa(){
   document.getElementById('modalCard').innerHTML=`
     <h2>Você também tem uma empresa?</h2>
@@ -623,16 +636,12 @@ function abrirWizardEmpresa(){
       <button type="button" data-v="nao" class="active">Não</button>
       <button type="button" data-v="sim">Sim</button>
     </div>
-    <div class="hidden" id="camposPJ" style="margin-top:16px">
-      <div class="field"><label>Nome da empresa</label><input id="wizNomeEmpresa" placeholder="Ex: Minha Empresa LTDA"></div>
-      <div class="row2">
-        <div class="field"><label>Dia do DAS (opcional)</label><input id="wizDiaDAS" type="number" min="1" max="28" placeholder="Ex: 20"></div>
-        <div class="field"><label>Dia do pró-labore (opcional)</label><input id="wizDiaProlabore" type="number" min="1" max="31" placeholder="Ex: 5"></div>
-      </div>
+    <div class="hidden field mt16" id="camposPJ">
+      <label>Nome da empresa</label><input id="wizNomeEmpresa" placeholder="Ex: Minha Empresa LTDA">
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="${wizardOrigemConfig?'fecharModal()':'finalizarWizard()'}">${wizardOrigemConfig?'Cancelar':'Pular tudo'}</button>
-      <button class="btn btn-primary" onclick="wizardSalvarEmpresa()">${wizardOrigemConfig?'Criar':'Continuar'}</button>
+      <button class="btn btn-primary" onclick="wizardSalvarEmpresa()">Continuar</button>
     </div>`;
   document.querySelectorAll('#segTemPJ button').forEach(b=>b.addEventListener('click',()=>{
     document.querySelectorAll('#segTemPJ button').forEach(x=>x.classList.toggle('active',x===b));
@@ -641,29 +650,97 @@ function abrirWizardEmpresa(){
 }
 function wizardSalvarEmpresa(){
   const sim=document.querySelector('#segTemPJ button.active').dataset.v==='sim';
-  if(sim){
-    const nome=document.getElementById('wizNomeEmpresa').value.trim()||'Minha Empresa';
-    estados.pj=estadoInicialPJ(nome);
-    const diaDAS=parseInt(document.getElementById('wizDiaDAS').value);
-    if(diaDAS>=1 && diaDAS<=28){
-      const catDAS=estados.pj.categorias.find(c=>c.nome==='Impostos (DAS)');
-      estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'DAS',valor:0,diaDoMes:diaDAS,intervaloMeses:1,mesInicio:null,
-        tipo:'despesa',categoriaId:catDAS.id,metodoPagamento:'boleto',contaId:null,cartaoId:null,ativo:true,mesesGerados:[]}));
-    }
-    const diaPro=parseInt(document.getElementById('wizDiaProlabore').value);
-    if(diaPro>=1 && diaPro<=31){
-      const catPro=estados.pj.categorias.find(c=>c.nome==='Pró-labore');
-      estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'Pró-labore',valor:0,diaDoMes:diaPro,intervaloMeses:1,mesInicio:null,
-        tipo:'despesa',categoriaId:catPro.id,metodoPagamento:'boleto',contaId:null,cartaoId:null,ativo:true,mesesGerados:[]}));
-    }
-    salvarPerfilLocal('pj');
-    if(window.fbUid){
-      const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj'));
-      window.fbSetDoc(ref, {...estados.pj, config:{...estados.pj.config, pinHash:null}}).catch(()=>{});
-    }
-    renderSeletorPerfil();
-    toast('Perfil PJ criado! Troque pra ele no seletor do topo quando quiser.');
+  if(!sim){
+    if(wizardOrigemConfig){ wizardOrigemConfig=false; fecharModal(); }
+    else{ abrirWizardPin(); }
+    return;
   }
+  const nome=document.getElementById('wizNomeEmpresa').value.trim()||'Minha Empresa';
+  estados.pj=estadoInicialPJ(nome);
+  abrirWizardPJConta();
+}
+function abrirWizardPJConta(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Sua empresa tem uma conta bancária própria?</h2>
+    <p class="hint">Separada da sua conta pessoal. Pode deixar em branco e cadastrar depois em Contas.</p>
+    <div class="field"><label>Nome do banco (opcional)</label><input id="wizPJContaNome" placeholder="Ex: Banco Inter PJ"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="wizardSalvarPJConta()">Pular</button>
+      <button class="btn btn-primary" onclick="wizardSalvarPJConta()">Continuar</button>
+    </div>`;
+}
+function wizardSalvarPJConta(){
+  const nome=document.getElementById('wizPJContaNome').value.trim();
+  if(nome) estados.pj.contas.push(tocar({id:uuid(),nome,tipo:'corrente',saldoInicial:0,cor:PALETA[0],ativo:true}));
+  abrirWizardPJObrigacoes();
+}
+function abrirWizardPJObrigacoes(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>DAS e pró-labore</h2>
+    <p class="hint">Ambos opcionais — dá pra ajustar (inclusive o valor) depois em Fixos.</p>
+    <div class="row2">
+      <div class="field"><label>Dia do DAS</label><input id="wizDiaDAS" type="number" min="1" max="28" placeholder="Ex: 20"></div>
+      <div class="field"><label>Valor do DAS</label><input id="wizValorDAS" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Dia do pró-labore</label><input id="wizDiaProlabore" type="number" min="1" max="31" placeholder="Ex: 5"></div>
+      <div class="field"><label>Valor do pró-labore</label><input id="wizValorProlabore" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="abrirWizardPJContador()">Pular</button>
+      <button class="btn btn-primary" onclick="wizardSalvarPJObrigacoes()">Continuar</button>
+    </div>`;
+}
+function wizardSalvarPJObrigacoes(){
+  const contaPJ=estados.pj.contas[0]?.id||null;
+  const diaDAS=parseInt(document.getElementById('wizDiaDAS').value);
+  if(diaDAS>=1 && diaDAS<=28){
+    const valorDAS=round2(parseFloat(document.getElementById('wizValorDAS').value))||0;
+    const catDAS=estados.pj.categorias.find(c=>c.nome==='Impostos (DAS)');
+    estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'DAS',valor:valorDAS,diaDoMes:diaDAS,intervaloMeses:1,mesInicio:null,
+      tipo:'despesa',categoriaId:catDAS.id,metodoPagamento:'boleto',contaId:contaPJ,cartaoId:null,ativo:true,mesesGerados:[]}));
+  }
+  const diaPro=parseInt(document.getElementById('wizDiaProlabore').value);
+  if(diaPro>=1 && diaPro<=31){
+    const valorPro=round2(parseFloat(document.getElementById('wizValorProlabore').value))||0;
+    const catPro=estados.pj.categorias.find(c=>c.nome==='Pró-labore');
+    estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'Pró-labore',valor:valorPro,diaDoMes:diaPro,intervaloMeses:1,mesInicio:null,
+      tipo:'despesa',categoriaId:catPro.id,metodoPagamento:'boleto',contaId:contaPJ,cartaoId:null,ativo:true,mesesGerados:[]}));
+  }
+  abrirWizardPJContador();
+}
+function abrirWizardPJContador(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Paga contador todo mês?</h2>
+    <p class="hint">Se sim, já deixamos essa despesa fixa pronta. Opcional.</p>
+    <div class="row2">
+      <div class="field"><label>Todo dia</label><input id="wizDiaContador" type="number" min="1" max="31" placeholder="Ex: 10"></div>
+      <div class="field"><label>Valor</label><input id="wizValorContador" type="number" step="0.01" min="0" placeholder="0,00"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="wizardFinalizarPJ()">Pular</button>
+      <button class="btn btn-primary" onclick="wizardSalvarPJContador()">Continuar</button>
+    </div>`;
+}
+function wizardSalvarPJContador(){
+  const dia=parseInt(document.getElementById('wizDiaContador').value);
+  const valor=round2(parseFloat(document.getElementById('wizValorContador').value))||0;
+  if(dia>=1 && dia<=31 && valor>0){
+    const contaPJ=estados.pj.contas[0]?.id||null;
+    const catContador=estados.pj.categorias.find(c=>c.nome==='Contador');
+    estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'Contador',valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
+      tipo:'despesa',categoriaId:catContador.id,metodoPagamento:'boleto',contaId:contaPJ,cartaoId:null,ativo:true,mesesGerados:[]}));
+  }
+  wizardFinalizarPJ();
+}
+function wizardFinalizarPJ(){
+  salvarPerfilLocal('pj');
+  if(window.fbUid){
+    const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj'));
+    window.fbSetDoc(ref, {...estados.pj, config:{...estados.pj.config, pinHash:null}}).catch(()=>{});
+  }
+  renderSeletorPerfil();
+  toast('Perfil PJ criado! Troque pra ele no seletor do topo quando quiser.');
   if(wizardOrigemConfig){ wizardOrigemConfig=false; fecharModal(); renderConfig(); }
   else{ abrirWizardPin(); }
 }
@@ -1798,6 +1875,8 @@ function renderConfig(){
         </div>`:`
         <p class="hint">Tem uma empresa (MEI ou outro tipo) e quer controlar as finanças dela separadas, com categorias próprias (DAS, pró-labore, notas emitidas)?</p>
         <button class="btn btn-primary mt16" onclick="abrirCriarPerfilPJ()">+ Criar perfil PJ</button>`}
+      <p class="hint mt16">Quer rever as perguntas de configuração inicial (conta principal, dia de receber, contas fixas...)?</p>
+      <button class="btn mt16" onclick="refazerOnboarding()">🔁 Refazer configuração inicial</button>
     </div>
 
     <div class="section-title"><h2>Sincronização</h2></div>
@@ -1808,13 +1887,11 @@ function renderConfig(){
 
     <div class="section-title"><h2>Backup dos dados</h2></div>
     <div class="card">
-      <p class="hint">Como este app não tem servidor, a forma de manter PC e celular com os mesmos dados é: fazer backup no aparelho que você usou por último e importar no outro. A importação mescla os dados (não apaga nada por acidente).</p>
+      <p class="hint">Seus dados já sincronizam sozinhos entre aparelhos pela nuvem. Esse backup é só uma cópia extra de segurança (útil se um dia quiser tirar seus dados do Caixinha, ou como reserva independente da nuvem).</p>
       <div class="modal-actions" style="margin-top:14px">
         <button class="btn btn-primary" onclick="fazerBackup()">⬇️ Fazer backup</button>
-        <button class="btn" onclick="document.getElementById('inputImportar').click()">⬆️ Importar backup</button>
       </div>
-      <input type="file" id="inputImportar" accept=".json" class="hidden" onchange="importarBackup(this.files[0])">
-      ${!suportaFS?'<p class="hint">Seu navegador vai baixar o arquivo normalmente — mova-o para a pasta <b>backups</b> dentro da pasta Economia no Google Drive.</p>':'<p class="hint">No Chrome, o backup abre já sugerindo salvar dentro da pasta <b>backups</b> depois da primeira vez.</p>'}
+      ${!suportaFS?'<p class="hint">Seu navegador vai baixar o arquivo normalmente.</p>':'<p class="hint">No Chrome, o backup abre já sugerindo salvar dentro da pasta <b>backups</b> depois da primeira vez.</p>'}
     </div>
 
     <div class="section-title"><h2>Segurança</h2></div>
@@ -1908,7 +1985,11 @@ function nomeArquivoBackup(){
   return `backup_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}h${p(d.getMinutes())}.json`;
 }
 async function fazerBackup(){
-  const paraExportar={...state,config:{...state.config,pinHash:null}};
+  const paraExportar={
+    formatoBackup:2,
+    pessoal:{...estados.pessoal,config:{...estados.pessoal.config,pinHash:null}},
+    pj: estados.pj ? {...estados.pj,config:{...estados.pj.config,pinHash:null}} : null
+  };
   const conteudo=JSON.stringify(paraExportar,null,2);
   if('showSaveFilePicker' in window){
     try{
@@ -1926,21 +2007,6 @@ async function fazerBackup(){
   const a=document.createElement('a'); a.href=url; a.download=nomeArquivoBackup();
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   toast('Backup baixado — mova para a pasta backups.');
-}
-function importarBackup(file){
-  if(!file) return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    try{
-      const incoming=JSON.parse(reader.result);
-      mesclarEstado(incoming);
-      gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
-      salvarEstado(); aplicarTema(); renderTudo();
-      toast('Backup importado e mesclado com sucesso.');
-    }catch(e){ alert('Arquivo inválido.'); }
-  };
-  reader.readAsText(file);
-  document.getElementById('inputImportar').value='';
 }
 function mesclarEstadoEm(alvo,incoming){
   if(!alvo._tombstones) alvo._tombstones={};
@@ -1969,7 +2035,6 @@ function mesclarEstadoEm(alvo,incoming){
   });
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
 }
-function mesclarEstado(incoming){ mesclarEstadoEm(state,incoming); }
 
 /* ================= Modal genérico ================= */
 function abrirModal(){ document.getElementById('modalRoot').classList.remove('hidden'); }
