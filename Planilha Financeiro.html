@@ -852,13 +852,32 @@ function faturaAtualCartao(cartaoId){
   return state.transacoes.filter(t=>t.metodoPagamento==='credito' && t.cartaoId===cartaoId && t.data>=iso(inicio) && t.data<iso(fim))
     .reduce((s,t)=>s+t.valor,0);
 }
+// Mês (YYYY-MM) em que a transação conta nos totais: compra no crédito cai na fatura que fecha
+// no mês seguinte se feita a partir do dia de fechamento (fecha dia 8: 10/set e 05/out → out; 08/out → nov).
+function mesCompetencia(t){
+  const c=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
+  if(!c || c.titular || !c.diaFechamento) return t.data.slice(0,7);
+  const [a,m,d]=t.data.split('-').map(Number);
+  const ref=new Date(a,m-1+(d>=c.diaFechamento?1:0),1); // Date resolve a virada de dezembro
+  return anoMesStr(ref.getFullYear(),ref.getMonth());
+}
+function pagamentosFaturaCartao(cartaoId){
+  return state.transacoes.filter(t=>t.pagamentoFatura && t.cartaoId===cartaoId).reduce((s,t)=>s+t.valor,0);
+}
+function comprasCreditoCartao(cartaoId,antesDe){
+  return state.transacoes.filter(t=>t.metodoPagamento==='credito' && t.cartaoId===cartaoId && (!antesDe||t.data<antesDe))
+    .reduce((s,t)=>s+t.valor,0);
+}
+// Faturas já fechadas e ainda não pagas (compras antes do início do ciclo aberto − pagamentos).
+function faturaFechadaCartao(cartaoId){
+  const cartao=cartaoById(cartaoId); if(!cartao||cartao.titular) return 0;
+  const iso=inicioCicloCartao(cartao).toISOString().slice(0,10);
+  return Math.max(0, round2(comprasCreditoCartao(cartaoId,iso)-pagamentosFaturaCartao(cartaoId)));
+}
 function divendaTotalCartao(cartaoId){
   const cartao=cartaoById(cartaoId); if(!cartao) return 0;
   if(cartao.titular) return vocDeveNoCartao(cartaoId);
-  const inicio=inicioCicloCartao(cartao);
-  const iso=inicio.toISOString().slice(0,10);
-  return state.transacoes.filter(t=>t.metodoPagamento==='credito' && t.cartaoId===cartaoId && t.data>=iso)
-    .reduce((s,t)=>s+t.valor,0);
+  return Math.max(0, round2(comprasCreditoCartao(cartaoId)-pagamentosFaturaCartao(cartaoId)));
 }
 function vocDeveNoCartao(cartaoId){
   const cartao=cartaoById(cartaoId); if(!cartao) return 0;
@@ -930,9 +949,8 @@ function gerarTransacoesRecorrentesDoMes(ano,mesIdx){
   if(mudou) salvarEstado();
 }
 function transacoesEfetivasDoMes(ano,mesIdx){
-  const [ini,fim]=rangeDoMes(ano,mesIdx);
-  const reais=state.transacoes.filter(t=>t.data>=ini && t.data<=fim);
   const anoMes=anoMesStr(ano,mesIdx);
+  const reais=state.transacoes.filter(t=>mesCompetencia(t)===anoMes);
   const anoMesAtual=anoMesStr(new Date().getFullYear(),new Date().getMonth());
   if(anoMes<anoMesAtual) return reais;
   const idsComReal=new Set(reais.filter(t=>t.recorrenciaId).map(t=>t.recorrenciaId));
@@ -1166,7 +1184,7 @@ function renderListaLancamentos(){
       </div>
       <div class="row-value ${sinalCls}">${sinal}${fmtMoney(t.valor)}</div>
       <div class="row-actions">
-        <button onclick="abrirFormTransacao('${t.id}')" title="Editar">✏️</button>
+        ${t.pagamentoFatura?'':`<button onclick="abrirFormTransacao('${t.id}')" title="Editar">✏️</button>`}
         <button onclick="excluirTransacao('${t.id}')" title="Excluir">🗑️</button>
       </div>
     </div>`;
@@ -1343,7 +1361,7 @@ function renderContas(){
           </div>
         </div>`;
       }
-      const uso=divendaTotalCartao(c.id); const fatura=faturaAtualCartao(c.id);
+      const uso=divendaTotalCartao(c.id); const fatura=faturaAtualCartao(c.id); const faturaFechada=c.titular?0:faturaFechadaCartao(c.id);
       const pct=c.limite? Math.min(100,Math.round(uso/c.limite*100)):0;
       const cls=pct>=90?'danger':pct>=70?'warn':'';
       return `<div class="row-card" style="align-items:flex-start">
@@ -1351,11 +1369,12 @@ function renderContas(){
         <div class="row-main">
           <div class="t1">${escapeHtml(c.nome)} ${badgeTipo}</div>
           <div class="t2">${vinculo} · Fecha dia ${c.diaFechamento} · Vence dia ${c.diaVencimento}</div>
-          <div class="t2">Fatura atual: ${fmtMoney(fatura)}</div>
+          <div class="t2">Fatura atual: ${fmtMoney(fatura)}${faturaFechada>0?` · Fatura fechada a pagar: ${fmtMoney(faturaFechada)} (vence dia ${c.diaVencimento})`:''}</div>
           <div class="progress ${cls}"><div style="width:${pct}%"></div></div>
           <div class="t2 mt8">Dívida total: ${fmtMoney(uso)} de ${fmtMoney(c.limite)} (disponível ${fmtMoney(Math.max(0,c.limite-uso))})</div>
         </div>
         <div class="row-actions">
+          ${uso>0?`<button onclick="pagarFaturaCartao('${c.id}')" title="Pagar fatura">💸</button>`:''}
           <button onclick="abrirFormCartao('${c.id}')" title="Editar">✏️</button>
           <button onclick="excluirCartao('${c.id}')" title="Excluir">🗑️</button>
         </div>
@@ -1513,6 +1532,40 @@ function registrarPagamentoCartao(cartaoId){
         tipo:'despesa',categoriaId:cat?cat.id:null,metodoPagamento:'pix',contaId,status:'pago'}));
     }
     salvarEstado(); fecharModal(); renderTudo(); toast('Pagamento registrado.');
+  });
+  abrirModal();
+}
+
+// Pagamento de fatura = transferência da conta pro cartão: debita a conta, abate a dívida e não conta como despesa
+// (a despesa já foi contada nas compras, no mês da fatura).
+function pagarFaturaCartao(cartaoId){
+  const c=cartaoById(cartaoId); if(!c) return;
+  const divida=divendaTotalCartao(cartaoId);
+  const sugerido=faturaFechadaCartao(cartaoId)||round2(Math.min(divida,faturaAtualCartao(cartaoId)));
+  if(!state.contas.length){ alert('Cadastre uma conta antes de pagar a fatura.'); return; }
+  document.getElementById('modalCard').innerHTML=`
+    <button class="close-x" onclick="fecharModal()">✕</button>
+    <h2>Pagar fatura</h2>
+    <p class="hint">Cartão "${escapeHtml(c.nome)}" · dívida total ${fmtMoney(divida)}. O valor sai da conta escolhida e abate a dívida do cartão.</p>
+    <form id="formPagarFatura">
+      <div class="field mt16"><label>Valor pago (R$)</label><input required type="number" step="0.01" min="0.01" max="${divida}" name="valor" value="${sugerido}"></div>
+      <div class="field"><label>Pago com qual conta?</label>
+        <select name="contaId">${state.contas.map(ct=>`<option value="${ct.id}" ${ct.id===c.contaId?'selected':''}>${escapeHtml(ct.nome)}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Data do pagamento</label><input required type="date" name="data" value="${todayStr()}"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Pagar</button>
+      </div>
+    </form>
+  `;
+  document.getElementById('formPagarFatura').addEventListener('submit',e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    state.transacoes.push(tocar({id:uuid(),descricao:`Pagamento fatura ${c.nome}`,data:fd.get('data'),
+      valor:round2(parseFloat(fd.get('valor'))),tipo:'transferencia',categoriaId:null,metodoPagamento:'transferencia',
+      contaId:fd.get('contaId'),contaDestinoId:null,cartaoId,pagamentoFatura:true,status:'pago',notas:''}));
+    salvarEstado(); fecharModal(); renderTudo(); toast('Fatura paga.');
   });
   abrirModal();
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-06 — Fatura do cartão por fechamento + Pagar fatura
+
+Pedido do usuário: compras no cartão devem seguir o fechamento da fatura (fecha dia 8 → de 08 do mês anterior a 07 do mês atual é uma fatura e conta como conta do mês).
+
+- `mesCompetencia(t)` + `transacoesEfetivasDoMes` agora agrupam compras de crédito pelo mês do fechamento (Despesas do mês, Gastos por categoria/banco e Orçamento seguem isso). Antes tudo usava o mês do calendário da compra.
+- Dívida do cartão próprio = todas as compras no crédito − pagamentos de fatura (antes: só compras do ciclo aberto, então fatura fechada e não paga sumia da dívida). Compras antigas de ciclos passados passam a aparecer como dívida até serem pagas.
+- Novo botão 💸 **Pagar fatura** na aba Contas (cartão de crédito próprio) + linha "Fatura fechada a pagar". Registra uma transferência (`pagamentoFatura`) que debita a conta escolhida e abate a dívida, sem contar como despesa.
+- Lógica de competência testada isoladamente (incluindo virada de dezembro). Teste de ponta a ponta na interface ainda pendente.
+
 ## 2026-08-22 — Hospedagem, PWA e sincronização via Firebase
 
 Pedido do usuário: levar o app pra fora do Google Drive local — hospedar num link fixo, dar pra instalar como app no Android, e sincronizar de verdade entre PC e celular (sem depender de backup manual). Também quer, mais pra frente, um perfil separado pra namorada.

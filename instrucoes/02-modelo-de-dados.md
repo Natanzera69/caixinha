@@ -31,6 +31,8 @@ O lançamento individual — a entidade central do app.
 - `status` (`pago`|`pendente` — `pendente` se `data` é futura no momento da criação; hoje é só informativo/visual, não afeta cálculo de saldo)
 - `parcelaGrupoId` / `parcelaAtual` / `parcelaTotal` — presentes só em compras parceladas; todas as parcelas de uma compra compartilham o mesmo `parcelaGrupoId`
 - `recorrenciaId` — presente quando a transação foi gerada automaticamente por uma `recorrencia` (ver abaixo)
+- `pagamentoFatura` — `true` em pagamento de fatura de cartão: `tipo:'transferencia'` com `contaId` (conta de saída), `contaDestinoId:null` e `cartaoId`. Debita a conta e abate a dívida do cartão, mas não conta como despesa (a despesa já entrou nas compras).
+- **Competência (mês em que conta nos totais)**: `mesCompetencia(t)`. Compra no `credito` em cartão próprio com `diaFechamento` conta no mês em que a fatura fecha (dia da compra `>= diaFechamento` → mês seguinte). Demais casos: mês de `data`. A lista de Lançamentos continua mostrando a data real da compra.
 - `notas`
 
 ## `financiamentos[]`
