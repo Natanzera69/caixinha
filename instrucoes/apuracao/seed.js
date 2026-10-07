@@ -22,6 +22,7 @@ window.__seed = (tab) => {
     T('t5', '2026-10-03', 'Cinema', 190, 'despesa', 'Lazer', 'credito', { cartaoId: 'k1' }),
     T('t6', '2026-10-12', 'Celular', 120, 'despesa', 'Compras', 'credito', { cartaoId: 'k1', parcelaAtual: 3, parcelaTotal: 12, parcelaGrupoId: 'g1' }),
     T('t7', '2026-09-20', 'Mercado ana', 90, 'despesa', 'Mercado', 'credito', { cartaoId: 'k3' }),
+    T('t9', '2026-08-20', 'Notebook', 800, 'despesa', 'Compras', 'credito', { cartaoId: 'k1' }), // fatura já fechada (vence 15/09)
     T('t8', '2026-10-08', 'Pagamento fatura Nubank', 300, 'transferencia', null, 'transferencia', { contaId: 'c2', cartaoId: 'k1', pagamentoFatura: true })];
   state.recorrencias = [
     { id: 'r1', descricao: 'Salário', valor: 5200, tipo: 'receita', categoriaId: c('Salário'), metodoPagamento: 'pix', contaId: 'c2', diaDoMes: 5, intervaloMeses: 1, ativo: true, mesesGerados: ['2026-10'] },

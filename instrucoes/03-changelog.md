@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-07 — Apuração (2ª rodada): erros de dados, acessibilidade e extras
+
+Leitura completa do código. Nenhum dado salvo foi apagado ou migrado. Testes de lógica em `instrucoes/apuracao/teste-logica.js` (7 passam com `TZ=America/Sao_Paulo`).
+
+**Erros corrigidos**
+- **Data em UTC**: `todayStr()` e outras usavam `toISOString()`, que vira o dia seguinte depois das ~21h no Brasil (pago/pendente, saldo, parcelas, fatura). Agora `isoLocal()` (data local).
+- **Fixo duplicado entre aparelhos**: lançamento gerado por recorrência agora tem id determinístico `rec_<id>_<YYYY-MM>`; não regenera se foi apagado (tombstone). `mesesGerados` passa a ser união no merge.
+- **Vazamento entre contas**: se entra uma conta diferente da última neste navegador (`planilhaFinanceiro_uid`), a cópia local da anterior é descartada antes de sincronizar. A nuvem não é tocada.
+- **Config sincroniza**: `onboardingConcluido` (OR), `empresaNome` (se faltar) e tema (`config.temaAtualizadoEm`, vence o mais recente). PIN segue por aparelho.
+- **Firestore e `undefined`**: remover orçamento deixava `undefined` e o `setDoc` falhava em silêncio; agora `delete` + envio via `JSON.parse(JSON.stringify())`.
+- Badge pago/pendente calculado pela data (não mais congelado); editar fixo pausado não reativa; salário do wizard usa Pix (o formulário não oferece "transferência"); perfil PJ sempre tem ao menos uma conta ("Caixa PJ") e lançamento sem conta avisa; texto de Config → Sobre corrigido (há nuvem); modal "fixo" sem "mensal".
+- **sw.js v5**: só intercepta GET do próprio site e das fontes (Firebase passa direto); a atualização do app não recarrega a página com modal aberto.
+
+**Acessibilidade / PWA**: `role="dialog"`, `Esc` fecha, foco volta ao botão de origem, `aria-label` automático nos botões só com ícone, `aria-current` nas abas; contraste AA (`--text-faint` claro #6f7060 e escuro #8f937d, `--income` #117a37); ícone **maskable** (`assets/icon-maskable-512.png`).
+
+**Extras**: bolinhas 8-bit no PIN (só espelham o `#lockInput`); textos do mockup (login "Oi de novo!", PIN "Caixinha trancada"); lista de Lançamentos mostra `fatura nov/26` nas compras no crédito; "Próximos vencimentos" no Início mostra a fatura fechada do cartão (vence/vencida em…) e deixa de listar as compras no crédito soltas desses cartões.
+
 ## 2026-10-06 — Redesign visual completo ("moeda 8-bit")
 
 Pacote do Claude Design (`Redesign Caixinha minimalista/handoff/`) aplicado **só na aparência**: nenhuma função, cálculo, id usado pelo JS ou chave de localStorage foi alterada.

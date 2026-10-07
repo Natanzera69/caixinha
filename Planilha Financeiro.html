@@ -21,10 +21,10 @@
 :root{
   color-scheme:light;
   --bg:#f6f3ea; --surface:#fffdf7; --surface-2:#f1ede1; --border:#e3dcc9; --line:#1d1f16;
-  --text:#1d1f16; --text-muted:#5e604f; --text-faint:#8f907e;
+  --text:#1d1f16; --text-muted:#5e604f; --text-faint:#6f7060;
   --primary:#16842f; --primary-deep:#0e5c20; --primary-ink:#ffffff; --primary-soft:#e2f2da;
   --coin:#f6c22c; --coin-deep:#b97f08;
-  --income:#15803d; --income-soft:#e1f3e3;
+  --income:#117a37; --income-soft:#e1f3e3;
   --expense:#c4302b; --expense-soft:#fbe5e1;
   --warning:#9a5500; --warning-bar:#f0a21a; --warning-soft:#fcefd2;
   --hero-bg:#1d1f16; --hero-text:#fffdf7; --hero-value:#f6c22c; --hero-muted:#b9baa8;
@@ -38,7 +38,7 @@
 html.dark{
   color-scheme:dark;
   --bg:#11130e; --surface:#1a1d16; --surface-2:#23271e; --border:#33392b; --line:#000000;
-  --text:#eef0e2; --text-muted:#a9ad98; --text-faint:#7d816c;
+  --text:#eef0e2; --text-muted:#a9ad98; --text-faint:#8f937d;
   --primary:#3cbf57; --primary-deep:#1f7a33; --primary-ink:#0b1709; --primary-soft:#1b3420;
   --income:#4ade80; --income-soft:#14301c;
   --expense:#ff7466; --expense-soft:#3b1b17;
@@ -239,8 +239,8 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 @media(max-width:799px){.card.hero .hero-coin{width:116px;right:-12px;bottom:-18px;} .card.hero .sub{max-width:58%;}}
 .toolbar input.search{padding-left:34px;background:url(assets/icons/search.svg) 12px center/12px no-repeat var(--surface);}
 .pin-boxes{display:flex;justify-content:center;gap:10px;margin-bottom:14px;}
-.pin-boxes span{width:46px;height:54px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
-.pin-boxes span.filled{border-color:var(--primary);background:var(--primary-soft);}
+.pin-boxes>span{flex:1 1 0;max-width:46px;min-width:24px;height:54px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
+.pin-boxes>span.filled{border-color:var(--primary);background:var(--primary-soft);}
 /* ---------- Loading: moeda girando (12 quadros) ---------- */
 .loading-logo{flex:none;width:120px;height:138px;background:url(assets/moeda-girando.svg) no-repeat 0 0/1440px 138px;image-rendering:pixelated;animation:cx-coin 1.2s steps(12) infinite;}
 @keyframes cx-coin{to{background-position:-1440px 0}}
@@ -254,6 +254,12 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 .px-dot{width:12px;height:12px;flex:none;background:url(assets/icons/dot-shade.svg) center/100% no-repeat var(--c,var(--primary));-webkit-mask:url(assets/icons/dot.svg) center/contain no-repeat;mask:url(assets/icons/dot.svg) center/contain no-repeat;}
 .px-dot{--c:var(--text)} /* padrão; nas bolinhas do PIN use a cor do texto */
 .spinner{display:none;} /* substituído pela moeda girando */
+.input-sm{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
+.input-sm:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+/* PIN: o #lockInput continua sendo o campo real, só que invisível; as caixinhas (.pin-boxes) espelham o que foi digitado */
+#lockInput.pin-real{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;padding:0;margin:0;border:0;}
+.pin-boxes{cursor:text;}
+.pin-boxes>span.filled .px-dot{--c:var(--text);}
 .card.projetado{background:var(--primary-soft);border:1.5px dashed var(--primary);box-shadow:none;}
 
 </style>
@@ -270,8 +276,8 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 <div id="loginScreen" class="hidden">
   <div class="lock-card" style="padding-top:58px">
     <img class="login-coin" src="assets/logo-moeda.svg" alt="">
-    <h2>Caixinha</h2>
-    <p>Entre com seu e-mail para sincronizar seus dados entre aparelhos</p>
+    <h2>Oi de novo!</h2>
+    <p>Entre com seu e-mail pra sincronizar suas moedinhas entre aparelhos.</p>
     <div class="field" style="text-align:left"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="username"></div>
     <div class="field" style="text-align:left"><label>Senha</label><input id="loginSenha" type="password" autocomplete="current-password"></div>
     <div id="loginError" style="color:var(--expense); font-size:.85rem; min-height:18px; margin-bottom:8px"></div>
@@ -283,9 +289,10 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 <div id="lockScreen" class="hidden">
   <div class="lock-card">
     <div class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/lock.svg)"></span></div>
-    <h2>Caixinha</h2>
+    <h2>Caixinha trancada</h2>
     <p>Digite seu PIN para continuar</p>
-    <input id="lockInput" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
+    <div class="pin-boxes" id="pinBoxes" aria-hidden="true"></div>
+    <input id="lockInput" class="pin-real" type="password" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="PIN">
     <div id="lockError"></div>
     <button class="btn btn-primary btn-block" onclick="tentarDesbloquear()">Entrar</button>
   </div>
@@ -318,7 +325,7 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 
 <div id="modalRoot" class="hidden">
   <div class="modal-backdrop" onclick="fecharModal()"></div>
-  <div class="modal-card" id="modalCard"></div>
+  <div class="modal-card" id="modalCard" role="dialog" aria-modal="true" tabindex="-1"></div>
 </div>
 <div id="toastRoot"></div>
 
@@ -331,7 +338,8 @@ function uuid(){
   });
 }
 function nowISO(){ return new Date().toISOString(); }
-function todayStr(){ return new Date().toISOString().slice(0,10); }
+function isoLocal(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; } // data LOCAL (toISOString é UTC e vira o dia seguinte à noite)
+function todayStr(){ return isoLocal(new Date()); }
 function fmtMoney(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
 function fmtDate(s){ if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
 function fmtMonthLabel(y,m){ const d=new Date(y,m,1); return d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('.',''); }
@@ -341,7 +349,7 @@ function addMonths(dateStr,n){
   const dt=new Date(y,m-1+n,1);
   const last=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();
   dt.setDate(Math.min(d,last));
-  return dt.toISOString().slice(0,10);
+  return isoLocal(dt);
 }
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function toast(msg){
@@ -453,7 +461,7 @@ function aplicarTema(){
   document.documentElement.classList.toggle('dark', !!state.config.temaEscuro);
 }
 function definirTema(escuro){
-  state.config.temaEscuro=escuro;
+  state.config.temaEscuro=escuro; state.config.temaAtualizadoEm=nowISO();
   salvarEstado(); aplicarTema(); renderConfig();
 }
 // Exclusão registra um "tombstone" (marcador de excluído) em vez de só sumir do array —
@@ -494,15 +502,25 @@ async function tentarDesbloquear(){
   if(hash===state.config.pinHash){
     document.getElementById('lockScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
-    input.value='';
+    input.value=''; desenharPinBoxes();
     document.getElementById('lockError').textContent='';
     possivelmenteAbrirWizard();
   }else{
-    document.getElementById('lockError').textContent='PIN incorreto.';
+    document.getElementById('lockError').textContent='PIN errado, tenta de novo';
   }
 }
+// só visual: espelha o tamanho do valor digitado em caixinhas com bolinha (a validação continua lendo o #lockInput)
+function desenharPinBoxes(){
+  const box=document.getElementById('pinBoxes'), inp=document.getElementById('lockInput'); if(!box||!inp) return;
+  const n=Math.max(4,inp.value.length);
+  box.innerHTML=Array.from({length:n},(_,i)=>i<inp.value.length?'<span class="filled"><span class="px-dot"></span></span>':'<span></span>').join('');
+}
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('lockInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') tentarDesbloquear(); });
+  const inp=document.getElementById('lockInput');
+  inp?.addEventListener('keydown',e=>{ if(e.key==='Enter') tentarDesbloquear(); });
+  inp?.addEventListener('input',desenharPinBoxes);
+  document.getElementById('lockScreen')?.addEventListener('click',()=>inp.focus());
+  desenharPinBoxes();
 });
 function bloquearApp(){
   document.getElementById('app').classList.add('hidden');
@@ -596,7 +614,7 @@ function wizardSalvarRecebimento(){
     const valor=round2(parseFloat(document.getElementById('wizValorReceb').value))||0;
     const catReceita=state.categorias.find(c=>c.tipo==='receita' && c.nome==='Salário')||state.categorias.find(c=>c.tipo==='receita');
     state.recorrencias.push(tocar({id:uuid(),descricao:'Salário',valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
-      tipo:'receita',categoriaId:catReceita.id,metodoPagamento:'transferencia',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
+      tipo:'receita',categoriaId:catReceita.id,metodoPagamento:'pix',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
     salvarEstado();
     gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
   }
@@ -697,7 +715,8 @@ function abrirWizardPJConta(){
 }
 function wizardSalvarPJConta(){
   const nome=document.getElementById('wizPJContaNome').value.trim();
-  if(nome) estados.pj.contas.push(tocar({id:uuid(),nome,tipo:'corrente',saldoInicial:0,cor:PALETA[0],ativo:true}));
+  // sem conta nenhuma os lançamentos do PJ não afetariam saldo: se pulou, cria um "Caixa PJ" (dá pra renomear em Contas)
+  estados.pj.contas.push(tocar({id:uuid(),nome:nome||'Caixa PJ',tipo:nome?'corrente':'dinheiro',saldoInicial:0,cor:PALETA[0],ativo:true}));
   abrirWizardPJObrigacoes();
 }
 function abrirWizardPJObrigacoes(){
@@ -763,7 +782,7 @@ function wizardFinalizarPJ(){
   salvarPerfilLocal('pj');
   if(window.fbUid){
     const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj'));
-    window.fbSetDoc(ref, {...estados.pj, config:{...estados.pj.config, pinHash:null}}).catch(()=>{});
+    window.fbSetDoc(ref, JSON.parse(JSON.stringify({...estados.pj, config:{...estados.pj.config, pinHash:null}}))).catch(()=>{});
   }
   renderSeletorPerfil();
   toast('Perfil PJ criado! Troque pra ele no seletor do topo quando quiser.');
@@ -797,7 +816,7 @@ async function wizardSalvarPin(){
 let abaAtual='dashboard';
 function switchTab(nome){
   abaAtual=nome;
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===nome));
+  document.querySelectorAll('nav.tabs button').forEach(b=>{ const on=b.dataset.tab===nome; b.classList.toggle('active',on); if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('active',s.id==='tab-'+nome));
   renderAba(nome);
 }
@@ -874,7 +893,7 @@ function faturaAtualCartao(cartaoId){
   const cartao=cartaoById(cartaoId); if(!cartao) return 0;
   const inicio=inicioCicloCartao(cartao);
   const fim=new Date(inicio); fim.setMonth(fim.getMonth()+1);
-  const iso=d=>d.toISOString().slice(0,10);
+  const iso=isoLocal;
   return state.transacoes.filter(t=>t.metodoPagamento==='credito' && t.cartaoId===cartaoId && t.data>=iso(inicio) && t.data<iso(fim))
     .reduce((s,t)=>s+t.valor,0);
 }
@@ -887,6 +906,7 @@ function mesCompetencia(t){
   const ref=new Date(a,m-1+(d>=c.diaFechamento?1:0),1); // Date resolve a virada de dezembro
   return anoMesStr(ref.getFullYear(),ref.getMonth());
 }
+function rotuloMes(ym){ const [a,m]=ym.split('-'); return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][m-1]+'/'+a.slice(2); }
 function pagamentosFaturaCartao(cartaoId){
   return state.transacoes.filter(t=>t.pagamentoFatura && t.cartaoId===cartaoId).reduce((s,t)=>s+t.valor,0);
 }
@@ -897,7 +917,7 @@ function comprasCreditoCartao(cartaoId,antesDe){
 // Faturas já fechadas e ainda não pagas (compras antes do início do ciclo aberto − pagamentos).
 function faturaFechadaCartao(cartaoId){
   const cartao=cartaoById(cartaoId); if(!cartao||cartao.titular) return 0;
-  const iso=inicioCicloCartao(cartao).toISOString().slice(0,10);
+  const iso=isoLocal(inicioCicloCartao(cartao));
   return Math.max(0, round2(comprasCreditoCartao(cartaoId,iso)-pagamentosFaturaCartao(cartaoId)));
 }
 function divendaTotalCartao(cartaoId){
@@ -921,8 +941,8 @@ function patrimonioLiquido(){
 }
 function mesAtualRange(){
   const hoje=new Date();
-  const ini=new Date(hoje.getFullYear(),hoje.getMonth(),1).toISOString().slice(0,10);
-  const fim=new Date(hoje.getFullYear(),hoje.getMonth()+1,0).toISOString().slice(0,10);
+  const ini=isoLocal(new Date(hoje.getFullYear(),hoje.getMonth(),1));
+  const fim=isoLocal(new Date(hoje.getFullYear(),hoje.getMonth()+1,0));
   return [ini,fim];
 }
 function transacoesDoMes(ini,fim){
@@ -964,7 +984,10 @@ function gerarTransacoesRecorrentesDoMes(ano,mesIdx){
     if(!recorrenciaDevidaNoMes(r,ano,mesIdx)) return;
     const dia=Math.min(r.diaDoMes||1, ultimoDiaDoMes(ano,mesIdx));
     const data=`${anoMes}-${pad2(dia)}`;
-    state.transacoes.push(tocar({id:uuid(),descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
+    // id determinístico: dois aparelhos que geram o mesmo mês antes de sincronizar produzem o MESMO registro (o merge dedupa por id)
+    const id=`rec_${r.id}_${anoMes}`;
+    const jaExiste=state.transacoes.some(t=>t.id===id) || (state._tombstones.transacoes||[]).some(t=>t.id===id);
+    if(!jaExiste) state.transacoes.push(tocar({id,descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
       categoriaId:r.categoriaId,metodoPagamento:r.metodoPagamento,
       contaId:r.contaId, cartaoId:r.cartaoId,
       status:data<=hoje?'pago':'pendente',recorrenciaId:r.id,notas:''}));
@@ -1029,8 +1052,24 @@ function renderDashboard(){
 
   const hoje=todayStr();
   const emBreve=new Date(); emBreve.setDate(emBreve.getDate()+14);
-  const proximosVenc=state.transacoes.filter(t=>t.tipo==='despesa' && t.data>=hoje && t.data<=emBreve.toISOString().slice(0,10))
-    .sort((a,b)=>a.data.localeCompare(b.data)).slice(0,6);
+  // Fatura fechada e não paga entra como UM vencimento (no dia de vencimento do cartão); as compras no crédito
+  // desses cartões deixam de aparecer soltas aqui, porque não são datas de pagamento.
+  const vencFaturas=state.cartoes.filter(c=>c.tipo==='credito' && !c.titular && c.diaVencimento).map(c=>{
+    const valor=faturaFechadaCartao(c.id); if(valor<=0) return null;
+    const fech=inicioCicloCartao(c);
+    const diaNoMes=(a,m)=>Math.min(c.diaVencimento,ultimoDiaDoMes(a,m));
+    let venc=new Date(fech.getFullYear(),fech.getMonth(),diaNoMes(fech.getFullYear(),fech.getMonth()));
+    if(venc<fech){ const n=new Date(fech.getFullYear(),fech.getMonth()+1,1); venc=new Date(n.getFullYear(),n.getMonth(),diaNoMes(n.getFullYear(),n.getMonth())); }
+    return {id:'fatura_'+c.id,descricao:'Fatura '+c.nome,data:isoLocal(venc),valor,fatura:true};
+  }).filter(x=>x && x.data<=isoLocal(emBreve)); // atrasadas (data < hoje) aparecem também
+  const proximosVenc=[
+    ...state.transacoes.filter(t=>{
+      if(t.tipo!=='despesa' || t.data<hoje || t.data>isoLocal(emBreve)) return false;
+      const c=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
+      return !(c && !c.titular && c.diaVencimento);
+    }),
+    ...vencFaturas
+  ].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,6);
 
   const alertasCartao=state.cartoes.filter(c=>c.limite>0).map(c=>{
     const uso=divendaTotalCartao(c.id); const pct=uso/c.limite;
@@ -1090,8 +1129,8 @@ function renderDashboard(){
       <div class="card">
         <h3>Próximos vencimentos</h3>
         ${proximosVenc.length?`<div class="list mt8">${proximosVenc.map(t=>`
-          <div class="row-card"><div class="row-icon">${categoriaById(t.categoriaId)?.icone||'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>'}</div>
-            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}</div></div>
+          <div class="row-card"><div class="row-icon">${t.fatura?'<span class="px-ico" style="--i:url(assets/icons/card.svg)"></span>':(categoriaById(t.categoriaId)?.icone||'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>')}</div>
+            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):''}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}</div></div>
             <div class="row-value expense">${fmtMoney(t.valor)}</div>
           </div>`).join('')}</div>`:'<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/calendar.svg)"></span></span>Nada vencendo nos próximos 14 dias.</div>'}
       </div>
@@ -1190,7 +1229,7 @@ function renderListaLancamentos(){
   const cont=document.getElementById('lancLista');
   let lista=[...state.transacoes];
   if(filtroLanc.periodo==='mes'){ const [ini,fim]=mesAtualRange(); lista=lista.filter(t=>t.data>=ini&&t.data<=fim); }
-  else if(filtroLanc.periodo==='30'){ const d=new Date(); d.setDate(d.getDate()-30); lista=lista.filter(t=>t.data>=d.toISOString().slice(0,10)); }
+  else if(filtroLanc.periodo==='30'){ const d=new Date(); d.setDate(d.getDate()-30); lista=lista.filter(t=>t.data>=isoLocal(d)); }
   if(filtroLanc.tipo) lista=lista.filter(t=>t.tipo===filtroLanc.tipo);
   if(filtroLanc.q) lista=lista.filter(t=>t.descricao.toLowerCase().includes(filtroLanc.q.toLowerCase()));
   lista.sort((a,b)=>b.data.localeCompare(a.data));
@@ -1202,11 +1241,14 @@ function renderListaLancamentos(){
     const local = (t.metodoPagamento==='credito'||t.metodoPagamento==='debito')? cartaoById(t.cartaoId)?.nome : contaById(t.contaId)?.nome;
     const sinalCls=t.tipo==='receita'?'income':t.tipo==='despesa'?'expense':'';
     const sinal=t.tipo==='receita'?'+':t.tipo==='despesa'?'-':'';
+    const st=t.data<=todayStr()?'pago':'pendente'; // calculado na hora: o campo salvo não vira "pago" sozinho
+    const cartaoT=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
+    const fat=(cartaoT && !cartaoT.titular && cartaoT.diaFechamento)? rotuloMes(mesCompetencia(t)) : '';
     return `<div class="row-card">
       <div class="row-icon">${cat?cat.icone:(t.tipo==='transferencia'?'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>':'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>')}</div>
       <div class="row-main">
         <div class="t1">${escapeHtml(t.descricao)}${t.parcelaTotal?` <span class="muted">(${t.parcelaAtual}/${t.parcelaTotal})</span>`:''}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>fixo</span>':''}</div>
-        <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''} <span class="badge ${t.status||'pago'}">${t.status||'pago'}</span></div>
+        <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''}${fat?' · fatura '+fat:''} <span class="badge ${st}">${st}</span></div>
       </div>
       <div class="row-value ${sinalCls}">${sinal}${fmtMoney(t.valor)}</div>
       <div class="row-actions">
@@ -1305,6 +1347,7 @@ function abrirFormTransacao(id){
       alert(`Cadastre um cartão de ${metodo==='credito'?'crédito':'débito'} em Contas antes de lançar com esse método.`);
       return;
     }
+    if(!usaCartao && !state.contas.length){ alert('Cadastre uma conta em Contas antes de criar lançamentos.'); return; }
     const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
     const base={
       descricao:fd.get('descricao').trim(),
@@ -1686,7 +1729,7 @@ function abrirFormRecorrencia(id){
   const tipo=r?r.tipo:'despesa';
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
-    <h2>${r?'Editar fixo mensal':'Novo fixo mensal'}</h2>
+    <h2>${r?'Editar fixo':'Novo fixo'}</h2>
     <form id="formRecorrencia">
       <div class="seg" id="segTipoRec">
         <button type="button" data-v="despesa" class="${tipo==='despesa'?'active':''}">Despesa</button>
@@ -1794,7 +1837,7 @@ function abrirFormRecorrencia(id){
       metodoPagamento:metodo,
       contaId: metodo==='credito'? null : (metodo==='debito'? (cartaoSelecionado?cartaoSelecionado.contaId:null) : fd.get('contaId')),
       cartaoId: usaCartao? fd.get('cartaoId') : null,
-      ativo:true
+      ativo: r ? r.ativo!==false : true
     };
     if(r){ Object.assign(r,dados); tocar(r); }
     else{ state.recorrencias.push(tocar({id:uuid(),...dados,mesesGerados:[]})); }
@@ -2015,14 +2058,14 @@ function renderConfig(){
         <div class="row-card">
           <div class="row-icon">${c.icone}</div>
           <div class="row-main"><div class="t1">${escapeHtml(c.nome)}</div></div>
-          <div style="width:120px"><input type="number" step="0.01" min="0" value="${c.orcamentoMensal||''}" placeholder="Sem limite" onchange="definirOrcamento('${c.id}', this.value)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)"></div>
+          <div style="width:120px"><input type="number" step="0.01" min="0" value="${c.orcamentoMensal||''}" placeholder="Sem limite" onchange="definirOrcamento('${c.id}', this.value)" class="input-sm"></div>
         </div>`).join('')}
       </div>
     </div>
 
     <div class="section-title"><h2>Sobre</h2></div>
     <div class="card">
-      <p class="hint">Caixinha — seus dados ficam salvos neste navegador (localStorage) e nos backups que você exportar. Nada é enviado para a internet.</p>
+      <p class="hint">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>
     </div>
   `;
 }
@@ -2047,7 +2090,7 @@ function excluirCategoria(id){
 function definirOrcamento(categoriaId,valor){
   const c=categoriaById(categoriaId); if(!c) return;
   const v=parseFloat(valor);
-  c.orcamentoMensal=(!isNaN(v) && v>0)?round2(v):undefined;
+  if(!isNaN(v) && v>0) c.orcamentoMensal=round2(v); else delete c.orcamentoMensal; // Firestore rejeita undefined
   tocar(c); salvarEstado(); toast('Orçamento atualizado.');
 }
 async function definirPin(){
@@ -2114,14 +2157,43 @@ function mesclarEstadoEm(alvo,incoming){
       const atual=porId[r.id];
       if(!atual || new Date(r.updatedAt||0) > new Date(atual.updatedAt||0)) porId[r.id]=r;
     });
+    if(chave==='recorrencias'){
+      // mesesGerados é uma lista que cresce: une as duas versões em vez de deixar a mais nova apagar meses da outra
+      const antes={}; local.forEach(r=>antes[r.id]=r.mesesGerados||[]);
+      vindos.forEach(r=>{ antes[r.id]=[...new Set([...(antes[r.id]||[]),...(r.mesesGerados||[])])]; });
+      Object.values(porId).forEach(r=>{ if(antes[r.id]) r.mesesGerados=antes[r.id]; });
+    }
     alvo[chave]=Object.values(porId);
   });
+  // config: PIN fica por aparelho; o resto converge (onboarding vale se concluído em qualquer aparelho; tema vence o mais recente)
+  const cfgIn=incoming.config||{}; if(!alvo.config) alvo.config={pinHash:null};
+  if(cfgIn.onboardingConcluido) alvo.config.onboardingConcluido=true;
+  if(!alvo.empresaNome && incoming.empresaNome) alvo.empresaNome=incoming.empresaNome;
+  if(cfgIn.temaAtualizadoEm && (!alvo.config.temaAtualizadoEm || cfgIn.temaAtualizadoEm>alvo.config.temaAtualizadoEm)){
+    alvo.config.temaEscuro=!!cfgIn.temaEscuro; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
+  }
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
 }
 
 /* ================= Modal genérico ================= */
-function abrirModal(){ document.getElementById('modalRoot').classList.remove('hidden'); }
-function fecharModal(){ document.getElementById('modalRoot').classList.add('hidden'); document.getElementById('modalCard').innerHTML=''; }
+let focoAntesDoModal=null;
+function abrirModal(){
+  focoAntesDoModal=document.activeElement;
+  document.getElementById('modalRoot').classList.remove('hidden');
+  document.getElementById('modalCard').focus({preventScroll:true}); // foco no diálogo (sem abrir o teclado do celular)
+}
+function fecharModal(){
+  document.getElementById('modalRoot').classList.add('hidden'); document.getElementById('modalCard').innerHTML='';
+  if(focoAntesDoModal && document.contains(focoAntesDoModal)) focoAntesDoModal.focus({preventScroll:true});
+  focoAntesDoModal=null;
+  if(window.recarregarAoFechar) location.reload(); // atualização do app que chegou com o modal aberto
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape' && !document.getElementById('modalRoot').classList.contains('hidden')) fecharModal();
+});
+// botões só com ícone têm title; espelha em aria-label pra leitores de tela (cobre tudo que o JS renderiza)
+new MutationObserver(()=>document.querySelectorAll('button[title]:not([aria-label])').forEach(b=>b.setAttribute('aria-label',b.title)))
+  .observe(document.body,{childList:true,subtree:true});
 
 /* ================= Init ================= */
 function mostrarAppLogado(){
@@ -2152,6 +2224,15 @@ window.onFbAuthChange = async function(user){
     document.getElementById('loginScreen').classList.remove('hidden');
     return;
   }
+  try{
+    const uidSalvo=localStorage.getItem('planilhaFinanceiro_uid');
+    if(uidSalvo && uidSalvo!==user.uid){
+      // dado local é da conta anterior: descarta SÓ a cópia local (a nuvem de ninguém é tocada) e recomeça limpo
+      ['planilhaFinanceiro_v1','planilhaFinanceiro_v1_pj','planilhaFinanceiro_perfilAtivo'].forEach(k=>localStorage.removeItem(k));
+      carregarEstado(); aplicarTema();
+    }
+    localStorage.setItem('planilhaFinanceiro_uid',user.uid);
+  }catch(e){}
   await iniciarSincronizacao(user);
   mostrarAppLogado();
 };
@@ -2241,13 +2322,13 @@ function sincronizarComFirestore(){
   clearTimeout(fbSaveTimeout[perfil]);
   fbSaveTimeout[perfil]=setTimeout(()=>{
     const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,perfil));
-    const paraEnviar={...state, config:{...state.config, pinHash:null}};
+    const paraEnviar=JSON.parse(JSON.stringify({...state, config:{...state.config, pinHash:null}})); // JSON limpa `undefined` (Firestore rejeita)
     window.fbSetDoc(ref, paraEnviar).catch(()=>{ /* sem internet: fica só local, sincroniza quando voltar */ });
   },1500);
 }
 
 function fbLogout(){
-  ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } });
+  ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } clearTimeout(fbSaveTimeout[p]); });
   window.fbUid=null;
   window.fbSignOutFn(window.fbAuth);
 }
@@ -2259,6 +2340,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
     if(jaRecarregou) return;
     jaRecarregou=true;
+    if(!document.getElementById('modalRoot').classList.contains('hidden')){ window.recarregarAoFechar=true; return; } // não perde o que está sendo digitado
     location.reload();
   });
 }

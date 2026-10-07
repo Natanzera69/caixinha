@@ -1,4 +1,4 @@
-# Apuração do redesign — checklist (preparado, ainda NÃO executado)
+# Apuração do redesign — checklist (rodada 2026-10-07 executada; ver 03-changelog.md)
 
 Contexto: o redesign "moeda 8-bit" foi aplicado em 2026-10-06 (ver `../03-changelog.md`). Esta pasta prepara a 2ª rodada:
 **caçar erros e ajustes finos**, sem refazer o que já ficou bom. Nada abaixo foi verificado ainda, a não ser onde marcado.
@@ -44,3 +44,8 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Corrigir erros e inconsistências visuais; **não** mudar lógica/cálculos/ids sem avisar.
 - Qualquer mudança que toque dados salvos ou Firestore → pedir OK antes (usuário não quer reset de contas).
 - Registrar achados no changelog e publicar só depois do OK.
+
+## Resultado da rodada de 2026-10-07
+- Feito: A1–A11 (datas locais, id determinístico dos fixos, limpeza ao trocar de conta, merge de config, undefined no Firestore, badge pela data, ativo ao editar, método do salário, Caixa PJ, texto Sobre, sw v5), acessibilidade (dialog/Esc/aria), contraste AA, ícone maskable, PIN com bolinhas, textos do mockup, fatura nos lançamentos, vencimento da fatura no Início.
+- Conferido no preview (mobile 462px, claro): Início, Lançamentos, Contas, Fixos, Config (PIN/Categorias/Orçamento), modais de Conta/Cartão/Fixo, PIN. Dark: só o que já estava da rodada anterior.
+- Ainda não conferido: modais de Financiamento/Investimento/Registrar pagamento, wizard completo e PJ, tablet 768px, tema escuro nas telas novas (PIN/vencimento), login real e instalação no Android.
