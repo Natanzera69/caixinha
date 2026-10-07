@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-07 — Apuração 2 de 3 (mobile): design, toque e 2 features
+
+**Design / toque**
+- **Login, PIN e tela de espera rolam** quando não cabem (teclado aberto, paisagem): antes o cartão ficava cortado no topo (campos de e-mail inalcançáveis em 420 px de altura).
+- **Linhas das listas**: em Lançamentos, tocar na linha abre a edição (os ícones somem no celular; o formulário de edição ganhou o botão **Excluir**; pagamento de fatura pede exclusão ao tocar). Contas, Cartões, Fixos, Investimentos e Financiamentos: as ações vão para uma faixa embaixo da linha. Nomes deixam de ser cortados.
+- Alvos de toque de 44 px (ícones das linhas, botões pequenos, seg, fechar, abas do seletor, cores, orçamento); fontes mínimas de 11,2 px; topo mais leve ("Empresa"/"Pessoal" no celular); card "Saldo projetado" mais curto.
+- Janela de formulário com `dvh`; `interactive-widget=resizes-content` e barra inferior escondida enquanto digita; `theme-color` acompanha o tema manual; metas do iPhone.
+
+**Comportamento**
+- Botão **Voltar** do Android fecha a janela aberta (formulários, seletor de ícones, wizard) sem acumular histórico.
+- **Puxar para atualizar desligado**; sem atraso de toque duplo; teclado decimal nos valores e `autocomplete=off` nos campos livres.
+- **Config → Instalar o app**: botão que abre o convite de instalação (Android/Chrome) ou mostra o passo a passo (iPhone/outros); some quando já está instalado.
+- Conferido no preview com emulação de celular (375×812, 320×640, 375×420); o que depende de teclado real, iPhone e do S25 está na lista de teste do usuário.
+
 ## 2026-10-07 — Apuração 1 de 3 (desktop): design, lógica e 2 features
 
 **Design**

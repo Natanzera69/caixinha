@@ -58,3 +58,8 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Feito: buraco do grid, estouro de valores, hover, foco do modal, rótulos, exclusão com referências, transferência igual, "Mostrar mais", Lançamentos com mês/filtros/total, Restaurar backup.
 - Fila: tolerância do bloqueio (na hora/30 s/2 min), 2 colunas e largura 1280 em telas grandes, "Gastos por banco" ao lado de outro card.
 - Próximas: apuração **mobile** e **tablet**.
+
+## Apuração 2 de 3 — mobile (2026-10-07)
+- Feito: login que rola, linhas largas (toque edita), faixa de ações, alvos de 44 px, topo curto, Voltar, sem puxar-para-atualizar, instalar o app, metas do iPhone, tema da barra de status.
+- **Teste do usuário no celular**: teclado no login e nos formulários (barra inferior some ao digitar?), botão Voltar, instalar, cor da barra de status no tema escuro, toque nas linhas de Lançamentos, iPhone de algum amigo.
+- Fila: indicador de sincronização, tolerância do bloqueio, 2 colunas em telas grandes. Próxima: **tablet**.

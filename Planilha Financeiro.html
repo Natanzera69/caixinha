@@ -5,11 +5,13 @@
 <!-- Segurança: só carrega código/dados do próprio site, do Firebase/Google e das fontes. Sem objetos, sem <base> externo. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'">
 <script>if(top!==self){try{top.location=self.location}catch(e){document.documentElement.innerHTML=''}} /* anti-clickjacking (GitHub Pages não deixa configurar cabeçalhos) */</script>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Caixinha</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#16842f" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#11130e" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" id="metaTema" content="#16842f"><!-- atualizado por aplicarTema() (o tema do app é manual, não o do sistema) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Caixinha">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="icon" href="assets/icon-moeda-512.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -197,7 +199,7 @@ section.tab.active{display:block;animation:fade .18s ease;}
 @media(max-width:680px){
   #app{padding:0 12px;}
   nav.tabs{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:80;margin:0;border-radius:0;border:none;border-top:1.5px solid var(--border);box-shadow:none;gap:0;padding:6px 4px calc(6px + env(safe-area-inset-bottom));background:var(--surface);}
-  nav.tabs button{font-size:.64rem;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+  nav.tabs button{font-size:.7rem;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;}
   nav.tabs button:hover{background:transparent;}
   nav.tabs button.active{background:transparent;color:var(--primary);box-shadow:none;font-weight:800;}
   nav.tabs button .ico{display:flex;align-items:center;justify-content:center;width:46px;height:28px;border-radius:9px;font-size:1.05rem;}
@@ -269,6 +271,31 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 .emoji-btn{height:44px;border:none;border-radius:10px;background:transparent;font-size:1.6rem;line-height:1;padding:0;}
 .emoji-btn:hover,.emoji-btn:focus-visible{background:var(--surface-2);}
 .emoji-vazio{grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.9rem;padding:24px 8px;}
+/* ---------- Celular / toque ---------- */
+html,body{overscroll-behavior-y:contain;} /* sem "puxar para atualizar" que recarrega o app e perde formulário */
+.modal-card,.emoji-grid,#lockScreen,#loginScreen,#gateScreen{overscroll-behavior:contain;}
+button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+@supports(height:1dvh){.modal-card{max-height:90dvh;}} /* vh ignora a barra do navegador no celular */
+.badge{font-size:.7rem;}
+/* telas cheias rolam quando não cabem (teclado aberto, paisagem) em vez de cortar o cartão */
+#lockScreen,#loginScreen,#gateScreen{overflow-y:auto;align-items:flex-start;padding:64px 20px 24px;}
+#lockScreen .lock-card,#loginScreen .lock-card,#gateScreen .lock-card{margin:auto;}
+@media(pointer:coarse){
+  .row-actions button:not(.btn){width:44px;height:44px;}
+  .btn-sm{min-height:44px;padding:10px 14px;}
+  .icon-btn,.icon-input,.close-x,.emoji-aba{width:44px;height:44px;}
+  .seg button{min-height:44px;}
+  .swatches span{width:36px;height:36px;}
+  .input-sm{min-height:44px;}
+}
+@media(max-width:680px){
+  .row-card{flex-wrap:wrap;}
+  /* 2 ou mais ações: faixa embaixo da linha (a linha de cima fica com a largura toda) */
+  .row-card .row-actions:has(> :nth-child(2)){flex:0 0 100%;flex-direction:row !important;flex-wrap:wrap;justify-content:flex-end;gap:4px;border-top:1px dashed var(--border);padding-top:8px;margin-top:4px;}
+  #lancLista .row-actions{display:none;} #lancLista .row-card{cursor:pointer;} /* em Lançamentos tocar na linha edita */
+  #seletorPerfil .btn{padding:9px 12px;font-size:.84rem;}
+  body.digitando nav.tabs{display:none;} /* teclado aberto: a barra inferior não rouba espaço */
+}
 /* hover (mouse) */
 @media(hover:hover){
   .btn:hover{border-color:var(--text-faint);}
@@ -512,6 +539,7 @@ function trocarPerfil(perfil){
 }
 function aplicarTema(){
   document.documentElement.classList.toggle('dark', !!state.config.temaEscuro);
+  const m=document.getElementById('metaTema'); if(m) m.content=state.config.temaEscuro?'#11130e':'#16842f'; // barra de status do celular
 }
 function definirTema(escuro){
   state.config.temaEscuro=escuro; state.config.temaAtualizadoEm=nowISO();
@@ -974,8 +1002,10 @@ function renderSeletorPerfil(){
   const el=document.getElementById('seletorPerfil');
   if(!el) return;
   if(!estados.pj){ el.innerHTML=''; return; }
-  const label = perfilAtivo==='pessoal' ? '<span class="px-ico sm" style="--i:url(assets/icons/building.svg)"></span>Trocar para perfil empresarial' : '<span class="px-ico sm" style="--i:url(assets/icons/home.svg)"></span>Trocar para perfil pessoal';
-  el.innerHTML=`<button type="button" class="btn" onclick="alternarPerfilComLoading()">${label}</button>`;
+  const pj = perfilAtivo==='pessoal';
+  const icone = pj ? '<span class="px-ico sm" style="--i:url(assets/icons/building.svg)"></span>' : '<span class="px-ico sm" style="--i:url(assets/icons/home.svg)"></span>';
+  const longo = pj ? 'Trocar para perfil empresarial' : 'Trocar para perfil pessoal';
+  el.innerHTML=`<button type="button" class="btn" aria-label="${longo}" onclick="alternarPerfilComLoading()">${icone}<span class="lbl-long">${longo}</span><span class="lbl-short">${pj?'Empresa':'Pessoal'}</span></button>`;
 }
 function alternarPerfilComLoading(){
   const proximo = perfilAtivo==='pessoal' ? 'pj' : 'pessoal';
@@ -1229,7 +1259,7 @@ function renderDashboard(){
     const futuras=doMes.filter(t=>t.data>hoje && t.data<=fimMes && t.metodoPagamento!=='credito');
     const delta=futuras.reduce((s,t)=>s+(t.tipo==='receita'?t.valor:t.tipo==='despesa'?-t.valor:0),0);
     const projetado=saldoTotalContas()+delta;
-    cardProjetado=`<div class="card projetado"><h3 style="--c:var(--primary)">Saldo projetado (fim do mês)</h3><div class="value ${projetado>=0?'income':'expense'}">${fmtMoney(projetado)}</div><div class="sub">contas de hoje + o que ainda falta entrar/sair até ${fmtDate(fimMes)}</div></div>`;
+    cardProjetado=`<div class="card projetado"><h3 style="--c:var(--primary)">Saldo projetado</h3><div class="value ${projetado>=0?'income':'expense'}">${fmtMoney(projetado)}</div><div class="sub">hoje + o que ainda entra/sai até ${fmtDate(fimMes)}</div></div>`;
   }
 
   const bancoArr=gastosPorBancoDoMes(doMes);
@@ -1441,7 +1471,7 @@ function renderListaLancamentos(){
     const st=t.data<=todayStr()?'pago':'pendente'; // calculado na hora: o campo salvo não vira "pago" sozinho
     const cartaoT=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
     const fat=(cartaoT && !cartaoT.titular && cartaoT.diaFechamento)? rotuloMes(mesCompetencia(t)) : '';
-    return `<div class="row-card">
+    return `<div class="row-card" onclick="tocarLinhaLanc('${t.id}')">
       <div class="row-icon">${cat?iconeSeguro(cat.icone):(t.tipo==='transferencia'?'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>':'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>')}</div>
       <div class="row-main">
         <div class="t1">${escapeHtml(t.descricao)}${t.parcelaTotal?` <span class="muted">(${t.parcelaAtual}/${t.parcelaTotal})</span>`:''}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>fixo</span>':''}</div>
@@ -1457,9 +1487,16 @@ function renderListaLancamentos(){
   if(lista.length>visiveis.length) mais.innerHTML=`<button class="btn btn-block mt16" onclick="filtroLanc.limite+=LANC_PAGINA;renderListaLancamentos()">Mostrar mais (restam ${lista.length-visiveis.length})</button>`;
 }
 function excluirTransacao(id){
-  if(!confirm('Excluir este lançamento?')) return;
+  if(!confirm('Excluir este lançamento?')) return false;
   excluirRegistro('transacoes', id);
   salvarEstado(); renderTudo(); toast('Lançamento excluído.');
+  return true;
+}
+// Celular (<=680 px): os ícones somem e tocar na linha abre a edição; pagamento de fatura não é editável, só excluível.
+function tocarLinhaLanc(id){
+  if(!matchMedia('(max-width:680px)').matches) return;
+  const t=state.transacoes.find(x=>x.id===id); if(!t) return;
+  if(t.pagamentoFatura) excluirTransacao(id); else abrirFormTransacao(id);
 }
 
 /* ---- Formulário de transação ---- */
@@ -1498,6 +1535,7 @@ function abrirFormTransacao(id){
       ${!t?`<div class="field" id="campoParcelas"><label>Parcelar em quantas vezes?</label><input type="number" min="1" max="120" name="parcelas" value="1"></div>`:''}
       <div class="field"><label>Notas (opcional)</label><textarea name="notas">${t?escapeHtml(t.notas||''):''}</textarea></div>
       <div class="modal-actions">
+        ${t?`<button type="button" class="btn btn-danger" onclick="if(excluirTransacao('${t.id}')) fecharModal()">Excluir</button>`:''}
         <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary">${t?'Salvar':'Adicionar'}</button>
       </div>
@@ -2224,6 +2262,15 @@ function renderConfig(){
       <button class="btn mt16" onclick="refazerOnboarding()"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>Refazer configuração inicial</button>
     </div>
 
+    ${appInstalado()?'':`<div class="section-title"><h2>Instalar o app</h2></div>
+    <div class="card">
+      ${promptInstalar
+        ? `<p class="hint">Instale o Caixinha na tela inicial para abrir como um app, em tela cheia, sem a barra do navegador.</p><button class="btn btn-primary mt16" onclick="instalarApp()">Instalar o app</button>`
+        : ehIOS()
+          ? '<p class="hint">No iPhone: toque em <b>Compartilhar</b> (o quadrado com a seta) e depois em <b>Adicionar à Tela de Início</b>.</p>'
+          : '<p class="hint">No Chrome do Android: toque no menu <b>⋮</b> e em <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>). No computador, use o ícone de instalar na barra de endereço.</p>'}
+    </div>`}
+
     <div class="section-title"><h2>Sincronização</h2></div>
     <div class="card">
       <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
@@ -2504,12 +2551,23 @@ function mesclarEstadoEm(alvo,incoming){
 
 /* ================= Modal genérico ================= */
 let focoAntesDoModal=null;
+let modalNoHistorico=false, voltandoDoModal=false;
 function abrirModal(){
   focoAntesDoModal=document.activeElement;
   document.getElementById('modalRoot').classList.remove('hidden');
   document.getElementById('modalCard').focus({preventScroll:true}); // foco no diálogo (sem abrir o teclado do celular)
+  // uma entrada no histórico por janela: o botão Voltar do celular fecha a janela em vez de sair do app
+  if(!modalNoHistorico && !voltandoDoModal){ try{ history.pushState({cx:'modal'},''); modalNoHistorico=true; }catch(e){} }
 }
-function fecharModal(){
+window.addEventListener('popstate',()=>{
+  if(voltandoDoModal){ voltandoDoModal=false; return; } // eco do history.back() que nós mesmos pedimos
+  if(modalNoHistorico && !document.getElementById('modalRoot').classList.contains('hidden')) fecharModal(true);
+});
+function fecharModal(deVoltar){
+  if(modalNoHistorico){
+    modalNoHistorico=false;
+    if(deVoltar!==true && history.state && history.state.cx==='modal'){ voltandoDoModal=true; try{ history.back(); }catch(e){ voltandoDoModal=false; } }
+  }
   document.getElementById('modalRoot').classList.add('hidden'); document.getElementById('modalCard').innerHTML='';
   if(focoAntesDoModal && document.contains(focoAntesDoModal)) focoAntesDoModal.focus({preventScroll:true});
   focoAntesDoModal=null;
@@ -2527,14 +2585,32 @@ document.addEventListener('keydown',e=>{
   }
 });
 // botões só com ícone têm title; espelha em aria-label pra leitores de tela (cobre tudo que o JS renderiza)
+const CAMPO_TEXTO='input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),select,textarea';
+document.addEventListener('focusin',e=>{ if(matchMedia('(max-width:680px) and (pointer:coarse)').matches && e.target.matches && e.target.matches(CAMPO_TEXTO)) document.body.classList.add('digitando'); });
+document.addEventListener('focusout',()=>setTimeout(()=>{ const a=document.activeElement; if(!(a&&a.matches&&a.matches(CAMPO_TEXTO))) document.body.classList.remove('digitando'); },120));
 new MutationObserver(()=>{
   document.querySelectorAll('button[title]:not([aria-label])').forEach(b=>b.setAttribute('aria-label',b.title));
+  document.querySelectorAll('input[type=number][step="0.01"]:not([inputmode])').forEach(i=>i.setAttribute('inputmode','decimal')); // teclado de valores
+  document.querySelectorAll('#modalCard input[type=text]:not([autocomplete]),#modalCard input:not([type]):not([autocomplete]),#modalCard textarea:not([autocomplete])').forEach(i=>i.setAttribute('autocomplete','off'));
   // campo dentro de .field com <label> irmão: usa o texto do label como nome acessível
   document.querySelectorAll('.field').forEach(f=>{
     const l=f.querySelector('label'), c=f.querySelector('input:not([type=hidden]),select,textarea');
     if(l && c && !c.hasAttribute('aria-label') && !(c.labels&&c.labels.length)) c.setAttribute('aria-label',l.textContent.trim());
   });
 }).observe(document.body,{childList:true,subtree:true});
+
+/* ================= Instalar o app (PWA) ================= */
+let promptInstalar=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); promptInstalar=e; if(abaAtual==='config') renderConfig(); });
+window.addEventListener('appinstalled',()=>{ promptInstalar=null; if(abaAtual==='config') renderConfig(); });
+function appInstalado(){ return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+function ehIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
+async function instalarApp(){
+  if(!promptInstalar) return;
+  promptInstalar.prompt();
+  try{ await promptInstalar.userChoice; }catch(e){}
+  promptInstalar=null; renderConfig();
+}
 
 /* ================= Seletor de ícones (emojis) =================
    Dados em assets/emojis-pt.js (gerado por instrucoes/apuracao/gerar-emojis.js), carregados só quando o seletor abre. */
