@@ -15,10 +15,15 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
+  'cartaoById', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
+const store = {};
+ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
+ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
 vm.createContext(ctx);
-vm.runInContext(nomes.map(extrair).join('\n'), ctx);
+const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' +
+  script.match(/const lsGet=[^\n]*\nconst lsSet=[^\n]*\nconst lsDel=[^\n]*\n/)[0];
+vm.runInContext(consts + '\n' + nomes.map(extrair).join('\n'), ctx);
 const novo = () => ({ contas: [], cartoes: [], categorias: [], transacoes: [], financiamentos: [], investimentos: [], recorrencias: [], config: { pinHash: null }, _tombstones: {} });
 const rec = () => ({ id: 'r1', descricao: 'Salário', valor: 5200, tipo: 'receita', diaDoMes: 5, intervaloMeses: 1, ativo: true, mesesGerados: [], categoriaId: 'c', metodoPagamento: 'pix', contaId: 'a', updatedAt: '2026-10-01T00:00:00Z' });
 const run = (c) => vm.runInContext(c, ctx);
@@ -69,5 +74,31 @@ t('exclusão mais recente vence (tombstone) e nada vira undefined no envio', () 
   b._tombstones.contas = [{ id: 'x', updatedAt: '2026-10-02T00:00:00Z' }]; ctx.a = a; ctx.b = b; run('mesclarEstadoEm(a,b)');
   assert.strictEqual(a.contas.length, 0);
   const c = { orcamentoMensal: undefined, nome: 'x' }; assert.ok(!('orcamentoMensal' in JSON.parse(JSON.stringify(c))));
+});
+t('sessão de 30 dias: 29 dias vale, 31 expira, sem registro não expira', () => {
+  const set = d => run(`localStorage.setItem(SEG.loginEm, String(Date.now() - ${d}*86400000))`);
+  run('localStorage.removeItem(SEG.loginEm)'); assert.strictEqual(run('sessaoExpirada()'), false);
+  set(29); assert.strictEqual(run('sessaoExpirada()'), false);
+  set(31); assert.strictEqual(run('sessaoExpirada()'), true);
+  set(0); assert.ok(run('fimDaSessao()').getTime() - Date.now() > 29.9 * 86400000);
+});
+t('bloqueio ao minimizar: ligado por padrão, "0" desliga', () => {
+  run('localStorage.removeItem(SEG.lockMin)'); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), true);
+  run("localStorage.setItem(SEG.lockMin,'0')"); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), false);
+  run("localStorage.setItem(SEG.lockMin,'1')"); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), true);
+});
+t('PIN antigo por perfil migra pro aparelho', () => {
+  run('removerPinAparelho()');
+  ctx.estados.pessoal = { config: { pinHash: 'hash_antigo' } }; ctx.estados.pj = { config: { pinHash: null } }; ctx.state = ctx.estados.pessoal;
+  assert.strictEqual(run('pinDoAparelho()'), 'hash_antigo');
+  assert.strictEqual(ctx.estados.pessoal.config.pinHash, null);
+  assert.strictEqual(store.planilhaFinanceiro_pinLen, undefined); // tamanho desconhecido: sem auto-entrar
+});
+t('PIN novo: guarda hash (não o número) e o tamanho 4', () => {
+  run('removerPinAparelho()');
+  return run("definirPinAparelho('1234')").then(() => {
+    assert.strictEqual(store.planilhaFinanceiro_pinLen, '4'); assert.notStrictEqual(store.planilhaFinanceiro_pin, '1234');
+    assert.strictEqual(store.planilhaFinanceiro_pin.length, 64);
+  });
 });
 console.log(`\n${ok} testes passaram`);

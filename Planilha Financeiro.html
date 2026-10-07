@@ -295,6 +295,7 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
     <input id="lockInput" class="pin-real" type="password" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="PIN">
     <div id="lockError"></div>
     <button class="btn btn-primary btn-block" onclick="tentarDesbloquear()">Entrar</button>
+    <button class="btn btn-ghost btn-block mt16" onclick="esqueciPin()">Esqueci o PIN</button>
   </div>
 </div>
 
@@ -495,30 +496,89 @@ async function hashTexto(txt){
   }
 }
 
+/* ================= Segurança do aparelho: PIN, bloqueio ao minimizar e validade do login =================
+   Tudo em localStorage, FORA do state: o PIN é do aparelho (vale pros perfis Pessoal e PJ) e nunca vai pro Firestore nem pro backup. */
+const SEG={pin:'planilhaFinanceiro_pin',pinLen:'planilhaFinanceiro_pinLen',lockMin:'planilhaFinanceiro_lockMin',loginEm:'planilhaFinanceiro_loginEm',pinVisto:'planilhaFinanceiro_pinVisto'};
+const SESSAO_DIAS=30; // depois disso (contado desde o login) pede e-mail e senha de novo
+const lsGet=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+const lsDel=k=>{ try{ localStorage.removeItem(k); }catch(e){} };
+function pinDoAparelho(){
+  let h=lsGet(SEG.pin);
+  if(!h){
+    // PIN antigo (era guardado por perfil): vira o PIN do aparelho uma única vez
+    const perfis=[state,estados.pessoal,estados.pj].filter(s=>s&&s.config);
+    const antigo=perfis.map(s=>s.config.pinHash).find(Boolean);
+    if(antigo){
+      lsSet(SEG.pin,antigo); h=antigo;
+      perfis.forEach(s=>{ s.config.pinHash=null; });
+      salvarPerfilLocal('pessoal'); if(estados.pj) salvarPerfilLocal('pj');
+    }
+  }
+  return h||null;
+}
+async function definirPinAparelho(pin){ lsSet(SEG.pin,await hashTexto(pin)); lsSet(SEG.pinLen,String(pin.length)); }
+function removerPinAparelho(){ lsDel(SEG.pin); lsDel(SEG.pinLen); }
+function bloqueioAoMinimizarAtivo(){ return lsGet(SEG.lockMin)!=='0'; } // padrão: ligado
+function definirBloqueioAoMinimizar(ligado){ lsSet(SEG.lockMin,ligado?'1':'0'); renderConfig(); toast(ligado?'Vai bloquear ao minimizar.':'Bloqueio ao minimizar desligado.'); }
+function sessaoExpirada(){ const t=Number(lsGet(SEG.loginEm)); return !!t && Date.now()-t>SESSAO_DIAS*86400000; }
+function fimDaSessao(){ const t=Number(lsGet(SEG.loginEm)); return t? new Date(t+SESSAO_DIAS*86400000) : null; }
+function mostrarLogin(){
+  ['loadingScreen','app','lockScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+function verificarSessao(){
+  if(window.fbUid && sessaoExpirada()){
+    fbLogout(); mostrarLogin();
+    document.getElementById('loginError').textContent='Sua sessão expirou. Entre novamente.';
+    return true;
+  }
+  return false;
+}
+setInterval(verificarSessao,60000);
+function esqueciPin(){
+  if(!confirm('Pra criar um novo PIN você entra de novo com e-mail e senha. Continuar?')) return;
+  fbLogout(); mostrarLogin();
+  document.getElementById('loginError').textContent='Entre com e-mail e senha; depois crie um novo PIN em Config.';
+}
+
 /* ================= Lock screen ================= */
+let pinErros=0;
 async function tentarDesbloquear(){
   const input=document.getElementById('lockInput');
+  if(verificarSessao()) return;
   const hash=await hashTexto(input.value);
-  if(hash===state.config.pinHash){
+  if(hash===pinDoAparelho()){
+    pinErros=0;
     document.getElementById('lockScreen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
     input.value=''; desenharPinBoxes();
     document.getElementById('lockError').textContent='';
+    if(!window.fbUid){ mostrarLogin(); return; } // PIN não substitui o login: sem sessão não abre o app
+    document.getElementById('app').classList.remove('hidden');
     possivelmenteAbrirWizard();
   }else{
+    input.value=''; desenharPinBoxes();
+    if(++pinErros>=5){ // errou demais: exige e-mail e senha (como app de banco)
+      pinErros=0; fbLogout(); mostrarLogin();
+      document.getElementById('loginError').textContent='PIN errado 5 vezes. Entre com e-mail e senha.';
+      return;
+    }
     document.getElementById('lockError').textContent='PIN errado, tenta de novo';
   }
 }
 // só visual: espelha o tamanho do valor digitado em caixinhas com bolinha (a validação continua lendo o #lockInput)
 function desenharPinBoxes(){
   const box=document.getElementById('pinBoxes'), inp=document.getElementById('lockInput'); if(!box||!inp) return;
-  const n=Math.max(4,inp.value.length);
+  const n=Math.max(Number(lsGet(SEG.pinLen))||4,inp.value.length);
   box.innerHTML=Array.from({length:n},(_,i)=>i<inp.value.length?'<span class="filled"><span class="px-dot"></span></span>':'<span></span>').join('');
 }
 document.addEventListener('DOMContentLoaded',()=>{
   const inp=document.getElementById('lockInput');
   inp?.addEventListener('keydown',e=>{ if(e.key==='Enter') tentarDesbloquear(); });
-  inp?.addEventListener('input',desenharPinBoxes);
+  inp?.addEventListener('input',()=>{
+    desenharPinBoxes();
+    const L=Number(lsGet(SEG.pinLen)); if(L && inp.value.length===L) tentarDesbloquear(); // PIN de 4 dígitos entra sozinho no 4º
+  });
   document.getElementById('lockScreen')?.addEventListener('click',()=>inp.focus());
   desenharPinBoxes();
 });
@@ -528,7 +588,10 @@ function bloquearApp(){
   document.getElementById('lockInput').focus();
 }
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden && state?.config?.pinHash) bloquearApp();
+  if(document.hidden){
+    // só trava com login ativo, PIN criado e a opção ligada (padrão)
+    if(window.fbUid && pinDoAparelho() && bloqueioAoMinimizarAtivo()) bloquearApp();
+  }else verificarSessao();
 });
 
 /* ================= Onboarding (primeiro login) =================
@@ -536,8 +599,33 @@ document.addEventListener('visibilitychange',()=>{
    categorias, recorrências, config) — nada de tabela nova só pro wizard.
    Tudo dá pra editar depois normalmente em Config/Contas/Fixos. */
 let wizardOrigemConfig=false;
+function possivelmentePedirPin(){
+  if(pinDoAparelho() || lsGet(SEG.pinVisto)) return;
+  abrirModal(); abrirPromptPin();
+}
+function abrirPromptPin(){
+  document.getElementById('modalCard').innerHTML=`
+    <h2>Proteja seu Caixinha</h2>
+    <p class="hint">Crie um PIN de 4 dígitos. O app trava quando você minimiza e pede o PIN pra voltar. Dá pra desligar isso (ou trocar o PIN) em Config → Segurança.</p>
+    <div class="row2 mt16">
+      <div class="field"><label>PIN (4 dígitos)</label><input id="promptPin1" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
+      <div class="field"><label>Confirmar</label><input id="promptPin2" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
+    </div>
+    <div id="promptPinErro" style="color:var(--expense); font-size:.85rem; min-height:18px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="lsSet(SEG.pinVisto,'1');fecharModal()">Agora não</button>
+      <button class="btn btn-primary" onclick="promptSalvarPin()">Criar PIN</button>
+    </div>`;
+}
+async function promptSalvarPin(){
+  const a=document.getElementById('promptPin1').value, b=document.getElementById('promptPin2').value, erro=document.getElementById('promptPinErro');
+  if(!/^\d{4}$/.test(a)){ erro.textContent='O PIN tem exatamente 4 números.'; return; }
+  if(a!==b){ erro.textContent='Os PINs não coincidem.'; return; }
+  await definirPinAparelho(a); lsSet(SEG.pinVisto,'1');
+  fecharModal(); toast('PIN criado. O app trava ao minimizar.');
+}
 function possivelmenteAbrirWizard(){
-  if(state.config.onboardingConcluido) return;
+  if(state.config.onboardingConcluido){ possivelmentePedirPin(); return; }
   wizardOrigemConfig=false;
   abrirModal();
   abrirWizardBoasVindas();
@@ -792,10 +880,10 @@ function wizardFinalizarPJ(){
 function abrirWizardPin(){
   document.getElementById('modalCard').innerHTML=`
     <h2>Quer definir um PIN de acesso?</h2>
-    <p class="hint">Pede esse PIN toda vez que o app abrir. Dá pra configurar (ou remover) depois também, em Config.</p>
+    <p class="hint">PIN de 4 dígitos: o app trava quando você minimiza e pede o PIN pra voltar. Dá pra desligar isso (ou trocar/remover o PIN) depois, em Config.</p>
     <div class="row2">
-      <div class="field"><label>PIN (mín. 4 dígitos)</label><input id="wizPin1" type="password" inputmode="numeric" maxlength="8"></div>
-      <div class="field"><label>Confirmar</label><input id="wizPin2" type="password" inputmode="numeric" maxlength="8"></div>
+      <div class="field"><label>PIN (4 dígitos)</label><input id="wizPin1" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+      <div class="field"><label>Confirmar</label><input id="wizPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
     </div>
     <div id="wizPinErro" style="color:var(--expense); font-size:.85rem; min-height:18px"></div>
     <div class="modal-actions">
@@ -806,9 +894,9 @@ function abrirWizardPin(){
 async function wizardSalvarPin(){
   const a=document.getElementById('wizPin1').value, b=document.getElementById('wizPin2').value;
   if(!a){ finalizarWizard(); return; }
-  if(a.length<4){ document.getElementById('wizPinErro').textContent='Use pelo menos 4 dígitos.'; return; }
+  if(!/^\d{4}$/.test(a)){ document.getElementById('wizPinErro').textContent='O PIN tem exatamente 4 números.'; return; }
   if(a!==b){ document.getElementById('wizPinErro').textContent='Os PINs não coincidem.'; return; }
-  state.config.pinHash=await hashTexto(a);
+  await definirPinAparelho(a); lsSet(SEG.pinVisto,'1');
   finalizarWizard();
 }
 
@@ -2022,15 +2110,21 @@ function renderConfig(){
 
     <div class="section-title"><h2>Segurança</h2></div>
     <div class="card">
-      ${state.config.pinHash?
-        `<p class="hint">PIN ativado. Ele será pedido toda vez que você abrir ou bloquear o app.</p>
+      <p class="hint" style="margin:0 0 8px">Bloquear ao minimizar o app (celular ou computador): pede o PIN de 4 dígitos toda vez que você sai e volta.</p>
+      <div class="seg">
+        <button type="button" class="${bloqueioAoMinimizarAtivo()?'active':''}" onclick="definirBloqueioAoMinimizar(true)">Ligado</button>
+        <button type="button" class="${bloqueioAoMinimizarAtivo()?'':'active'}" onclick="definirBloqueioAoMinimizar(false)">Desligado</button>
+      </div>
+      ${pinDoAparelho()?
+        `<p class="hint mt16">PIN criado neste aparelho (vale para o perfil pessoal e o empresarial). Ele também é pedido toda vez que você abre o app.</p>
          <button class="btn btn-danger mt16" onclick="removerPin()">Remover PIN</button>`:
-        `<p class="hint">Defina um PIN simples para evitar que alguém abra o arquivo e veja seus dados de cara. (Proteção básica — os backups em JSON continuam em texto simples.)</p>
+        `<p class="hint mt16">Crie um PIN de 4 dígitos para ativar o bloqueio. (Proteção básica neste aparelho — a segurança de verdade é a senha da sua conta.)</p>
          <div class="row2 mt16">
-           <div class="field"><label>Novo PIN</label><input id="novoPin" type="password" inputmode="numeric" maxlength="8"></div>
-           <div class="field"><label>Confirmar PIN</label><input id="confPin" type="password" inputmode="numeric" maxlength="8"></div>
+           <div class="field"><label>Novo PIN</label><input id="novoPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+           <div class="field"><label>Confirmar PIN</label><input id="confPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
          </div>
          <button class="btn btn-primary" onclick="definirPin()">Salvar PIN</button>`}
+      ${fimDaSessao()?`<p class="hint mt16">Você fica conectado até <b>${fmtDate(isoLocal(fimDaSessao()))}</b>. Depois disso o app pede e-mail e senha de novo.</p>`:''}
     </div>
 
     <div class="section-title"><h2>Categorias</h2></div>
@@ -2095,14 +2189,14 @@ function definirOrcamento(categoriaId,valor){
 }
 async function definirPin(){
   const a=document.getElementById('novoPin').value, b=document.getElementById('confPin').value;
-  if(a.length<4){ alert('Use pelo menos 4 dígitos.'); return; }
+  if(!/^\d{4}$/.test(a)){ alert('O PIN tem exatamente 4 números.'); return; }
   if(a!==b){ alert('Os PINs não coincidem.'); return; }
-  state.config.pinHash=await hashTexto(a);
-  salvarEstado(); renderConfig(); toast('PIN definido.');
+  await definirPinAparelho(a);
+  renderConfig(); toast('PIN definido.');
 }
 function removerPin(){
   if(!confirm('Remover o PIN de acesso?')) return;
-  state.config.pinHash=null; salvarEstado(); renderConfig(); toast('PIN removido.');
+  removerPinAparelho(); renderConfig(); toast('PIN removido.');
 }
 
 function nomeArquivoBackup(){
@@ -2199,12 +2293,14 @@ new MutationObserver(()=>document.querySelectorAll('button[title]:not([aria-labe
 function mostrarAppLogado(){
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.add('hidden');
-  if(state.config.pinHash){
+  if(pinDoAparelho() && !window.__sessaoNova){ // login recém-feito com e-mail e senha já provou quem é: não pede PIN em seguida
+    document.getElementById('app').classList.add('hidden');
     document.getElementById('lockScreen').classList.remove('hidden');
   }else{
     document.getElementById('app').classList.remove('hidden');
     possivelmenteAbrirWizard();
   }
+  window.__sessaoNova=false;
   switchTab('dashboard');
   renderSeletorPerfil();
 }
@@ -2217,22 +2313,20 @@ init();
 
 /* ================= Firebase: login e sincronização ================= */
 window.onFbAuthChange = async function(user){
-  if(!user){
-    document.getElementById('loadingScreen').classList.add('hidden');
-    document.getElementById('app').classList.add('hidden');
-    document.getElementById('lockScreen').classList.add('hidden');
-    document.getElementById('loginScreen').classList.remove('hidden');
-    return;
-  }
+  if(!user){ mostrarLogin(); return; }
   try{
     const uidSalvo=localStorage.getItem('planilhaFinanceiro_uid');
     if(uidSalvo && uidSalvo!==user.uid){
       // dado local é da conta anterior: descarta SÓ a cópia local (a nuvem de ninguém é tocada) e recomeça limpo
       ['planilhaFinanceiro_v1','planilhaFinanceiro_v1_pj','planilhaFinanceiro_perfilAtivo'].forEach(k=>localStorage.removeItem(k));
+      Object.values(SEG).forEach(lsDel); // PIN, opção e sessão eram da pessoa anterior
       carregarEstado(); aplicarTema();
     }
     localStorage.setItem('planilhaFinanceiro_uid',user.uid);
   }catch(e){}
+  if(window.__loginManual){ lsSet(SEG.loginEm,String(Date.now())); window.__sessaoNova=true; window.__loginManual=false; }
+  else if(!lsGet(SEG.loginEm)) lsSet(SEG.loginEm,String(Date.now())); // já estava logado antes dessa regra: 30 dias de carência
+  if(sessaoExpirada()){ fbLogout(); mostrarLogin(); document.getElementById('loginError').textContent='Sua sessão expirou. Entre novamente.'; return; }
   await iniciarSincronizacao(user);
   mostrarAppLogado();
 };
@@ -2241,9 +2335,11 @@ async function fbLogin(){
   const email=document.getElementById('loginEmail').value.trim();
   const senha=document.getElementById('loginSenha').value;
   const erro=document.getElementById('loginError'); erro.textContent='';
+  window.__loginManual=true; // o onAuthStateChanged vai gravar o início dos 30 dias
   try{
     await window.fbSignIn(window.fbAuth, email, senha);
   }catch(e){
+    window.__loginManual=false;
     erro.textContent='Não foi possível entrar. Confira e-mail e senha.';
   }
 }
@@ -2252,9 +2348,11 @@ async function fbSignup(){
   const senha=document.getElementById('loginSenha').value;
   const erro=document.getElementById('loginError'); erro.textContent='';
   if(senha.length<6){ erro.textContent='A senha precisa ter pelo menos 6 caracteres.'; return; }
+  window.__loginManual=true;
   try{
     await window.fbSignUp(window.fbAuth, email, senha);
   }catch(e){
+    window.__loginManual=false;
     erro.textContent='Não foi possível criar a conta (talvez esse e-mail já tenha uma conta — tente Entrar).';
   }
 }
@@ -2330,7 +2428,7 @@ function sincronizarComFirestore(){
 function fbLogout(){
   ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } clearTimeout(fbSaveTimeout[p]); });
   window.fbUid=null;
-  window.fbSignOutFn(window.fbAuth);
+  window.fbSignOutFn?.(window.fbAuth);
 }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update());

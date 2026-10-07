@@ -54,7 +54,8 @@ Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...
 - Rentabilidade = `(valorAtual - valorAportado) / valorAportado * 100` (calculada)
 
 ## `config`
-- `pinHash` (string ou null) — hash SHA-256 (ou fallback) do PIN de acesso; ver [01-arquitetura.md](01-arquitetura.md)
+- `pinHash` — **legado**: o PIN agora é do aparelho (chaves `planilhaFinanceiro_pin`/`_pinLen` no localStorage, fora do estado). Se ainda existir aqui, é migrado uma única vez para a chave do aparelho e zerado.
+- Chaves de segurança por aparelho (nunca sincronizadas): `planilhaFinanceiro_pin`, `_pinLen`, `_lockMin` (`0` = bloqueio ao minimizar desligado; ausente = ligado), `_loginEm` (início dos 30 dias), `_pinVisto` (já viu o pedido de criar PIN), `_uid` (última conta neste navegador).
 - `temaEscuro` (boolean, default false) — modo escuro, alternado em Config → Aparência. Ao contrário do PIN, sincroniza normalmente entre aparelhos (via backup e Firestore). Aplicado via `aplicarTema()`, que só troca a classe `dark` no `<html>` — todas as cores do app usam variáveis CSS (`--bg`, `--surface`, etc.) redefinidas em `html.dark{...}`.
 
 ## Cálculos globais (não armazenados, sempre derivados)

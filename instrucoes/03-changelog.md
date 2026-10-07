@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-07 — Bloqueio ao minimizar + login de 30 dias (estilo app de banco)
+
+- **Opção "Bloquear ao minimizar"** em Config → Segurança, ligada por padrão; ao minimizar/trocar de app trava e pede o PIN. Só trava com login ativo e PIN criado.
+- **PIN de 4 dígitos, por aparelho** (antes: 4 a 8, por perfil — o perfil PJ sem PIN escapava do bloqueio). O PIN antigo é migrado sozinho. O 4º dígito entra automaticamente; "Esqueci o PIN" leva ao login; 5 erros seguidos pedem e-mail e senha.
+- **Login lembrado por 30 dias fixos** (`planilhaFinanceiro_loginEm`); expirou → desloga e mostra "Sua sessão expirou". Quem já estava logado antes da atualização ganha 30 dias a partir do primeiro acesso. Login recém-feito não pede o PIN em seguida.
+- **Bug corrigido**: o PIN abria o app mesmo deslogado; agora sem login leva à tela de login.
+- Pedido de criar PIN (modal "Proteja seu Caixinha") para quem ainda não tem; "Agora não" não volta a insistir.
+- Trocar de conta no mesmo navegador também limpa PIN, opção e sessão da conta anterior.
+- Testes: `instrucoes/apuracao/teste-logica.js` (11 passam); fluxo completo (trava, auto-entrada, erro, 5 erros, expiração 29/31 dias, login manual, outra conta) conferido no preview com stubs do Firebase.
+
 ## 2026-10-07 — Apuração (2ª rodada): erros de dados, acessibilidade e extras
 
 Leitura completa do código. Nenhum dado salvo foi apagado ou migrado. Testes de lógica em `instrucoes/apuracao/teste-logica.js` (7 passam com `TZ=America/Sao_Paulo`).

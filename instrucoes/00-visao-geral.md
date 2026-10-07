@@ -18,9 +18,12 @@ Pelo link `https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html` (q
 - Funciona offline: continua editando sem internet, e sincroniza sozinho quando a conexão volta.
 - O backup manual (**Config → Fazer backup / Importar backup**) continua existindo como cópia extra independente da nuvem — gera um `.json` na pasta `Economia/backups/`. A importação **mescla** os dados por id + data de atualização (o registro mais recente de cada um vence).
 
-## PIN de acesso
+## PIN, bloqueio ao minimizar e validade do login
 
-Em **Config**, dá pra configurar um PIN simples que a tela pede toda vez que o app abre ou é bloqueado. É só um deterrente local (hash SHA-256 guardado no navegador) — **não criptografa** os dados nem os arquivos de backup, que continuam em JSON legível. Não serve como segurança forte, só evita abrir o arquivo sem querer e cair de cara nos dados.
+- **PIN de 4 dígitos**, um por aparelho (vale para o perfil pessoal e o empresarial). Fica no `localStorage` do aparelho (hash SHA-256), **nunca** vai para a nuvem nem para o backup. É só um deterrente local: não criptografa nada; a segurança de verdade é a senha da conta.
+- **Bloquear ao minimizar** (Config → Segurança, vem **ligado** por padrão): ao minimizar ou trocar de app/aba, a tela trava e pede o PIN. O 4º dígito entra sozinho. Só trava com login ativo e PIN criado. "Esqueci o PIN" faz sair e entrar de novo com e-mail e senha (login recém-feito não pede PIN em seguida).
+- **Login lembrado por 30 dias fixos** desde o último login com e-mail e senha; depois pede de novo (como app de banco). 5 PINs errados seguidos também pedem e-mail e senha. Sem login o PIN não abre o app.
+- Quem ainda não tem PIN recebe um aviso para criar (pode escolher "Agora não").
 
 ## Estrutura de pastas
 
