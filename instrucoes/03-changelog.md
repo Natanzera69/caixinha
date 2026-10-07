@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-07 — Seletor de ícones (emojis) nas categorias
+
+- Em Config → Categorias o ícone deixou de ser um campo de texto: agora é um botão que abre uma **tabela de emojis** (busca por nome em português, abas por grupo, aba **Finanças e casa** com os mais usados e aba **Recentes** guardada no aparelho). Vale também para "Nova categoria".
+- Dados em `assets/emojis-pt.js` (1.551 emojis até a versão 13.1, sem tom de pele nem bandeiras de países), carregados só quando o seletor abre; gerado por `instrucoes/apuracao/gerar-emojis.js` a partir do Unicode e do CLDR (nomes em pt). Sem dependência externa, CSP intacta; `sw.js` v6 guarda o arquivo para uso offline.
+- Ícones já salvos (inclusive digitados antes) continuam como estão. Testes de dados em `teste-logica.js` (13 passam).
+
 ## 2026-10-07 — Acesso só por convite + endurecimento de segurança
 
 - **Convite**: `convites/{email}` (só o admin escreve) + e-mail verificado; as regras do Firestore (`firestore.rules`) negam leitura/escrita de `users/...` a quem não foi liberado. Tela "Confirme seu e-mail" / "Aguardando liberação" (com "Pedir acesso"); painel **Config → Convites** só para o admin (liberar, remover, pedidos, "Copiar convite").

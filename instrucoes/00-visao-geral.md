@@ -29,6 +29,10 @@ Pelo link `https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html` (q
 
 Só entra quem o admin liberar (Config → Convites). Detalhes, regras e checklist do console em [04-seguranca.md](04-seguranca.md).
 
+## Ícones das categorias
+
+Escolhidos numa tabela de emojis com busca (Config → Categorias). A tabela (`assets/emojis-pt.js`) é gerada com `node instrucoes/apuracao/gerar-emojis.js` a partir de dados do Unicode (emoji-test) e do CLDR (nomes em português), © Unicode, Inc., sob a Unicode License v3.
+
 ## Estrutura de pastas
 
 ```

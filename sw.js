@@ -1,5 +1,5 @@
-const CACHE = 'caixinha-v5';
-const SHELL = ['./Planilha Financeiro.html', './manifest.json', './assets/logo-moeda.svg', './assets/moeda-girando.svg'];
+const CACHE = 'caixinha-v6';
+const SHELL = ['./Planilha Financeiro.html', './manifest.json', './assets/logo-moeda.svg', './assets/moeda-girando.svg', './assets/emojis-pt.js'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();

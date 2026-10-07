@@ -257,6 +257,16 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 .px-dot{width:12px;height:12px;flex:none;background:url(assets/icons/dot-shade.svg) center/100% no-repeat var(--c,var(--primary));-webkit-mask:url(assets/icons/dot.svg) center/contain no-repeat;mask:url(assets/icons/dot.svg) center/contain no-repeat;}
 .px-dot{--c:var(--text)} /* padrão; nas bolinhas do PIN use a cor do texto */
 .spinner{display:none;} /* substituído pela moeda girando */
+/* Seletor de ícones (emojis) */
+.emoji-picker input[type=search]{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);margin-bottom:10px;}
+.emoji-picker input[type=search]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+.emoji-tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:6px;margin-bottom:6px;scrollbar-width:thin;}
+.emoji-aba{flex:none;width:40px;height:40px;border-radius:10px;border:1.5px solid transparent;background:var(--surface-2);font-size:1.2rem;line-height:1;padding:0;}
+.emoji-aba.active{border-color:var(--primary);background:var(--primary-soft);}
+.emoji-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;max-height:42vh;overflow-y:auto;padding:2px;}
+.emoji-btn{height:44px;border:none;border-radius:10px;background:transparent;font-size:1.6rem;line-height:1;padding:0;}
+.emoji-btn:hover,.emoji-btn:focus-visible{background:var(--surface-2);}
+.emoji-vazio{grid-column:1/-1;text-align:center;color:var(--text-muted);font-size:.9rem;padding:24px 8px;}
 .input-sm{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
 .input-sm:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
 /* PIN: o #lockInput continua sendo o campo real, só que invisível; as caixinhas (.pin-boxes) espelham o que foi digitado */
@@ -2156,16 +2166,16 @@ function renderConfig(){
 
     <div class="section-title"><h2>Categorias</h2></div>
     <div class="card">
-      <p class="hint">Clique no ícone pra trocar por qualquer emoji (use o teclado de emojis do seu sistema — no Windows, Win+.).</p>
+      <p class="hint">Toque no ícone para escolher outro na tabela de emojis (dá para buscar pelo nome, como "carro" ou "café").</p>
       <div class="list mt16">${state.categorias.map(c=>`
         <div class="row-card">
-          <input class="icon-input" value="${escapeHtml(c.icone)}" maxlength="4" onchange="definirIconeCategoria('${c.id}', this.value)" title="Trocar ícone">
+          <button type="button" class="icon-input" title="Trocar ícone" onclick="abrirSeletorIcone(e=>definirIconeCategoria('${c.id}',e))">${iconeSeguro(c.icone)}</button>
           <div class="row-main"><div class="t1">${escapeHtml(c.nome)}</div><div class="t2">${c.tipo}</div></div>
           <div class="row-actions"><button onclick="excluirCategoria('${c.id}')" title="Excluir"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button></div>
         </div>`).join('')}
       </div>
       <div style="display:flex; gap:10px; align-items:flex-end; margin-top:16px; flex-wrap:wrap">
-        <div class="field" style="width:64px; margin-bottom:0"><label>Ícone</label><input id="novaCatIcone" class="icon-input" style="width:100%" value="🏷️" maxlength="4"></div>
+        <div class="field" style="width:64px; margin-bottom:0"><label>Ícone</label><button type="button" id="novaCatIconeBtn" class="icon-input" style="width:100%" title="Escolher ícone" onclick="abrirSeletorIcone(e=>{document.getElementById('novaCatIcone').value=e;document.getElementById('novaCatIconeBtn').textContent=e})">🏷️</button><input type="hidden" id="novaCatIcone" value="🏷️"></div>
         <div class="field" style="flex:1; min-width:140px; margin-bottom:0"><label>Nova categoria</label><input id="novaCatNome" placeholder="Nome"></div>
         <div class="field" style="margin-bottom:0"><label>Tipo</label><select id="novaCatTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select></div>
       </div>
@@ -2316,6 +2326,77 @@ document.addEventListener('keydown',e=>{
 // botões só com ícone têm title; espelha em aria-label pra leitores de tela (cobre tudo que o JS renderiza)
 new MutationObserver(()=>document.querySelectorAll('button[title]:not([aria-label])').forEach(b=>b.setAttribute('aria-label',b.title)))
   .observe(document.body,{childList:true,subtree:true});
+
+/* ================= Seletor de ícones (emojis) =================
+   Dados em assets/emojis-pt.js (gerado por instrucoes/apuracao/gerar-emojis.js), carregados só quando o seletor abre. */
+const EMOJI_RECENTES='planilhaFinanceiro_emojisRecentes';
+let emojiCb=null, emojiPromessa=null, emojiCanvas=null;
+function carregarEmojis(){
+  if(window.EMOJIS) return Promise.resolve();
+  if(!emojiPromessa) emojiPromessa=new Promise((res,rej)=>{
+    const s=document.createElement('script'); s.src='assets/emojis-pt.js'; s.onload=res; s.onerror=()=>{ emojiPromessa=null; rej(); };
+    document.head.appendChild(s);
+  });
+  return emojiPromessa;
+}
+function emojiRecentes(){ try{ return JSON.parse(lsGet(EMOJI_RECENTES)||'[]'); }catch(e){ return []; } }
+function emojiLembrar(e){ lsSet(EMOJI_RECENTES,JSON.stringify([e,...emojiRecentes().filter(x=>x!==e)].slice(0,24))); }
+function semAcento(s){ return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+// Sequência com ZWJ que o aparelho não monta vira vários símbolos lado a lado (largura bem maior que 1 emoji): esconde.
+function emojiDesenha(e){
+  if(!e.includes('\u200D')) return true;
+  try{
+    if(!emojiCanvas){ const ctx=document.createElement('canvas').getContext('2d'); ctx.font='32px sans-serif'; emojiCanvas={ctx,base:ctx.measureText('😀').width}; }
+    return emojiCanvas.ctx.measureText(e).width < emojiCanvas.base*1.5;
+  }catch(err){ return true; }
+}
+function emojiBotoes(lista){
+  const itens=lista.filter(x=>emojiDesenha(x[0]));
+  return itens.length? itens.map(x=>`<button type="button" class="emoji-btn" data-e="${escapeHtml(x[0])}" aria-label="${escapeHtml(x[1])}" title="${escapeHtml(x[1])}">${escapeHtml(x[0])}</button>`).join('')
+                     : '<div class="emoji-vazio">Nenhum ícone encontrado.</div>';
+}
+function escolherEmoji(e){ emojiLembrar(e); fecharModal(); if(emojiCb) emojiCb(e); }
+async function abrirSeletorIcone(aoEscolher){
+  emojiCb=aoEscolher;
+  document.getElementById('modalCard').innerHTML=`
+    <button class="close-x" onclick="fecharModal()">${'<span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span>'}</button>
+    <h2>Escolher ícone</h2>
+    <div class="emoji-picker">
+      <input id="emojiBusca" type="search" placeholder="Buscar (ex.: carro, café, mercado)" autocomplete="off" aria-label="Buscar ícone">
+      <div class="emoji-tabs" id="emojiAbas"></div>
+      <div class="emoji-grid" id="emojiGrade"><div class="emoji-vazio">Carregando…</div></div>
+    </div>`;
+  abrirModal();
+  const grade=document.getElementById('emojiGrade');
+  try{ await carregarEmojis(); }
+  catch(e){ grade.innerHTML='<div class="emoji-vazio">Não consegui carregar a lista de ícones. Confira a internet e tente de novo.</div>'; return; }
+  const grupos=window.EMOJIS.grupos, abas=document.getElementById('emojiAbas'), busca=document.getElementById('emojiBusca');
+  const recentes=emojiRecentes().map(e=>[e,'recente','']);
+  const tabs=[...(recentes.length?[{id:'recentes',nome:'Recentes',ico:'🕘',e:recentes}]:[]),...grupos];
+  abas.innerHTML=tabs.map(g=>`<button type="button" class="emoji-aba" data-g="${g.id}" title="${escapeHtml(g.nome)}" aria-label="${escapeHtml(g.nome)}">${g.ico}</button>`).join('');
+  const mostrar=id=>{
+    abas.querySelectorAll('.emoji-aba').forEach(b=>b.classList.toggle('active',b.dataset.g===id));
+    grade.innerHTML=emojiBotoes(tabs.find(g=>g.id===id).e); grade.scrollTop=0;
+  };
+  abas.addEventListener('click',ev=>{ const b=ev.target.closest('.emoji-aba'); if(b){ busca.value=''; mostrar(b.dataset.g); } });
+  grade.addEventListener('click',ev=>{ const b=ev.target.closest('.emoji-btn'); if(b) escolherEmoji(b.dataset.e); });
+  busca.addEventListener('input',()=>{
+    const q=semAcento(busca.value.trim());
+    if(!q){ mostrar(tabs[0].id); return; }
+    abas.querySelectorAll('.emoji-aba').forEach(b=>b.classList.remove('active'));
+    const achados=[];
+    grupos.slice(1).forEach(g=>g.e.forEach(x=>{ // grupo 0 (Finanças) repete emojis dos outros
+      const k=x[2], palavras=k.split(' ');
+      const nome=semAcento(x[1]); // exato > palavra inteira > começa com > palavra começa com > contém
+      const nota=nome===q?0 : palavras.includes(q)?1 : nome.startsWith(q)?2 : palavras.some(p=>p.startsWith(q))?3 : k.includes(q)?4 : -1;
+      if(nota>=0) achados.push([nota,x]);
+    }));
+    achados.sort((a,b)=>a[0]-b[0]);
+    grade.innerHTML=emojiBotoes(achados.slice(0,150).map(a=>a[1])); grade.scrollTop=0;
+  });
+  mostrar(tabs[0].id);
+  if(!matchMedia('(pointer:coarse)').matches) busca.focus(); // no celular não abre o teclado sozinho
+}
 
 /* ================= Init ================= */
 function mostrarAppLogado(){

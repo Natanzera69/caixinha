@@ -111,4 +111,17 @@ t('convite: e-mail vira chave minúscula sem espaços; ícone e cor são escapad
   assert.strictEqual(run("corSegura('#ea7a1c')"), '#ea7a1c');
   assert.strictEqual(run("corSegura('red;background:url(x)')"), '#16842f');
 });
+t('tabela de emojis: grupos cheios, sem duplicados, sem tom de pele/bandeira de país, busca em português', () => {
+  const src = fs.readFileSync(require('path').resolve(__dirname, '../../assets/emojis-pt.js'), 'utf8');
+  const d = JSON.parse(src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1)).grupos;
+  assert.strictEqual(d[0].id, 'financas'); assert.ok(d.length >= 9);
+  d.forEach(g => assert.ok(g.e.length > 20, g.id));
+  const resto = d.slice(1).flatMap(g => g.e), vistos = new Set();
+  resto.forEach(e => { assert.ok(!vistos.has(e[0]), 'duplicado ' + e[0]); vistos.add(e[0]); assert.ok(!/[\u{1F3FB}-\u{1F3FF}]/u.test(e[0]), 'tom de pele'); assert.ok(!/^[\u{1F1E6}-\u{1F1FF}]{2}$/u.test(e[0]), 'bandeira de país'); });
+  assert.ok(resto.length > 1400);
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const acha = q => resto.filter(e => e[2].includes(norm(q))).map(e => e[0]);
+  assert.ok(acha('carro').includes('🚗')); assert.ok(acha('cafe').includes('☕')); assert.ok(acha('dinheiro').includes('💰'));
+  const curado = new Set(d[0].e.map(e => e[0].replace(/️/g, ''))); ['💰', '🛒', '🍔', '🏠', '💳'].forEach(e => assert.ok(curado.has(e), e));
+});
 console.log(`\n${ok} testes passaram`);
