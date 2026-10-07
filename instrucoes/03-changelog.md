@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-07 — Apuração 1 de 3 (desktop): design, lógica e 2 features
+
+**Design**
+- Início: sem buraco no painel nos meses que não são o atual (o último card ocupa 2 colunas); valores grandes não estouram o card em janelas estreitas (tamanho da fonte acompanha a largura do card via container query); moeda do hero escala com o card.
+- Estados de hover (botões, linhas, abas do seletor, etc.), só em dispositivos com mouse; aba "Investimentos" por extenso fora do celular.
+- Acessibilidade: foco preso no modal (Tab/Shift+Tab); rótulos automáticos nos campos (aria-label a partir do label) e nos filtros/orçamento; filtros do Lançamentos mais largos.
+
+**Lógica**
+- Excluir conta/cartão/categoria agora é bloqueado se ainda estiver em uso por **fixos, cartões ou financiamentos** (não só lançamentos), com a lista do que usa.
+- Transferência com a mesma conta de origem e destino é recusada.
+- Lançamentos: lista mostra 200 por vez ("Mostrar mais").
+
+**Features**
+- **Lançamentos**: navegação por mês (‹ ›), períodos Mês / Últimos 30 dias / Tudo, filtros por conta ou cartão e por categoria (além de tipo e busca sem acento) e faixa de totais do filtro (receitas, despesas, saldo, quantidade).
+- **Restaurar backup** (Config → Backup): lê o .json do "Fazer backup" (formato novo e antigo), valida e mostra um resumo; **junta** com os dados atuais sem apagar nada (vale a versão mais recente) e tem a opção "Recuperar também o que apaguei depois do backup". O PIN do arquivo é ignorado.
+- Testes: `teste-logica.js` com 17 casos (filtros, totais, usos, restauração).
+
 ## 2026-10-07 — Seletor de ícones (emojis) nas categorias
 
 - Em Config → Categorias o ícone deixou de ser um campo de texto: agora é um botão que abre uma **tabela de emojis** (busca por nome em português, abas por grupo, aba **Finanças e casa** com os mais usados e aba **Recentes** guardada no aparelho). Vale também para "Nova categoria".

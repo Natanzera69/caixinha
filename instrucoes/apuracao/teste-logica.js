@@ -15,7 +15,7 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
+  'cartaoById', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -123,5 +123,53 @@ t('tabela de emojis: grupos cheios, sem duplicados, sem tom de pele/bandeira de 
   const acha = q => resto.filter(e => e[2].includes(norm(q))).map(e => e[0]);
   assert.ok(acha('carro').includes('🚗')); assert.ok(acha('cafe').includes('☕')); assert.ok(acha('dinheiro').includes('💰'));
   const curado = new Set(d[0].e.map(e => e[0].replace(/️/g, ''))); ['💰', '🛒', '🍔', '🏠', '💳'].forEach(e => assert.ok(curado.has(e), e));
+});
+const lancs = [
+  { id: 'a', data: '2026-10-05', descricao: 'Supermercado Pão de Açúcar', valor: 100, tipo: 'despesa', categoriaId: 'cm', contaId: 'c1', metodoPagamento: 'pix' },
+  { id: 'b', data: '2026-10-20', descricao: 'Salário', valor: 1000, tipo: 'receita', categoriaId: 'cs', contaId: 'c2', metodoPagamento: 'pix' },
+  { id: 'c', data: '2026-09-28', descricao: 'Cinema', valor: 50, tipo: 'despesa', categoriaId: 'cl', cartaoId: 'k1', metodoPagamento: 'credito' },
+  { id: 'd', data: '2026-10-10', descricao: 'Transf', valor: 200, tipo: 'transferencia', contaId: 'c1', contaDestinoId: 'c2', metodoPagamento: 'transferencia' },
+  { id: 'e', data: '2026-08-01', descricao: 'Antigo', valor: 10, tipo: 'despesa', categoriaId: 'cm', contaId: 'c1', metodoPagamento: 'pix' },
+];
+const F0 = { q: '', tipo: '', conta: '', categoria: '', periodo: 'mes', mes: '2026-10' };
+const filtra = (f) => { ctx.L = lancs; ctx.FF = { ...F0, ...f }; return run("filtrarLancamentos(L,FF,'2026-10-25')").map(t => t.id).join(''); };
+t('Lançamentos: filtros por mês, 30 dias, tudo, tipo, conta, cartão, categoria e busca sem acento', () => {
+  assert.strictEqual(filtra({}), 'bda');                      // outubro, mais recente primeiro
+  assert.strictEqual(filtra({ periodo: '30' }), 'bdac');      // 25/09 a 25/10 (28/09 entra)
+  assert.strictEqual(filtra({ periodo: 'tudo' }), 'bdace');
+  assert.strictEqual(filtra({ tipo: 'receita' }), 'b');
+  assert.strictEqual(filtra({ conta: 'c:c2' }), 'bd');        // conta de origem OU destino
+  assert.strictEqual(filtra({ conta: 'k:k1', periodo: 'tudo' }), 'c');
+  assert.strictEqual(filtra({ categoria: 'cm', periodo: 'tudo' }), 'ae');
+  assert.strictEqual(filtra({ q: 'pao de acucar' }), 'a');
+  assert.strictEqual(filtra({ q: 'CINEMA', periodo: 'tudo' }), 'c');
+});
+t('Lançamentos: totais ignoram transferências', () => {
+  ctx.L = lancs.filter(x => x.data.startsWith('2026-10'));
+  const tt = run('totaisLancamentos(L)'); assert.deepStrictEqual([tt.receitas, tt.despesas, tt.saldo, tt.n], [1000, 100, 900, 3]);
+});
+t('Excluir: conta/cartão/categoria em uso por fixo, cartão ou financiamento é detectado', () => {
+  ctx.ST = { transacoes: [{ contaId: 'c1' }], cartoes: [{ contaId: 'c1' }], recorrencias: [{ contaId: 'c1', cartaoId: 'k9', categoriaId: 'x' }], financiamentos: [{ contaId: 'c1' }] };
+  assert.strictEqual(run("usosDe('conta','c1',ST).join(', ')"), '1 lançamento, 1 cartão, 1 fixo, 1 financiamento');
+  assert.strictEqual(run("usosDe('cartao','k9',ST).join(', ')"), '1 fixo');
+  assert.strictEqual(run("usosDe('categoria','x',ST).join(', ')"), '1 fixo');
+  assert.strictEqual(run("usosDe('conta','livre',ST).length"), 0);
+});
+t('Restaurar backup: formatos, saneamento, resumo e junção sem apagar', () => {
+  const reg = (id, extra = {}) => ({ id, updatedAt: '2026-10-01T00:00:00Z', ...extra });
+  ctx.B2 = { formatoBackup: 2, pessoal: { contas: [reg('c1')], transacoes: [reg('t1'), reg('t2'), { sem: 'id' }, null], config: { pinHash: 'SEGREDO', temaEscuro: true }, intruso: 'x' }, pj: null };
+  const bk = run('lerObjetoBackup(B2)');
+  assert.strictEqual(bk.pessoal.transacoes.length, 2); assert.strictEqual(bk.pessoal.config.pinHash, null); assert.ok(!('intruso' in bk.pessoal));
+  ctx.B1 = { contas: [reg('c1')], transacoes: [reg('t1')] }; assert.ok(run('lerObjetoBackup(B1)').pessoal);          // formato antigo
+  assert.throws(() => run('lerObjetoBackup({ola:1})'), /não parece/); assert.throws(() => run('lerObjetoBackup({contas:[],transacoes:5})'));
+  // estado atual: tem t1 e apagou t2 depois do backup
+  const atual = novo(); atual.transacoes = [reg('t1', { descricao: 'editado', updatedAt: '2026-10-09T00:00:00Z' })]; atual._tombstones.transacoes = [{ id: 't2', updatedAt: '2026-10-05T00:00:00Z' }];
+  ctx.AT = atual; ctx.BK = bk;
+  const r = run('resumoBackup(AT,BK.pessoal)'); assert.deepStrictEqual([r.novos, r.apagados], [1, 1]);            // c1 novo; t2 apagado
+  run('aplicarBackupNoPerfil(AT,BK.pessoal,false)');
+  assert.deepStrictEqual([...atual.transacoes.map(x => x.id).sort()], ['t1']); assert.strictEqual(atual.transacoes[0].descricao, 'editado'); // versão mais nova vence, t2 continua apagado
+  assert.deepStrictEqual([...atual.contas.map(x => x.id)], ['c1']);
+  run('aplicarBackupNoPerfil(AT,BK.pessoal,true)');                                                               // "recuperar apagados"
+  assert.deepStrictEqual([...atual.transacoes.map(x => x.id).sort()], ['t1', 't2']);
 });
 console.log(`\n${ok} testes passaram`);

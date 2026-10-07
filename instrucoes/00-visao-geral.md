@@ -33,6 +33,10 @@ Só entra quem o admin liberar (Config → Convites). Detalhes, regras e checkli
 
 Escolhidos numa tabela de emojis com busca (Config → Categorias). A tabela (`assets/emojis-pt.js`) é gerada com `node instrucoes/apuracao/gerar-emojis.js` a partir de dados do Unicode (emoji-test) e do CLDR (nomes em português), © Unicode, Inc., sob a Unicode License v3.
 
+## Backup e restauração
+
+Config → Backup: **Fazer backup** salva um .json com os dois perfis; **Restaurar de arquivo** junta o backup ao que já existe (nunca apaga) e pode recuperar o que foi apagado depois do backup.
+
 ## Estrutura de pastas
 
 ```

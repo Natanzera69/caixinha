@@ -53,3 +53,8 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 ## Rodada de segurança (2026-10-07)
 - Feito no código: convite + gate, painel admin, CSP, escape de ícone/cor, sair e apagar dados, esqueci a senha.
 - Falta (usuário): publicar `firestore.rules` e itens 2–5 do checklist em `04-seguranca.md`; testes de aceite com e-mails "+".
+
+## Apuração 1 de 3 — desktop (2026-10-07)
+- Feito: buraco do grid, estouro de valores, hover, foco do modal, rótulos, exclusão com referências, transferência igual, "Mostrar mais", Lançamentos com mês/filtros/total, Restaurar backup.
+- Fila: tolerância do bloqueio (na hora/30 s/2 min), 2 colunas e largura 1280 em telas grandes, "Gastos por banco" ao lado de outro card.
+- Próximas: apuração **mobile** e **tablet**.
