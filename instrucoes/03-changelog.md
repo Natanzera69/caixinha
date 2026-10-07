@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-07 — Apuração 3 de 3 (tablet): layout e paridade com o mobile
+
+- **Início sem card órfão** em qualquer largura: até 999 px o painel usa hero em linha cheia + cards em 2 colunas (se sobrar um, ele ocupa a linha inteira; no celular também). Antes, entre 700 e 799 px a grade automática gerava 3 colunas com o "Saldo projetado" sozinho. A grade com hero 2×2 + 4 colunas passa a valer só a partir de 1000 px (no iPad Air 820 px os cards eram pequenos demais). "Investimentos"/"Cartões" também não deixam card sozinho no celular.
+- Gráfico + Próximos vencimentos lado a lado a partir de 700 px; janela de formulário de 560 px a partir de 768 px.
+- Reservas de CSS para navegadores sem container queries (iPadOS 15 e WebViews antigos): os valores e a moeda do hero mantêm o tamanho anterior.
+- **Paridade com o mobile em aparelhos de toque (`pointer:coarse`)**: em Lançamentos, tocar na linha edita (com Excluir no formulário) também no tablet; as outras listas mantêm os ícones na linha, com 44 px. Já valiam em qualquer largura: login/PIN que rolam, botão Voltar, sem puxar-para-atualizar, instalar o app, teclado decimal.
+- Conferido no preview em 690, 744 (toque), 768, 800, 820, 999, 1000 e 1024 px. As três apurações (desktop, mobile, tablet) estão concluídas.
+
 ## 2026-10-07 — Apuração 2 de 3 (mobile): design, toque e 2 features
 
 **Design / toque**

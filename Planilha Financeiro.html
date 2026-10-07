@@ -112,18 +112,24 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);container-type:inline-size;}
 .card h3{display:flex;align-items:center;gap:7px;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:700;margin-bottom:10px;}
 .card h3::before{content:"";width:12px;height:12px;flex:none;background:url(assets/icons/dot-shade.svg) center/100% no-repeat;background-color:var(--c,var(--coin));-webkit-mask:url(assets/icons/dot.svg) center/contain no-repeat;mask:url(assets/icons/dot.svg) center/contain no-repeat;}
-.card .value{font-family:var(--font-body);font-size:clamp(1rem,12cqi,1.6rem);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.card .value{font-family:var(--font-body);font-size:1.6rem;font-size:clamp(1rem,12cqi,1.6rem);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
 .card .sub{font-size:.8rem;color:var(--text-muted);margin-top:4px;line-height:1.35;}
 .value.income{color:var(--income);}
 .value.expense{color:var(--expense);}
 /* novo: primeiro card do Início */
 .card.hero{position:relative;overflow:hidden;background:var(--hero-bg);color:var(--hero-text);border:2px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 0 var(--line);min-height:150px;}
 .card.hero h3{color:var(--hero-muted);} .card.hero h3::before{background-color:var(--hero-value);}
-.card.hero .value{font-size:clamp(1.4rem,10cqi,3rem);line-height:1;color:var(--hero-value);margin-top:22px;}
+.card.hero .value{font-size:3rem;font-size:clamp(1.4rem,10cqi,3rem);line-height:1;color:var(--hero-value);margin-top:22px;}
 .card.hero .sub{color:var(--hero-muted);max-width:260px;}
-@media(min-width:800px){.grid:has(> .card.hero){grid-template-columns:repeat(4,minmax(0,1fr));} .card.hero{grid-column:span 2;grid-row:span 2;}}
-@media(min-width:800px){.grid:has(> .card.hero):not(:has(> .card.projetado)) > .card:last-child{grid-column:span 2;}}
-@media(max-width:799px){.card.hero{grid-column:1/-1;}}
+/* ≥1000 px: hero 2×2 ao lado de 4 colunas; abaixo disso (tablet retrato e celular): hero em linha cheia + cards em 2 colunas */
+@media(min-width:1000px){.grid:has(> .card.hero){grid-template-columns:repeat(4,minmax(0,1fr));} .card.hero{grid-column:span 2;grid-row:span 2;}}
+@media(min-width:1000px){.grid:has(> .card.hero):not(:has(> .card.projetado)) > .card:last-child{grid-column:span 2;}}
+@media(max-width:999px){
+  .grid:has(> .card.hero){grid-template-columns:1fr 1fr;}
+  .card.hero{grid-column:1/-1;}
+  .grid:has(> .card.hero) > .card:last-child:nth-child(even){grid-column:1/-1;} /* sobrou um card: ocupa a linha inteira (sem buraco) */
+}
+@media(max-width:680px){.grid:not(:has(> .card.hero)) > .card:last-child:nth-child(odd){grid-column:1/-1;}} /* idem em Investimentos/Cartões no celular */
 
 .section-title{display:flex;align-items:center;justify-content:space-between;margin:30px 0 12px;}
 .section-title h2{font-family:var(--font-pixel);font-size:1.25rem;font-weight:600;}
@@ -213,7 +219,7 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .muted{color:var(--text-muted);}
 .mt8{margin-top:8px;} .mt16{margin-top:16px;}
 .two-col{display:grid;grid-template-columns:1fr;gap:16px;}
-@media(min-width:800px){.two-col{grid-template-columns:1.3fr 1fr;}}
+@media(min-width:700px){.two-col{grid-template-columns:1.3fr 1fr;}}
 .chart-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
 .chart-wrap svg circle[fill="var(--surface)"]{fill:var(--surface);}
 .legend{display:flex;flex-direction:column;gap:9px;font-size:.84rem;flex:1;min-width:150px;}
@@ -241,9 +247,9 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 .brand-lockup span{font-family:var(--font-pixel);font-weight:700;font-size:30px;line-height:1;letter-spacing:-.01em;color:var(--text);}
 @media(max-width:680px){.brand-lockup img{width:32px}.brand-lockup span{font-size:23px}}
 .lock-card .login-coin{position:absolute;top:-52px;left:50%;margin-left:-48px;width:96px;height:auto;image-rendering:pixelated;}
-.card.hero .hero-coin{position:absolute;right:-18px;bottom:-30px;width:min(190px,34cqi);height:auto;image-rendering:pixelated;}
+.card.hero .hero-coin{position:absolute;right:-18px;bottom:-30px;width:190px;width:min(190px,34cqi);height:auto;image-rendering:pixelated;}
 .card.hero > :not(.hero-coin){position:relative;z-index:1;}
-@media(max-width:799px){.card.hero .hero-coin{width:116px;right:-12px;bottom:-18px;} .card.hero .sub{max-width:58%;}}
+@media(max-width:999px){.card.hero .hero-coin{width:116px;right:-12px;bottom:-18px;} .card.hero .sub{max-width:58%;}}
 .toolbar input.search{padding-left:34px;background:url(assets/icons/search.svg) 12px center/12px no-repeat var(--surface);}
 .pin-boxes{display:flex;justify-content:center;gap:10px;margin-bottom:14px;}
 .pin-boxes>span{flex:1 1 0;max-width:46px;min-width:24px;height:54px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
@@ -275,11 +281,15 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 html,body{overscroll-behavior-y:contain;} /* sem "puxar para atualizar" que recarrega o app e perde formulário */
 .modal-card,.emoji-grid,#lockScreen,#loginScreen,#gateScreen{overscroll-behavior:contain;}
 button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+@media(min-width:768px){.modal-card{max-width:560px;}}
 @supports(height:1dvh){.modal-card{max-height:90dvh;}} /* vh ignora a barra do navegador no celular */
 .badge{font-size:.7rem;}
 /* telas cheias rolam quando não cabem (teclado aberto, paisagem) em vez de cortar o cartão */
 #lockScreen,#loginScreen,#gateScreen{overflow-y:auto;align-items:flex-start;padding:64px 20px 24px;}
 #lockScreen .lock-card,#loginScreen .lock-card,#gateScreen .lock-card{margin:auto;}
+@media(max-width:680px),(pointer:coarse){ /* celular ou qualquer aparelho de toque: em Lançamentos tocar na linha edita */
+  #lancLista .row-actions{display:none;} #lancLista .row-card{cursor:pointer;}
+}
 @media(pointer:coarse){
   .row-actions button:not(.btn){width:44px;height:44px;}
   .btn-sm{min-height:44px;padding:10px 14px;}
@@ -292,7 +302,6 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
   .row-card{flex-wrap:wrap;}
   /* 2 ou mais ações: faixa embaixo da linha (a linha de cima fica com a largura toda) */
   .row-card .row-actions:has(> :nth-child(2)){flex:0 0 100%;flex-direction:row !important;flex-wrap:wrap;justify-content:flex-end;gap:4px;border-top:1px dashed var(--border);padding-top:8px;margin-top:4px;}
-  #lancLista .row-actions{display:none;} #lancLista .row-card{cursor:pointer;} /* em Lançamentos tocar na linha edita */
   #seletorPerfil .btn{padding:9px 12px;font-size:.84rem;}
   body.digitando nav.tabs{display:none;} /* teclado aberto: a barra inferior não rouba espaço */
 }
@@ -1492,9 +1501,9 @@ function excluirTransacao(id){
   salvarEstado(); renderTudo(); toast('Lançamento excluído.');
   return true;
 }
-// Celular (<=680 px): os ícones somem e tocar na linha abre a edição; pagamento de fatura não é editável, só excluível.
+// Celular/tablet de toque (<=680 px ou pointer:coarse): os ícones somem e tocar na linha abre a edição; pagamento de fatura não é editável, só excluível.
 function tocarLinhaLanc(id){
-  if(!matchMedia('(max-width:680px)').matches) return;
+  if(!matchMedia('(max-width:680px), (pointer:coarse)').matches) return;
   const t=state.transacoes.find(x=>x.id===id); if(!t) return;
   if(t.pagamentoFatura) excluirTransacao(id); else abrirFormTransacao(id);
 }

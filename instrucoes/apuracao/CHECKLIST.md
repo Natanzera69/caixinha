@@ -63,3 +63,8 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Feito: login que rola, linhas largas (toque edita), faixa de ações, alvos de 44 px, topo curto, Voltar, sem puxar-para-atualizar, instalar o app, metas do iPhone, tema da barra de status.
 - **Teste do usuário no celular**: teclado no login e nos formulários (barra inferior some ao digitar?), botão Voltar, instalar, cor da barra de status no tema escuro, toque nas linhas de Lançamentos, iPhone de algum amigo.
 - Fila: indicador de sincronização, tolerância do bloqueio, 2 colunas em telas grandes. Próxima: **tablet**.
+
+## Apuração 3 de 3 — tablet (2026-10-07)
+- Feito: grade do Início sem órfão (≤999 px 2 colunas, ≥1000 px hero 2×2), duas colunas de gráficos a partir de 700 px, modal 560 px, reservas para `cqi`, toque-edita em Lançamentos para qualquer aparelho de toque.
+- **Teste do usuário no tablet** (se tiver): Início em retrato e paisagem, tocar nas linhas de Lançamentos, ícones nas outras listas, instalar o app.
+- Fila (nenhuma das 3 apurações incluiu): listas em 2 colunas e largura 1280, tolerância do bloqueio (na hora/30 s/2 min), indicador de sincronização, "Gastos por banco" ao lado de outro card.
