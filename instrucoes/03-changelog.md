@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-06 — Redesign visual completo ("moeda 8-bit")
+
+Pacote do Claude Design (`Redesign Caixinha minimalista/handoff/`) aplicado **só na aparência**: nenhuma função, cálculo, id usado pelo JS ou chave de localStorage foi alterada.
+
+- `<style>` principal substituído por `caixinha-novo.css` (paleta creme/verde/moeda, sombra "dura", barra de progresso segmentada, tema escuro). Fontes Figtree (textos e valores) + Pixelify Sans (títulos) via Google Fonts, com fallback offline do sistema.
+- Logo nova (moeda 8-bit + "caixinha") em `assets/`; mascote removido (topbar, login, hero do Início, loading, favicon, manifest). Ícone do PWA: `assets/icon-192.png` / `icon-512.png` (gerados do `icon-moeda-512.svg` sem suavização). `manifest.json` com `theme_color #16842f`; `sw.js` cache `caixinha-v4`.
+- Emojis de sistema trocados por ícones 8-bit (`assets/icons/*.svg`, classe `.px-ico`, cor herdada do texto). Emojis de categoria (escolhidos pelo usuário) continuam. Criados `play.svg` e `pause.svg` (não vieram no pacote) para o botão Pausar/Reativar dos Fixos.
+- Início: card "Patrimônio líquido" virou `.card.hero` com a moeda; cartões de resumo com bolinha colorida; "Saldo projetado" em destaque tracejado (`.card.projetado`). Donut mais grosso e `PALETA` nova (só afeta itens novos; cores já salvas ficam como estão).
+- Ajustes além do pacote: `.row-actions button:not(.btn)` (o CSS novo achatava o botão "Registrar pagamento"); moeda do hero menor no mobile; `.lock-card{position:relative}`.
+- Pendente (próxima rodada): bolinhas no campo de PIN (exige JS), revisão fina de espaçamentos/textos.
+
 ## 2026-10-06 — Fatura do cartão por fechamento + Pagar fatura
 
 Pedido do usuário: compras no cartão devem seguir o fechamento da fatura (fecha dia 8 → de 08 do mês anterior a 07 do mês atual é uma fatura e conta como conta do mês).

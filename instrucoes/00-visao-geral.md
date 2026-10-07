@@ -28,7 +28,8 @@ Em **Config**, dá pra configurar um PIN simples que a tela pede toda vez que o 
 Economia/
   Planilha Financeiro.html   <- o app em si
   manifest.json, sw.js       <- suporte a PWA (instalar como app no Android)
-  icones/                    <- ícones do app (192/512) e logo usada no topo
+  assets/                    <- logo, ícones 8-bit (assets/icons), moeda girando e ícones do app (PNG 192/512)
+  icones/                    <- só os originais enviados pelo usuário (Icone.jpg, Logo.png)
   backups/                   <- snapshots .json gerados pelo botão "Fazer backup" (fora do git)
   instrucoes/                <- esta pasta, mantida pelo Claude entre sessões
 ```
