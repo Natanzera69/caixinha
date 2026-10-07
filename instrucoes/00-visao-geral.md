@@ -25,6 +25,10 @@ Pelo link `https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html` (q
 - **Login lembrado por 30 dias fixos** desde o último login com e-mail e senha; depois pede de novo (como app de banco). 5 PINs errados seguidos também pedem e-mail e senha. Sem login o PIN não abre o app.
 - Quem ainda não tem PIN recebe um aviso para criar (pode escolher "Agora não").
 
+## Acesso por convite
+
+Só entra quem o admin liberar (Config → Convites). Detalhes, regras e checklist do console em [04-seguranca.md](04-seguranca.md).
+
 ## Estrutura de pastas
 
 ```

@@ -1,0 +1,35 @@
+// Regras do Firestore do Caixinha (projeto caixinha-531d2).
+// Fonte da verdade versionada: para valer, cole este texto em Firebase Console -> Firestore Database -> Regras -> Publicar.
+// Acesso só por convite: o admin (Natan) libera e-mails em /convites; a pessoa também precisa ter o e-mail verificado.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function logado()   { return request.auth != null; }
+    function admin()    { return logado() && request.auth.uid == 'NhPFnx6kkrcYhmveMiyodO9fApW2'; }
+    function liberado() { return logado() && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/convites/$(request.auth.token.email)); }
+
+    // Dados financeiros: só o dono (e só se liberado). Dois documentos por pessoa: {uid} (pessoal) e {uid}_pj (empresa).
+    match /users/{docId} {
+      function dono() { return (admin() || liberado()) && (docId == request.auth.uid || docId == request.auth.uid + '_pj'); }
+      allow read, delete: if dono();
+      // request.resource só existe em create/update, por isso a checagem de campos fica separada da leitura
+      allow create, update: if dono() && request.resource.data.keys().hasOnly(
+        ['version','contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias','config','_tombstones','empresaNome']);
+    }
+
+    // Lista de e-mails liberados: só o admin mexe; a própria pessoa só consegue ler o seu (pro app saber que foi liberada).
+    match /convites/{email} {
+      allow read, write: if admin();
+      allow get: if logado() && request.auth.token.email == email;
+    }
+
+    // Pedidos de acesso: a pessoa grava o próprio pedido (só e-mail + data); só o admin lê/apaga.
+    match /pedidos/{uid} {
+      allow create, update: if logado() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email','em'])
+        && request.resource.data.email == request.auth.token.email;
+      allow read, delete: if admin();
+    }
+  }
+}

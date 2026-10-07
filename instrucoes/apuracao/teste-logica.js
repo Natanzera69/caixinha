@@ -15,7 +15,7 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
+  'cartaoById', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -100,5 +100,15 @@ t('PIN novo: guarda hash (não o número) e o tamanho 4', () => {
     assert.strictEqual(store.planilhaFinanceiro_pinLen, '4'); assert.notStrictEqual(store.planilhaFinanceiro_pin, '1234');
     assert.strictEqual(store.planilhaFinanceiro_pin.length, 64);
   });
+});
+t('convite: e-mail vira chave minúscula sem espaços; ícone e cor são escapados e limitados', () => {
+  assert.strictEqual(run("emailChave('  Maria@X.COM ')"), 'maria@x.com');
+  const x = run("iconeSeguro('<img src=x onerror=alert(1)>')");
+  assert.ok(!x.includes('<') && !x.includes('>'));
+  assert.ok(!run("iconeSeguro('<script>alert(1)</script>')").includes('<'));
+  assert.strictEqual(run("iconeSeguro('🛒')"), '🛒');
+  assert.ok(run("Array.from(iconeSeguro('abcdefghij')).length") <= 6);
+  assert.strictEqual(run("corSegura('#ea7a1c')"), '#ea7a1c');
+  assert.strictEqual(run("corSegura('red;background:url(x)')"), '#16842f');
 });
 console.log(`\n${ok} testes passaram`);

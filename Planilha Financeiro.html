@@ -2,6 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<!-- Segurança: só carrega código/dados do próprio site, do Firebase/Google e das fontes. Sem objetos, sem <base> externo. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://www.gstatic.com; frame-src https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'">
+<script>if(top!==self){try{top.location=self.location}catch(e){document.documentElement.innerHTML=''}} /* anti-clickjacking (GitHub Pages não deixa configurar cabeçalhos) */</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Caixinha</title>
 <link rel="manifest" href="manifest.json">
@@ -57,7 +60,7 @@ a{color:var(--primary);} a:hover{color:var(--primary-deep);}
 :focus-visible{outline:3px solid var(--primary);outline-offset:2px;}
 
 /* ---------- Fullscreen ---------- */
-#lockScreen,#loginScreen,#loadingScreen{
+#lockScreen,#loginScreen,#loadingScreen,#gateScreen{
   position:fixed;inset:0;z-index:999;padding:20px;display:flex;align-items:center;justify-content:center;
   background-color:#14892f;
   background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),var(--screen-grad);
@@ -283,6 +286,20 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
     <div id="loginError" style="color:var(--expense); font-size:.85rem; min-height:18px; margin-bottom:8px"></div>
     <button class="btn btn-primary btn-block" onclick="fbLogin()">Entrar</button>
     <button class="btn btn-ghost btn-block mt16" onclick="fbSignup()">Criar conta nova</button>
+    <button class="btn btn-ghost btn-block" onclick="fbEsqueciSenha()">Esqueci a senha</button>
+    <p class="hint" style="margin-top:8px">O acesso é por convite: depois de criar a conta e confirmar o e-mail, quem te convidou precisa liberar você.</p>
+  </div>
+</div>
+
+<div id="gateScreen" class="hidden">
+  <div class="lock-card" style="padding-top:58px">
+    <img class="login-coin" src="assets/logo-moeda.svg" alt="">
+    <h2 id="gateTitulo"></h2>
+    <p id="gateTexto"></p>
+    <div id="gateMsg" style="color:var(--text-muted); font-size:.85rem; min-height:18px; margin-bottom:8px"></div>
+    <button id="gateBtn1" class="btn btn-primary btn-block"></button>
+    <button id="gateBtn2" class="btn btn-ghost btn-block mt16"></button>
+    <button class="btn btn-ghost btn-block" onclick="sairDoGate()">Sair</button>
   </div>
 </div>
 
@@ -359,6 +376,9 @@ function toast(msg){
   requestAnimationFrame(()=>el.classList.add('show'));
   setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),250); },2400);
 }
+// Ícone e cor de categoria/conta são texto do usuário que volta pra tela: escapa e limita antes de renderizar (defesa em profundidade).
+function iconeSeguro(s){ return escapeHtml(Array.from(String(s??'')).slice(0,6).join('')); }
+function corSegura(c){ return /^#[0-9a-f]{6}$/i.test(c||'')? c : '#16842f'; }
 const PALETA=['#16842f','#ea7a1c','#f6c22c','#3f8ae0','#8a5cf0','#e85d9a','#0e5c20','#b97f08','#1d1f16','#c4302b','#5e604f','#0891b2'];
 
 /* ================= Estado / Storage ================= */
@@ -524,7 +544,8 @@ function definirBloqueioAoMinimizar(ligado){ lsSet(SEG.lockMin,ligado?'1':'0'); 
 function sessaoExpirada(){ const t=Number(lsGet(SEG.loginEm)); return !!t && Date.now()-t>SESSAO_DIAS*86400000; }
 function fimDaSessao(){ const t=Number(lsGet(SEG.loginEm)); return t? new Date(t+SESSAO_DIAS*86400000) : null; }
 function mostrarLogin(){
-  ['loadingScreen','app','lockScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  ['loadingScreen','app','lockScreen','gateScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  pararGate();
   document.getElementById('loginScreen').classList.remove('hidden');
 }
 function verificarSessao(){
@@ -1217,7 +1238,7 @@ function renderDashboard(){
       <div class="card">
         <h3>Próximos vencimentos</h3>
         ${proximosVenc.length?`<div class="list mt8">${proximosVenc.map(t=>`
-          <div class="row-card"><div class="row-icon">${t.fatura?'<span class="px-ico" style="--i:url(assets/icons/card.svg)"></span>':(categoriaById(t.categoriaId)?.icone||'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>')}</div>
+          <div class="row-card"><div class="row-icon">${t.fatura?'<span class="px-ico" style="--i:url(assets/icons/card.svg)"></span>':(categoriaById(t.categoriaId)?iconeSeguro(categoriaById(t.categoriaId).icone):'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>')}</div>
             <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):''}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}</div></div>
             <div class="row-value expense">${fmtMoney(t.valor)}</div>
           </div>`).join('')}</div>`:'<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/calendar.svg)"></span></span>Nada vencendo nos próximos 14 dias.</div>'}
@@ -1233,7 +1254,7 @@ function renderDashboard(){
     <div class="list">${orcamentos.map(o=>{
       const cls=o.pct>=100?'danger':o.pct>=80?'warn':'';
       return `<div class="row-card" style="align-items:flex-start">
-        <div class="row-icon">${o.cat.icone}</div>
+        <div class="row-icon">${iconeSeguro(o.cat.icone)}</div>
         <div class="row-main">
           <div class="t1">${escapeHtml(o.cat.nome)}</div>
           <div class="t2">${fmtMoney(o.gasto)} de ${fmtMoney(o.cat.orcamentoMensal)}</div>
@@ -1252,10 +1273,10 @@ function renderDonut(catArr){
   const arcs=catArr.map(c=>{
     const frac=c.valor/total; const dash=frac*circ;
     const offset=circ-acc*circ; acc+=frac;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c.cor}" stroke-width="18"
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${corSegura(c.cor)}" stroke-width="18"
       stroke-dasharray="${dash} ${circ-dash}" stroke-dashoffset="${offset}" transform="rotate(-90 ${cx} ${cy})"/>`;
   }).join('');
-  const legend=catArr.slice(0,8).map(c=>`<div class="li"><span class="sw" style="background:${c.cor}"></span><span class="lbl">${escapeHtml(c.nome)}</span><span class="val">${fmtMoney(c.valor)}</span></div>`).join('');
+  const legend=catArr.slice(0,8).map(c=>`<div class="li"><span class="sw" style="background:${corSegura(c.cor)}"></span><span class="lbl">${escapeHtml(c.nome)}</span><span class="val">${fmtMoney(c.valor)}</span></div>`).join('');
   return `<div class="chart-wrap mt8">
     <svg width="120" height="120" viewBox="0 0 120 120">${arcs}<circle cx="60" cy="60" r="34" fill="var(--surface)"/></svg>
     <div class="legend">${legend}</div>
@@ -1333,7 +1354,7 @@ function renderListaLancamentos(){
     const cartaoT=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
     const fat=(cartaoT && !cartaoT.titular && cartaoT.diaFechamento)? rotuloMes(mesCompetencia(t)) : '';
     return `<div class="row-card">
-      <div class="row-icon">${cat?cat.icone:(t.tipo==='transferencia'?'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>':'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>')}</div>
+      <div class="row-icon">${cat?iconeSeguro(cat.icone):(t.tipo==='transferencia'?'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>':'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>')}</div>
       <div class="row-main">
         <div class="t1">${escapeHtml(t.descricao)}${t.parcelaTotal?` <span class="muted">(${t.parcelaAtual}/${t.parcelaTotal})</span>`:''}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>fixo</span>':''}</div>
         <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''}${fat?' · fatura '+fat:''} <span class="badge ${st}">${st}</span></div>
@@ -1371,7 +1392,7 @@ function abrirFormTransacao(id){
         <div class="field"><label>Data</label><input required type="date" name="data" value="${t?t.data:todayStr()}"></div>
       </div>
       <div class="field" id="campoCategoria"><label>Categoria</label>
-        <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo||tipo==='transferencia').map(c=>`<option value="${c.id}" ${t&&t.categoriaId===c.id?'selected':''}>${c.icone} ${escapeHtml(c.nome)}</option>`).join('')}</select>
+        <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo||tipo==='transferencia').map(c=>`<option value="${c.id}" ${t&&t.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodo">${metodosPagamento().map(m=>`<option value="${m.id}" ${t&&t.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
@@ -1400,7 +1421,7 @@ function abrirFormTransacao(id){
     document.getElementById('campoContaDestino').classList.toggle('hidden',v!=='transferencia');
     document.getElementById('campoCategoria').classList.toggle('hidden',v==='transferencia');
     const catSel=form.categoriaId;
-    catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${c.icone} ${escapeHtml(c.nome)}</option>`).join('');
+    catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('');
   }
   segBtns.forEach(b=>b.addEventListener('click',()=>setTipo(b.dataset.v)));
   function metodoMudou(){
@@ -1477,7 +1498,7 @@ function renderContas(){
     <div class="section-title"><h2>Contas & Carteiras</h2><button class="btn btn-primary btn-sm" onclick="abrirFormConta()">+ Nova conta</button></div>
     <div class="list">${state.contas.length? state.contas.map(c=>`
       <div class="row-card">
-        <div class="row-icon" style="background:${c.cor}22;color:${c.cor}"><span class="px-ico" style="--i:url(assets/icons/bank.svg)"></span></div>
+        <div class="row-icon" style="background:${corSegura(c.cor)}22;color:${corSegura(c.cor)}"><span class="px-ico" style="--i:url(assets/icons/bank.svg)"></span></div>
         <div class="row-main"><div class="t1">${escapeHtml(c.nome)}</div><div class="t2">${tipoContaLabel(c.tipo)}</div></div>
         <div class="row-value">${fmtMoney(saldoConta(c.id))}</div>
         <div class="row-actions">
@@ -1753,7 +1774,7 @@ function renderParcelamentos(){
       const local = r.metodoPagamento==='credito'? cartaoById(r.cartaoId)?.nome : contaById(r.contaId)?.nome;
       const pausado = r.ativo===false;
       return `<div class="row-card">
-        <div class="row-icon">${cat?cat.icone:'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>'}</div>
+        <div class="row-icon">${cat?iconeSeguro(cat.icone):'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>'}</div>
         <div class="row-main">
           <div class="t1">${escapeHtml(r.descricao)}${pausado?' <span class="badge pendente">pausado</span>':''}</div>
           <div class="t2">${descricaoFrequenciaRecorrencia(r)} · ${metodoInfo(r.metodoPagamento).nome}${local?' · '+escapeHtml(local):''}</div>
@@ -1843,7 +1864,7 @@ function abrirFormRecorrencia(id){
         </div>
       </div>
       <div class="field"><label>Categoria</label>
-        <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo).map(c=>`<option value="${c.id}" ${r&&r.categoriaId===c.id?'selected':''}>${c.icone} ${escapeHtml(c.nome)}</option>`).join('')}</select>
+        <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo).map(c=>`<option value="${c.id}" ${r&&r.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodoRec">${metodosPagamento().filter(m=>m.id!=='transferencia').map(m=>`<option value="${m.id}" ${r&&r.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
@@ -1866,7 +1887,7 @@ function abrirFormRecorrencia(id){
   function setTipo(v){
     segBtns.forEach(b=>b.classList.toggle('active',b.dataset.v===v));
     const catSel=form.categoriaId;
-    catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${c.icone} ${escapeHtml(c.nome)}</option>`).join('');
+    catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('');
   }
   segBtns.forEach(b=>b.addEventListener('click',()=>setTipo(b.dataset.v)));
   function metodoMudou(){
@@ -2096,8 +2117,14 @@ function renderConfig(){
     <div class="section-title"><h2>Sincronização</h2></div>
     <div class="card">
       <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
-      <button class="btn btn-danger mt16" onclick="fbLogout()">Sair da conta</button>
+      <button class="btn btn-danger mt16" onclick="abrirSair()">Sair da conta</button>
     </div>
+    ${ehAdmin(window.fbAuth?.currentUser)?`
+    <div class="section-title"><h2>Convites</h2></div>
+    <div class="card">
+      <p class="hint">Só quem você liberar aqui consegue usar o Caixinha. A pessoa cria a conta com o e-mail liberado, confirma o e-mail e entra. Remover o e-mail corta o acesso na hora (os dados dela ficam guardados até você apagar no console).</p>
+      <div id="painelConvites"><p class="hint">Carregando…</p></div>
+    </div>`:''}
 
     <div class="section-title"><h2>Backup dos dados</h2></div>
     <div class="card">
@@ -2150,7 +2177,7 @@ function renderConfig(){
       <p class="hint">Defina um teto mensal opcional pra categorias de despesa. O progresso aparece no Início.</p>
       <div class="list mt16">${state.categorias.filter(c=>c.tipo==='despesa').map(c=>`
         <div class="row-card">
-          <div class="row-icon">${c.icone}</div>
+          <div class="row-icon">${iconeSeguro(c.icone)}</div>
           <div class="row-main"><div class="t1">${escapeHtml(c.nome)}</div></div>
           <div style="width:120px"><input type="number" step="0.01" min="0" value="${c.orcamentoMensal||''}" placeholder="Sem limite" onchange="definirOrcamento('${c.id}', this.value)" class="input-sm"></div>
         </div>`).join('')}
@@ -2162,18 +2189,19 @@ function renderConfig(){
       <p class="hint">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>
     </div>
   `;
+  if(ehAdmin(window.fbAuth?.currentUser)) carregarPainelConvites();
 }
 function adicionarCategoria(){
   const nome=document.getElementById('novaCatNome').value.trim();
   const tipo=document.getElementById('novaCatTipo').value;
-  const icone=document.getElementById('novaCatIcone').value.trim() || '🏷️';
+  const icone=Array.from(document.getElementById('novaCatIcone').value.trim()).slice(0,6).join('') || '🏷️';
   if(!nome) return;
   state.categorias.push(tocar({id:uuid(),nome,tipo,icone,cor:PALETA[state.categorias.length%PALETA.length]}));
   salvarEstado(); renderConfig(); toast('Categoria adicionada.');
 }
 function definirIconeCategoria(id,valor){
   const c=categoriaById(id); if(!c) return;
-  c.icone=valor.trim()||c.icone;
+  c.icone=Array.from(valor.trim()).slice(0,6).join('')||c.icone;
   tocar(c); salvarEstado(); renderConfig(); toast('Ícone atualizado.');
 }
 function excluirCategoria(id){
@@ -2312,8 +2340,63 @@ function init(){
 init();
 
 /* ================= Firebase: login e sincronização ================= */
+/* ===== Acesso por convite =====
+   O servidor (regras do Firestore, ver firestore.rules) é quem barra de verdade; esta tela só explica o motivo. */
+const ADMIN_UID='NhPFnx6kkrcYhmveMiyodO9fApW2';
+const URL_SITE='https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html';
+function emailChave(e){ return String(e||'').trim().toLowerCase(); }
+function ehAdmin(user){ return !!user && user.uid===ADMIN_UID; }
+async function verificarAcesso(user){
+  if(ehAdmin(user)) return 'ok';
+  if(!user.emailVerified) return 'verificar';
+  try{
+    const s=await window.fbGetDoc(window.fbDoc(window.fbDb,'convites',emailChave(user.email)));
+    return s.exists()? 'ok' : 'aguardando';
+  }catch(e){ return 'aguardando'; }
+}
+let gateTimer=null;
+function pararGate(){ clearInterval(gateTimer); gateTimer=null; }
+function mostrarGate(estado,user){
+  ['loadingScreen','app','lockScreen','loginScreen'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  const tit=document.getElementById('gateTitulo'), txt=document.getElementById('gateTexto'), b1=document.getElementById('gateBtn1'), b2=document.getElementById('gateBtn2');
+  document.getElementById('gateMsg').textContent='';
+  const e=escapeHtml(user.email||'');
+  if(estado==='verificar'){
+    tit.textContent='Confirme seu e-mail';
+    txt.innerHTML='Enviamos um link para <b>'+e+'</b>. Abra o e-mail (olhe o spam), clique no link e volte aqui.';
+    b1.textContent='Já confirmei'; b1.onclick=recheckAcesso;
+    b2.textContent='Reenviar e-mail'; b2.onclick=reenviarVerificacao;
+  }else{
+    tit.textContent='Aguardando liberação';
+    txt.innerHTML='O e-mail <b>'+e+'</b> ainda não foi liberado. Peça para quem te convidou liberar, ou envie um pedido.';
+    b1.textContent='Atualizar'; b1.onclick=recheckAcesso;
+    b2.textContent='Pedir acesso'; b2.onclick=pedirAcesso;
+  }
+  document.getElementById('gateScreen').classList.remove('hidden');
+  if(!gateTimer) gateTimer=setInterval(recheckAcesso,20000);
+}
+async function recheckAcesso(){
+  const u=window.fbAuth?.currentUser; if(!u) return;
+  try{ await u.reload(); await u.getIdToken(true); }catch(e){}
+  window.onFbAuthChange(u);
+}
+async function reenviarVerificacao(){
+  const u=window.fbAuth?.currentUser, msg=document.getElementById('gateMsg');
+  try{ await window.fbSendVerif(u); msg.textContent='E-mail reenviado. Confira também o spam.'; }
+  catch(e){ msg.textContent='Espere um pouco antes de pedir de novo.'; }
+}
+async function pedirAcesso(){
+  const u=window.fbAuth?.currentUser, msg=document.getElementById('gateMsg');
+  try{ await window.fbSetDoc(window.fbDoc(window.fbDb,'pedidos',u.uid),{email:emailChave(u.email),em:nowISO()}); msg.textContent='Pedido enviado. Avise quem te convidou.'; }
+  catch(e){ msg.textContent='Não consegui enviar o pedido agora.'; }
+}
+function sairDoGate(){ fbLogout(); mostrarLogin(); }
+
 window.onFbAuthChange = async function(user){
   if(!user){ mostrarLogin(); return; }
+  const acesso=await verificarAcesso(user);
+  if(acesso!=='ok'){ mostrarGate(acesso,user); return; }
+  pararGate(); document.getElementById('gateScreen').classList.add('hidden');
   try{
     const uidSalvo=localStorage.getItem('planilhaFinanceiro_uid');
     if(uidSalvo && uidSalvo!==user.uid){
@@ -2343,14 +2426,22 @@ async function fbLogin(){
     erro.textContent='Não foi possível entrar. Confira e-mail e senha.';
   }
 }
+async function fbEsqueciSenha(){
+  const email=document.getElementById('loginEmail').value.trim(), erro=document.getElementById('loginError');
+  if(!email){ erro.textContent='Digite seu e-mail acima e toque em "Esqueci a senha".'; return; }
+  try{ await window.fbSendReset(window.fbAuth,email); }catch(e){}
+  erro.style.color='var(--text-muted)';
+  erro.textContent='Se existir uma conta com esse e-mail, enviamos um link para criar uma nova senha.'; // mesma resposta sempre: não revela quem tem conta
+}
 async function fbSignup(){
   const email=document.getElementById('loginEmail').value.trim();
   const senha=document.getElementById('loginSenha').value;
   const erro=document.getElementById('loginError'); erro.textContent='';
-  if(senha.length<6){ erro.textContent='A senha precisa ter pelo menos 6 caracteres.'; return; }
+  if(senha.length<8){ erro.textContent='A senha precisa ter pelo menos 8 caracteres.'; return; }
   window.__loginManual=true;
   try{
-    await window.fbSignUp(window.fbAuth, email, senha);
+    const cred=await window.fbSignUp(window.fbAuth, email, senha);
+    try{ await window.fbSendVerif(cred.user); }catch(e){} // e-mail de confirmação (obrigatório pra ser liberado)
   }catch(e){
     window.__loginManual=false;
     erro.textContent='Não foi possível criar a conta (talvez esse e-mail já tenha uma conta — tente Entrar).';
@@ -2427,8 +2518,78 @@ function sincronizarComFirestore(){
 
 function fbLogout(){
   ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } clearTimeout(fbSaveTimeout[p]); });
-  window.fbUid=null;
+  window.fbUid=null; window.__loginManual=false; pararGate();
   window.fbSignOutFn?.(window.fbAuth);
+}
+function abrirSair(){
+  document.getElementById('modalCard').innerHTML=`
+    <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
+    <h2>Sair da conta</h2>
+    <p class="hint">Seus dados continuam guardados na sua conta (nuvem). Em aparelho que outras pessoas usam, vale apagar a cópia que fica aqui.</p>
+    <div class="modal-actions" style="flex-direction:column">
+      <button class="btn btn-danger" onclick="sairDaConta(true)">Sair e apagar os dados deste aparelho</button>
+      <button class="btn" onclick="sairDaConta(false)">Só sair</button>
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+    </div>`;
+  abrirModal();
+}
+async function sairDaConta(apagar){
+  fecharModal(); fbLogout(); mostrarLogin();
+  if(!apagar) return;
+  // apaga a cópia local (dados, PIN, sessão) e o cache offline do Firestore; a nuvem não é tocada
+  ['planilhaFinanceiro_v1','planilhaFinanceiro_v1_pj','planilhaFinanceiro_perfilAtivo','planilhaFinanceiro_uid'].forEach(lsDel);
+  Object.values(SEG).forEach(lsDel);
+  try{ await window.fbTerminate(window.fbDb); await window.fbClearPersist(window.fbDb); }catch(e){}
+  location.reload();
+}
+
+/* ===== Painel de convites (só aparece pro admin) ===== */
+async function carregarPainelConvites(){
+  const box=document.getElementById('painelConvites'); if(!box) return;
+  try{
+    const [cv,pd]=await Promise.all([
+      window.fbGetDocs(window.fbCollection(window.fbDb,'convites')),
+      window.fbGetDocs(window.fbCollection(window.fbDb,'pedidos'))]);
+    const convites=cv.docs.map(d=>d.id).sort();
+    const pedidos=pd.docs.map(d=>({uid:d.id,...d.data()})).filter(p=>p.email && !convites.includes(p.email));
+    box.innerHTML=`
+      <div class="field" style="display:flex;gap:8px;align-items:flex-end;margin-top:12px">
+        <div style="flex:1"><label>Liberar o e-mail</label><input id="convEmail" type="email" placeholder="amigo@email.com" autocomplete="off"></div>
+        <button class="btn btn-primary" onclick="liberarEmail(document.getElementById('convEmail').value)">Liberar</button>
+      </div>
+      ${pedidos.length?`<h3 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:16px 0 8px">Pediram acesso</h3>
+        <div class="list">${pedidos.map(p=>`<div class="row-card"><div class="row-main"><div class="t1">${escapeHtml(p.email)}</div></div>
+          <button class="btn btn-sm btn-primary" data-email="${escapeHtml(p.email)}" data-uid="${escapeHtml(p.uid)}" onclick="liberarEmail(this.dataset.email,this.dataset.uid)">Liberar</button>
+          <button class="btn btn-sm" data-uid="${escapeHtml(p.uid)}" onclick="ignorarPedido(this.dataset.uid)">Ignorar</button></div>`).join('')}</div>`:''}
+      <h3 style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:16px 0 8px">Liberados (${convites.length})</h3>
+      <div class="list">${convites.length? convites.map(e=>`<div class="row-card"><div class="row-main"><div class="t1">${escapeHtml(e)}</div></div>
+        <button class="btn btn-sm" data-email="${escapeHtml(e)}" onclick="copiarConvite(this.dataset.email)">Copiar convite</button>
+        <button class="btn btn-sm btn-danger" data-email="${escapeHtml(e)}" onclick="removerConvite(this.dataset.email)">Remover</button></div>`).join('') : '<p class="hint">Ninguém liberado ainda além de você.</p>'}</div>`;
+  }catch(e){ box.innerHTML='<p class="hint">Não consegui carregar a lista (confira a internet e se as regras do Firestore foram publicadas).</p>'; }
+}
+async function liberarEmail(email,pedidoUid){
+  const e=emailChave(email);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){ alert('Digite um e-mail válido.'); return; }
+  try{
+    await window.fbSetDoc(window.fbDoc(window.fbDb,'convites',e),{por:ADMIN_UID,em:nowISO()});
+    if(pedidoUid) await window.fbDeleteDoc(window.fbDoc(window.fbDb,'pedidos',pedidoUid));
+    toast('Liberado: '+e); carregarPainelConvites();
+  }catch(err){ alert('Não consegui liberar (as regras do Firestore já foram publicadas?).'); }
+}
+async function removerConvite(email){
+  if(!confirm('Remover o acesso de '+email+'? Ela deixa de conseguir entrar na hora.')) return;
+  try{ await window.fbDeleteDoc(window.fbDoc(window.fbDb,'convites',emailChave(email))); toast('Acesso removido.'); carregarPainelConvites(); }
+  catch(err){ alert('Não consegui remover agora.'); }
+}
+async function ignorarPedido(uid){
+  try{ await window.fbDeleteDoc(window.fbDoc(window.fbDb,'pedidos',uid)); carregarPainelConvites(); }catch(err){}
+}
+function textoConvite(email){
+  return 'Oi! Te liberei no Caixinha.\n1) Abra: '+URL_SITE+'\n2) Toque em "Criar conta nova" usando este e-mail: '+email+'\n3) Confirme o e-mail que chegar (olhe o spam) e pronto.';
+}
+async function copiarConvite(email){
+  try{ await navigator.clipboard.writeText(textoConvite(email)); toast('Convite copiado.'); }
+  catch(e){ prompt('Copie o convite:',textoConvite(email)); }
 }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').then(reg=>reg.update());
@@ -2446,9 +2607,9 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut }
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, sendPasswordResetEmail }
     from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot, enableIndexedDbPersistence }
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot, enableIndexedDbPersistence, clearIndexedDbPersistence, terminate }
     from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2471,6 +2632,13 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.fbGetDoc = getDoc;
   window.fbSetDoc = setDoc;
   window.fbOnSnapshot = onSnapshot;
+  window.fbSendVerif = sendEmailVerification;
+  window.fbSendReset = sendPasswordResetEmail;
+  window.fbDeleteDoc = deleteDoc;
+  window.fbCollection = collection;
+  window.fbGetDocs = getDocs;
+  window.fbTerminate = terminate;
+  window.fbClearPersist = clearIndexedDbPersistence;
 
   onAuthStateChanged(window.fbAuth, user => window.onFbAuthChange(user));
 </script>

@@ -49,3 +49,7 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Feito: A1–A11 (datas locais, id determinístico dos fixos, limpeza ao trocar de conta, merge de config, undefined no Firestore, badge pela data, ativo ao editar, método do salário, Caixa PJ, texto Sobre, sw v5), acessibilidade (dialog/Esc/aria), contraste AA, ícone maskable, PIN com bolinhas, textos do mockup, fatura nos lançamentos, vencimento da fatura no Início.
 - Conferido no preview (mobile 462px, claro): Início, Lançamentos, Contas, Fixos, Config (PIN/Categorias/Orçamento), modais de Conta/Cartão/Fixo, PIN. Dark: só o que já estava da rodada anterior.
 - Ainda não conferido: modais de Financiamento/Investimento/Registrar pagamento, wizard completo e PJ, tablet 768px, tema escuro nas telas novas (PIN/vencimento), login real e instalação no Android.
+
+## Rodada de segurança (2026-10-07)
+- Feito no código: convite + gate, painel admin, CSP, escape de ícone/cor, sair e apagar dados, esqueci a senha.
+- Falta (usuário): publicar `firestore.rules` e itens 2–5 do checklist em `04-seguranca.md`; testes de aceite com e-mails "+".

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-07 — Acesso só por convite + endurecimento de segurança
+
+- **Convite**: `convites/{email}` (só o admin escreve) + e-mail verificado; as regras do Firestore (`firestore.rules`) negam leitura/escrita de `users/...` a quem não foi liberado. Tela "Confirme seu e-mail" / "Aguardando liberação" (com "Pedir acesso"); painel **Config → Convites** só para o admin (liberar, remover, pedidos, "Copiar convite").
+- Cadastro envia e-mail de verificação, senha mínima de 8; "Esqueci a senha" no login (resposta genérica).
+- "Sair da conta" pergunta se apaga os dados deste aparelho (localStorage + cache offline do Firestore).
+- **Hardening**: CSP no `<head>`; anti-clickjacking; ícone e cor de categoria/conta escapados e limitados (antes iam crus ao HTML); regra do Firestore valida os campos do documento.
+- Verificado sem criar contas: com a CSP o Firebase carrega, o Auth responde (`auth/invalid-credential`) e o Firestore nega leitura anônima (`permission-denied`); fluxos do gate/painel testados com stubs. Testes de lógica: 12 passam.
+- **Pendente (console, feito pelo dono)**: publicar `firestore.rules` e demais itens de `04-seguranca.md`. Contas antigas (rickgoomes99, felipeunieuro, saidhenrique) ficam bloqueadas até serem convidadas.
+
 ## 2026-10-07 — Bloqueio ao minimizar + login de 30 dias (estilo app de banco)
 
 - **Opção "Bloquear ao minimizar"** em Config → Segurança, ligada por padrão; ao minimizar/trocar de app trava e pede o PIN. Só trava com login ativo e PIN criado.
