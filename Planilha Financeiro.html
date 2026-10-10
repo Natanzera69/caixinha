@@ -2283,6 +2283,13 @@ function renderConfig(){
     <div class="section-title"><h2>Sincronização</h2></div>
     <div class="card">
       <p class="hint">Conectado como <b>${escapeHtml(window.fbAuth?.currentUser?.email||'')}</b>. Seus dados sincronizam automaticamente entre seus aparelhos logados nessa mesma conta.</p>
+      <div id="syncStatus">${htmlStatusSync()}</div>
+      <div class="modal-actions" style="flex-wrap:wrap">
+        <button class="btn" onclick="verificarNuvem()">Verificar agora</button>
+        <button class="btn" onclick="enviarDesteAparelho()">Enviar deste aparelho</button>
+        <button class="btn" onclick="baixarDaNuvem()">Baixar da nuvem</button>
+      </div>
+      <p class="hint">"Enviar" e "Baixar" juntam os dois lados e nunca apagam nada.</p>
       <button class="btn btn-danger mt16" onclick="abrirSair()">Sair da conta</button>
     </div>
     ${ehAdmin(window.fbAuth?.currentUser)?`
@@ -2358,6 +2365,7 @@ function renderConfig(){
     </div>
   `;
   if(ehAdmin(window.fbAuth?.currentUser)) carregarPainelConvites();
+  if(window.fbUid && fbStatus.pessoal.nuvemExiste===null) verificarNuvem();
 }
 function adicionarCategoria(){
   const nome=document.getElementById('novaCatNome').value.trim();
@@ -2832,21 +2840,58 @@ function salvarPerfilLocal(perfil){
   try{ localStorage.setItem(storageKey(perfil), JSON.stringify(estados[perfil])); }catch(e){}
 }
 
+/* ===== Sincronização com a nuvem =====
+   Regra de ouro: nunca gravar na nuvem sem antes ter conseguido LER o documento (senão um aparelho novo, com o estado padrão,
+   poderia sobrescrever os dados reais). Erros ficam visíveis em Config → Sincronização. */
+const fbStatus={
+  pessoal:{leituraOk:false,nuvemExiste:null,nuvemResumo:null,ultimoEnvio:null,ultimoErro:null},
+  pj:{leituraOk:false,nuvemExiste:null,nuvemResumo:null,ultimoEnvio:null,ultimoErro:null}
+};
+const fbPendente={pessoal:false,pj:false};
+let ultimoAvisoSync=0;
+function codigoErroSync(e){
+  const c=(e&&e.code)||'';
+  if(c.includes('permission-denied')) return 'permissão negada pelas regras (confira o convite e se as regras foram publicadas)';
+  if(c.includes('unavailable')||c.includes('network')) return 'sem conexão com a nuvem';
+  return c||String((e&&e.message)||e||'erro desconhecido');
+}
+function avisarSync(msg){ const agora=Date.now(); if(agora-ultimoAvisoSync<60000) return; ultimoAvisoSync=agora; toast(msg); }
+// "tem dado de verdade" = algo além do estado padrão criado ao abrir o app pela primeira vez
+function perfilTemDados(st){
+  if(!st) return false;
+  return (st.transacoes||[]).length>0 || (st.contas||[]).length>1 || (st.cartoes||[]).length>0 || (st.recorrencias||[]).length>0
+    || (st.investimentos||[]).length>0 || (st.financiamentos||[]).length>0 || !!(st.config&&st.config.onboardingConcluido);
+}
+// Decisão pura (testável): o que fazer ao conectar, dado o que existe na nuvem e neste aparelho.
+function decidirSincronia(nuvemExiste,localTemDados,eraNovo){
+  if(!nuvemExiste) return localTemDados? 'enviar' : 'nada';
+  if(eraNovo) return 'baixar';
+  return 'mesclar';
+}
+function resumoPerfil(st){
+  if(!st) return 'vazio';
+  const n=(k)=>(st[k]||[]).length;
+  return n('transacoes')+' lançamentos, '+n('contas')+' contas, '+n('cartoes')+' cartões, '+n('recorrencias')+' fixos';
+}
+
 // Os dois perfis (Pessoal e PJ) sincronizam em paralelo o tempo todo, estejam ativos na tela
 // ou não — assim trocar de perfil é instantâneo (o dado já está em memória), sem esperar rede.
 async function iniciarSincronizacaoPerfil(uid,perfil){
   const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(uid,perfil));
+  const st=fbStatus[perfil];
   try{
     const snap=await window.fbGetDoc(ref);
+    st.leituraOk=true; st.nuvemExiste=snap.exists(); st.ultimoErro=null; st.nuvemResumo=snap.exists()? resumoPerfil(snap.data()) : null;
+    const eraNovo = perfil==='pessoal' ? estadoEraNovo : !estados.pj;
+    const acao=decidirSincronia(snap.exists(),perfilTemDados(estados[perfil]),eraNovo);
+    if(acao==='baixar'){
+      // aparelho novo pra esse perfil (nunca teve dado local) + já existe dado na nuvem: usa a
+      // nuvem direto, em vez de mesclar — evita duplicar defaults criados localmente à toa
+      estados[perfil]=normalizarEstado(snap.data());
+    }else if(acao==='mesclar'){
+      mesclarEstadoEm(estados[perfil],snap.data());
+    }
     if(snap.exists()){
-      const eraNovo = perfil==='pessoal' ? estadoEraNovo : !estados.pj;
-      if(eraNovo){
-        // aparelho novo pra esse perfil (nunca teve dado local) + já existe dado na nuvem: usa a
-        // nuvem direto, em vez de mesclar — evita duplicar defaults criados localmente à toa
-        estados[perfil]=normalizarEstado(snap.data());
-      }else{
-        mesclarEstadoEm(estados[perfil],snap.data());
-      }
       if(perfil===perfilAtivo){
         state=estados[perfil];
         gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
@@ -2854,7 +2899,12 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
       }
       salvarPerfilLocal(perfil);
     }
-  }catch(e){ /* offline no primeiro acesso — segue só com o que já está local */ }
+    // o que só existe neste aparelho sobe agora (antes só subia na próxima edição)
+    if(acao==='enviar' || acao==='mesclar') agendarEnvio(perfil,0);
+  }catch(e){
+    st.leituraOk=false; st.ultimoErro=codigoErroSync(e);
+    avisarSync('Não consegui sincronizar agora — seus dados estão salvos neste aparelho.');
+  }
 
   if(fbUnsub[perfil]) fbUnsub[perfil]();
   fbUnsub[perfil]=window.fbOnSnapshot(ref, snap=>{
@@ -2862,6 +2912,7 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
     fbAplicandoRemoto[perfil]=true;
     if(!estados[perfil]) estados[perfil]=estadoVazio(); // perfil PJ criado em outro aparelho chegando aqui pela 1ª vez
     mesclarEstadoEm(estados[perfil],snap.data());
+    st.nuvemExiste=true; st.nuvemResumo=resumoPerfil(snap.data());
     if(perfil===perfilAtivo){
       state=estados[perfil];
       gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
@@ -2871,7 +2922,7 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
     salvarPerfilLocal(perfil);
     renderSeletorPerfil();
     fbAplicandoRemoto[perfil]=false;
-  });
+  }, e=>{ st.ultimoErro=codigoErroSync(e); });
 }
 
 async function iniciarSincronizacao(user){
@@ -2880,19 +2931,93 @@ async function iniciarSincronizacao(user){
   estadoEraNovo=false;
 }
 
-function sincronizarComFirestore(){
-  const perfil=perfilAtivo;
-  if(!window.fbUid || fbAplicandoRemoto[perfil]) return;
-  clearTimeout(fbSaveTimeout[perfil]);
-  fbSaveTimeout[perfil]=setTimeout(()=>{
+function agendarEnvio(perfil,atrasoMs){
+  if(!window.fbUid) return;
+  clearTimeout(fbSaveTimeout[perfil]); fbPendente[perfil]=true;
+  fbSaveTimeout[perfil]=setTimeout(()=>enviarPerfilNuvem(perfil),atrasoMs);
+}
+async function enviarPerfilNuvem(perfil){
+  clearTimeout(fbSaveTimeout[perfil]); fbPendente[perfil]=false;
+  const st=fbStatus[perfil], alvo=estados[perfil];
+  if(!window.fbUid || !alvo) return false;
+  if(!st.leituraOk){ // nunca escreve por cima da nuvem sem ter conseguido ler antes: tenta ler de novo
+    try{ await iniciarSincronizacaoPerfil(window.fbUid,perfil); }catch(e){}
+    if(!st.leituraOk) return false;
+  }
+  try{
     const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,perfil));
-    const paraEnviar=JSON.parse(JSON.stringify({...state, config:{...state.config, pinHash:null}})); // JSON limpa `undefined` (Firestore rejeita)
-    window.fbSetDoc(ref, paraEnviar).catch(()=>{ /* sem internet: fica só local, sincroniza quando voltar */ });
-  },1500);
+    await window.fbSetDoc(ref, JSON.parse(JSON.stringify({...alvo, config:{...alvo.config, pinHash:null}}))); // JSON limpa `undefined` (Firestore rejeita)
+    st.ultimoEnvio=new Date(); st.ultimoErro=null; st.nuvemExiste=true; st.nuvemResumo=resumoPerfil(alvo);
+    return true;
+  }catch(e){
+    st.ultimoErro=codigoErroSync(e);
+    avisarSync('Não consegui enviar para a nuvem — seus dados estão salvos neste aparelho.');
+    return false;
+  }
+}
+function sincronizarComFirestore(){
+  if(!window.fbUid || fbAplicandoRemoto[perfilAtivo]) return;
+  agendarEnvio(perfilAtivo,1500);
+}
+// ao sair da aba / fechar: não deixa a última edição presa no atraso de 1,5 s
+function enviarPendentes(){ ['pessoal','pj'].forEach(p=>{ if(fbPendente[p]) enviarPerfilNuvem(p); }); }
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) enviarPendentes(); });
+window.addEventListener('pagehide',enviarPendentes);
+
+/* ---- Painel "Sincronização" (Config) ---- */
+function htmlStatusSync(){
+  const linha=(nome,perfil)=>{
+    const st=fbStatus[perfil], est=estados[perfil]; if(!est) return '';
+    const nuvem=st.nuvemExiste===null? 'ainda não verificada' : (st.nuvemExiste? 'tem '+(st.nuvemResumo||'documento') : '<b>não tem nada</b>');
+    return `<p class="hint"><b>${nome}</b> — neste aparelho: ${resumoPerfil(est)}. Na nuvem: ${nuvem}.${st.ultimoEnvio?' Último envio: '+st.ultimoEnvio.toLocaleString('pt-BR')+'.':''}${st.ultimoErro?' <span style="color:var(--expense)">Erro: '+escapeHtml(st.ultimoErro)+'.</span>':''}</p>`;
+  };
+  return linha('Pessoal','pessoal')+linha('Empresarial','pj');
+}
+async function lerNuvem(perfil){ // lê o documento do perfil e devolve o snap (atualiza o painel)
+  const st=fbStatus[perfil];
+  const snap=await window.fbGetDoc(window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,perfil)));
+  st.leituraOk=true; st.nuvemExiste=snap.exists(); st.ultimoErro=null; st.nuvemResumo=snap.exists()? resumoPerfil(snap.data()) : null;
+  return snap;
+}
+async function verificarNuvem(){
+  if(!window.fbUid) return;
+  for(const perfil of ['pessoal','pj']){
+    if(perfil==='pj' && !estados.pj) continue;
+    try{ await lerNuvem(perfil); }catch(e){ fbStatus[perfil].ultimoErro=codigoErroSync(e); }
+  }
+  if(abaAtual==='config') renderConfig();
+}
+// junta o que há na nuvem com o que há aqui (sem apagar) e grava o resultado nos dois lugares
+async function enviarDesteAparelho(){
+  if(!window.fbUid) return;
+  for(const perfil of ['pessoal','pj']){
+    if(!estados[perfil]) continue;
+    try{
+      const snap=await lerNuvem(perfil);
+      if(snap.exists()) mesclarEstadoEm(estados[perfil],snap.data());
+      salvarPerfilLocal(perfil);
+    }catch(e){ fbStatus[perfil].ultimoErro=codigoErroSync(e); continue; }
+    await enviarPerfilNuvem(perfil);
+  }
+  state=estados[perfilAtivo]; renderTudo(); if(abaAtual==='config') renderConfig();
+  toast('Dados deste aparelho enviados e conferidos.');
+}
+async function baixarDaNuvem(){
+  if(!window.fbUid) return;
+  for(const perfil of ['pessoal','pj']){
+    try{
+      const snap=await lerNuvem(perfil); if(!snap.exists()) continue;
+      if(estados[perfil]) mesclarEstadoEm(estados[perfil],snap.data()); else estados[perfil]=normalizarEstado(snap.data());
+      salvarPerfilLocal(perfil);
+    }catch(e){ fbStatus[perfil].ultimoErro=codigoErroSync(e); }
+  }
+  state=estados[perfilAtivo]; aplicarTema(); renderTudo(); if(abaAtual==='config') renderConfig();
+  toast('Dados da nuvem trazidos para este aparelho.');
 }
 
 function fbLogout(){
-  ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } clearTimeout(fbSaveTimeout[p]); });
+  ['pessoal','pj'].forEach(p=>{ if(fbUnsub[p]){ fbUnsub[p](); fbUnsub[p]=null; } clearTimeout(fbSaveTimeout[p]); fbPendente[p]=false;
+    Object.assign(fbStatus[p],{leituraOk:false,nuvemExiste:null,nuvemResumo:null,ultimoEnvio:null,ultimoErro:null}); });
   window.fbUid=null; window.__loginManual=false; pararGate();
   window.fbSignOutFn?.(window.fbAuth);
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-10 — Sincronização verificável e à prova de "conta zerada"
+
+Motivo: conta aberta em outro PC apareceu vazia. A nuvem (Firestore) é o que um aparelho novo baixa; ela estava vazia porque os documentos do usuário foram apagados a pedido (limpeza de testes) e o aparelho com os dados só reenviava na **próxima edição**; além disso erros de leitura/gravação eram engolidos em silêncio.
+
+- **Reenvio imediato**: ao conectar, se a nuvem está vazia e o aparelho tem dados, sobe na hora (`decidirSincronia`); se há dados dos dois lados, junta e devolve. Antes só subia na próxima edição.
+- **Regra de ouro**: nunca grava na nuvem sem ter conseguido LER o documento antes (um aparelho novo, com o estado padrão, não consegue sobrescrever dados reais se a leitura falhar). A leitura é refeita antes de cada envio.
+- **Sem erro silencioso**: falhas viram aviso ("Não consegui sincronizar — seus dados estão salvos neste aparelho") e ficam no painel.
+- **Config → Sincronização**: estado por perfil (neste aparelho × nuvem, último envio, último erro) e botões **Verificar agora**, **Enviar deste aparelho** e **Baixar da nuvem** (juntam, nunca apagam).
+- Última edição não fica mais presa no atraso de 1,5 s: grava ao sair da aba (`visibilitychange`/`pagehide`).
+- Testes: 18 casos (inclui a decisão de sincronia); cenários simulados: nuvem vazia × aparelho cheio, aparelho novo × nuvem cheia, leitura que falha, gravação negada.
+
 ## 2026-10-07 — Apuração 3 de 3 (tablet): layout e paridade com o mobile
 
 - **Início sem card órfão** em qualquer largura: até 999 px o painel usa hero em linha cheia + cards em 2 colunas (se sobrar um, ele ocupa a linha inteira; no celular também). Antes, entre 700 e 799 px a grade automática gerava 3 colunas com o "Saldo projetado" sozinho. A grade com hero 2×2 + 4 colunas passa a valer só a partir de 1000 px (no iPad Air 820 px os cards eram pequenos demais). "Investimentos"/"Cartões" também não deixam card sozinho no celular.

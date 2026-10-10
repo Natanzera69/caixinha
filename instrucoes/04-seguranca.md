@@ -40,3 +40,6 @@ Use `seu.email+teste1@gmail.com` (chega na sua caixa): (a) conta sem convite →
 - Dono do projeto vê os dados pelo console (até a criptografia ponta a ponta).
 - Quem tem acesso técnico ao navegador do aparelho vê o `localStorage`.
 - Cadastro de contas continua aberto no Firebase Auth (sem convite a conta não lê nada); dá para ficar limpando contas sem uso.
+
+## Como conferir a sincronização
+Config → Sincronização → **Verificar agora** mostra, por perfil, o que há neste aparelho e o que há na nuvem, o último envio e o último erro. Se a nuvem estiver vazia e este aparelho tiver os dados: **Enviar deste aparelho**. Em um aparelho novo vazio: **Baixar da nuvem**. Nunca use "Sair e apagar dados" antes de confirmar que a nuvem tem o que você precisa. Dica: faça **Fazer backup** (Config → Backup) antes de mexer.

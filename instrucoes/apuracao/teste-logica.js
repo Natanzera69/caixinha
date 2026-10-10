@@ -15,7 +15,7 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
+  'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -171,5 +171,20 @@ t('Restaurar backup: formatos, saneamento, resumo e junção sem apagar', () => 
   assert.deepStrictEqual([...atual.contas.map(x => x.id)], ['c1']);
   run('aplicarBackupNoPerfil(AT,BK.pessoal,true)');                                                               // "recuperar apagados"
   assert.deepStrictEqual([...atual.transacoes.map(x => x.id).sort()], ['t1', 't2']);
+});
+t('Sincronização: decide enviar/baixar/mesclar sem sobrescrever às cegas', () => {
+  const dec = (nuvem, local, novo) => run(`decidirSincronia(${nuvem},${local},${novo})`);
+  assert.strictEqual(dec(false, true, false), 'enviar');    // nuvem vazia + aparelho com dados: sobe (antes só subia na próxima edição)
+  assert.strictEqual(dec(false, false, true), 'nada');      // nada em lugar nenhum: não grava o estado padrão
+  assert.strictEqual(dec(true, false, true), 'baixar');     // aparelho novo + nuvem com dados: baixa
+  assert.strictEqual(dec(true, true, false), 'mesclar');    // os dois têm: junta e devolve
+  const padrao = novo(); padrao.contas = [{ id: 'carteira' }]; // estado criado ao abrir o app pela 1ª vez
+  ctx.P0 = padrao; assert.strictEqual(run('perfilTemDados(P0)'), false);
+  const comLanc = novo(); comLanc.transacoes = [{ id: 't' }]; ctx.P1 = comLanc; assert.strictEqual(run('perfilTemDados(P1)'), true);
+  const onb = novo(); onb.config = { onboardingConcluido: true }; ctx.P2 = onb; assert.strictEqual(run('perfilTemDados(P2)'), true);
+  assert.strictEqual(run('perfilTemDados(null)'), false);
+  assert.match(run("codigoErroSync({code:'permission-denied'})"), /permissão negada/);
+  assert.match(run("codigoErroSync({code:'unavailable'})"), /sem conexão/);
+  assert.strictEqual(run('resumoPerfil(P1)'), '1 lançamentos, 0 contas, 0 cartões, 0 fixos');
 });
 console.log(`\n${ok} testes passaram`);
