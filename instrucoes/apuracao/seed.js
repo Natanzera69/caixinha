@@ -1,7 +1,7 @@
 // Dados falsos pra conferir as telas sem login. Define window.__seed(aba).
 // Uso (no navegador, com a página aberta em localhost:8766):
 //   fetch('/instrucoes/apuracao/seed.js').then(r=>r.text()).then(eval).then(()=>__seed('dashboard'))
-// Abas: dashboard | lancamentos | contas | parcelamentos | investimentos | config
+// Abas: dashboard | lancamentos | graficos | contas | parcelamentos | investimentos | config
 // Só altera a memória da página; NÃO salva (nada vai pro Firebase nem pro localStorage de verdade).
 // Datas fixas em outubro/2026 (fechamento do cartão = dia 8, vence dia 15).
 window.__seed = (tab) => {

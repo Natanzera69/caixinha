@@ -52,3 +52,8 @@ Economia/
 Também é um repositório git, publicado em `github.com/Natanzera69/caixinha` e hospedado via GitHub Pages — qualquer alteração pedida ao Claude já sai publicada no site também (não é preciso repetir configuração nenhuma).
 
 Veja também: [01-arquitetura.md](01-arquitetura.md) (decisões técnicas), [02-modelo-de-dados.md](02-modelo-de-dados.md) (campos de cada entidade), [03-changelog.md](03-changelog.md) (histórico do que foi feito).
+
+## Gráficos e Config (2026-10-11)
+- **Início** e **Gráficos** usam o mesmo painel (`htmlPainelGrafico`): tipo, agrupamento e movimento ficam salvos por aparelho. Sem biblioteca externa.
+- **Config** é uma sanfona (uma seção aberta por vez). Categorias: busca e grupos Despesas/Receitas.
+- Compra parcelada aceita "parcelas já pagas" (só cria as que faltam).

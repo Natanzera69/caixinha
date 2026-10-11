@@ -68,3 +68,9 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Feito: grade do Início sem órfão (≤999 px 2 colunas, ≥1000 px hero 2×2), duas colunas de gráficos a partir de 700 px, modal 560 px, reservas para `cqi`, toque-edita em Lançamentos para qualquer aparelho de toque.
 - **Teste do usuário no tablet** (se tiver): Início em retrato e paisagem, tocar nas linhas de Lançamentos, ícones nas outras listas, instalar o app.
 - Fila (nenhuma das 3 apurações incluiu): listas em 2 colunas e largura 1280, tolerância do bloqueio (na hora/30 s/2 min), indicador de sincronização, "Gastos por banco" ao lado de outro card.
+
+## Rodada de 2026-10-11 — validação, parcelas pagas, gráficos, Config
+- Feito: validadores centrais + erro inline em todos os formulários/assistentes, parcelas já pagas, painel de gráficos (Início + aba), Config em sanfona.
+- Conferido no preview (1024 e 375 px; claro e escuro nos gráficos): aba Gráficos, painel do Início (rosca, colunas, evolução), Config e Categorias, validação de conta/cartão/fixo/financiamento/investimento/renomear, parcelamento 12x com 3 pagas.
+- **Teste do usuário**: parcelar no crédito com parcelas já pagas e conferir Fixos (ex.: 3/12) e a fatura; tocar nas fatias no celular; abrir cada seção de Config; barra inferior com 7 abas no seu celular.
+- Não conferido: tema escuro na Config, tablet, leitor de tela (o tema escuro dos gráficos foi conferido).

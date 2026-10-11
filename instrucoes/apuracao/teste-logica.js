@@ -16,13 +16,14 @@ function extrair(nome) {
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
-  'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas'];
+  'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
+  'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
 ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
 vm.createContext(ctx);
-const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' + script.match(/const VALOR_MAX=[^\n]*\n/)[0] + script.match(/const TEXTO_PROIBIDO=[^\n]*\n/)[0] +
+const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' + script.match(/const VALOR_MAX=[^\n]*\n/)[0] + script.match(/const TEXTO_PROIBIDO=[^\n]*\n/)[0] + script.match(/const PALETA=[^\n]*\n/)[0] + script.match(/const GRAF_OUTROS_COR=[^\n]*\n/)[0] + script.match(/const MESES_CURTOS=[^\n]*\n/)[0] +
   script.match(/const lsGet=[^\n]*\nconst lsSet=[^\n]*\nconst lsDel=[^\n]*\n/)[0];
 vm.runInContext(consts + '\n' + nomes.map(extrair).join('\n'), ctx);
 const novo = () => ({ contas: [], cartoes: [], categorias: [], transacoes: [], financiamentos: [], investimentos: [], recorrencias: [], config: { pinHash: null }, _tombstones: {} });
@@ -232,5 +233,42 @@ t('Parcelas: já pagas nunca passam do total; só as que faltam são criadas', (
   assert.strictEqual(r[0].valor, 83.33); assert.strictEqual(r[8].valor, 83.37);                          // resto de centavos na última
   assert.strictEqual(run("parcelasRestantes(1000,12,0,'2026-10-05')").length, 12);
   assert.strictEqual(run("parcelasRestantes(600,6,2,'2026-10-05').reduce((s,p)=>s+p.valor,0)"), 400);   // 4 parcelas de 100
+});
+const eq = (a, b) => assert.deepStrictEqual(JSON.parse(JSON.stringify(a)), b); // arrays do vm são de outro 'realm'
+t('Gráficos: distribuição por categoria/banco/pagamento, Outros, comparação e KPIs', () => {
+  ctx.state = Object.assign(novo(), {
+    categorias: [{ id: 'm', nome: 'Mercado', cor: '#16842f', icone: 'x' }, { id: 'l', nome: 'Lazer', cor: '#3f8ae0', icone: 'y' }],
+    contas: [{ id: 'a', nome: 'Itaú', cor: '#ea7a1c' }], cartoes: [{ id: 'k', nome: 'Nu', contaId: 'a' }]
+  });
+  const T = (tipo, v, extra) => Object.assign({ tipo, valor: v, data: '2026-10-05', categoriaId: 'm', metodoPagamento: 'pix', contaId: 'a' }, extra);
+  ctx.M = [T('despesa', 100), T('despesa', 50, { categoriaId: 'l', metodoPagamento: 'credito', cartaoId: 'k', contaId: null }), T('despesa', 25.5),
+    T('receita', 3000, { categoriaId: 'l' }), T('transferencia', 999)];
+  const cat = run("distribuicaoDoMes(M,'categoria','despesa')");
+  eq(cat.map(x => [x.nome, x.valor]), [['Mercado', 125.5], ['Lazer', 50]]);
+  eq(run("distribuicaoDoMes(M,'banco','despesa')").map(x => [x.nome, x.valor]), [['Itaú', 175.5]]); // crédito cai na conta do cartão
+  eq(run("distribuicaoDoMes(M,'pagamento','despesa')").map(x => [x.nome, x.valor]), [['Pix', 125.5], ['Crédito', 50]]);
+  eq(run("distribuicaoDoMes(M,'categoria','receita')").map(x => x.valor), [3000]);                 // transferência nunca entra
+  ctx.G = Array.from({ length: 9 }, (_, i) => ({ nome: 'c' + i, valor: 100 - i, cor: '#111111' }));
+  const g = run('agruparOutros(G,7)');
+  assert.strictEqual(g.length, 7); assert.strictEqual(g[6].nome, 'Outros'); assert.strictEqual(g[6].valor, 94 + 93 + 92); assert.strictEqual(g[6].n, 3);
+  assert.strictEqual(run('agruparOutros(G.slice(0,3),7)').length, 3);
+  const cmp = run("compararCategorias([{nome:'A',valor:150,cor:'#1'},{nome:'B',valor:40,cor:'#2'}],[{nome:'A',valor:100,cor:'#1'},{nome:'C',valor:70,cor:'#3'}])");
+  eq(cmp.map(x => [x.nome, x.delta, x.pct]), [['C', -70, -100], ['A', 50, 50], ['B', 40, null]]);
+  const k = run("kpisDoMes(M,2026,9,'2026-10-10')");
+  eq([k.receitas, k.despesas, k.saldo, k.taxaPoupanca, k.mediaDia, k.maior.valor], [3000, 175.5, 2824.5, 94, 17.55, 100]);
+  assert.strictEqual(run("kpisDoMes(M,2026,10,'2026-10-10')").mediaDia, null);                                              // mês futuro
+  assert.strictEqual(run("kpisDoMes([],2026,9,'2026-10-10')").taxaPoupanca, null);                                           // sem receita
+  eq([run('fmtCurto(950)'), run('fmtCurto(1250)'), run('fmtCurto(12500)'), run('fmtCurto(1500000)')], ['950', '1,3 mil', '13 mil', '1,5 mi']);
+  eq([run('tetoGrafico(0)'), run('tetoGrafico(730)'), run('tetoGrafico(1200)'), run('tetoGrafico(4100)')], [100, 1000, 2000, 5000]);
+});
+t('Gráficos: série mensal soma receitas e despesas de cada mês (do mais antigo ao mais novo)', () => {
+  ctx.state = Object.assign(novo(), { transacoes: [
+    { id: '1', tipo: 'despesa', valor: 10, data: '2026-08-10', metodoPagamento: 'pix' }, { id: '2', tipo: 'receita', valor: 100, data: '2026-09-10', metodoPagamento: 'pix' },
+    { id: '3', tipo: 'despesa', valor: 30, data: '2026-09-11', metodoPagamento: 'pix' }, { id: '4', tipo: 'despesa', valor: 5, data: '2026-10-01', metodoPagamento: 'pix' }] });
+  const s = run('serieMensal(3,2026,9)');
+  eq(s.map(x => [x.ym, x.receitas, x.despesas, x.saldo]), [['2026-08', 0, 10, -10], ['2026-09', 100, 30, 70], ['2026-10', 0, 5, -5]]);
+  eq(s.map(x => x.curto), ['ago', 'set', 'out']);
+  assert.strictEqual(run('serieMensal(12,2026,0)').length, 12);                                                              // atravessa o ano
+  assert.strictEqual(run('serieMensal(12,2026,0)')[0].ym, '2025-02');
 });
 console.log(`\n${ok} testes passaram`);

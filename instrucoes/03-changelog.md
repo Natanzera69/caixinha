@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-11 — Validação de campos, parcelas já pagas, gráficos e Config em sanfona
+
+**Validação (todos os formulários e assistentes)**
+- Funções puras testadas: `validarTexto`, `validarValor`, `validarInteiro`, `validarData`, `nomeDuplicado`; erro vermelho embaixo do campo, com foco (no lugar dos `alert`).
+- Texto: 2–60 caracteres na descrição (40 em nomes, 300 em notas), sem `< > { } \ `` nem caracteres invisíveis/de controle, espaços repetidos viram um.
+- Valores: maior que zero (investimento aceita 0; saldo inicial de conta aceita negativo, com confirmação), máximo R$ 999.999.999,99, só números.
+- Dias 1–31 (DAS 1–28), meses do fixo 1–11, parcelas 1–120, financiamento até 600; datas reais entre 2000 e 2100 (aviso se mais de 1 ano à frente).
+- Nome repetido bloqueado em contas, cartões, investimentos e categorias (do mesmo tipo). Pagamento de fatura/ao terceiro nunca passa da dívida.
+
+**Compra parcelada com parcelas já pagas**
+- Novo campo "Parcelas já pagas" (0 a total−1; 15 de 12 é recusado). Cria só as parcelas que faltam, a partir da data da compra, com prévia ("12x de R$ 83,33 · 3 já pagas · restam 9 · próxima 4/12 em …").
+- Fixos mostra o progresso certo (3/12) mesmo quando o grupo começa na parcela 4.
+
+**Gráficos**
+- Início: um painel com Despesas/Receitas, agrupamento por Categoria, Banco, Pagamento ou Evolução (6/12 meses) e tipo Rosca, Pizza, Barras, Colunas ou Linha. A escolha fica salva no aparelho.
+- Nova aba **Gráficos**: KPIs (receitas, despesas, saldo, taxa de poupança, média por dia, maior gasto), painel de distribuição, evolução receitas × despesas, comparação com o mês anterior, maiores gastos e orçamento × gasto.
+- SVG próprio (sem biblioteca): total no centro da rosca, destaque ao passar o mouse/tocar, legenda ligada ao gráfico, "Outros" agrupa as fatias pequenas, animação (respeita "reduzir movimento").
+
+**Config**
+- Seções recolhíveis (uma aberta por vez) com resumo na própria linha. Categorias com busca e grupos Despesas/Receitas recolhíveis; renomear categoria; "Sair da conta" fica sempre visível no topo.
+
+Testes: 25 casos (7 novos). Cache do service worker v7.
+
 ## 2026-10-10 — Sincronização verificável e à prova de "conta zerada"
 
 Motivo: conta aberta em outro PC apareceu vazia. A nuvem (Firestore) é o que um aparelho novo baixa; ela estava vazia porque os documentos do usuário foram apagados a pedido (limpeza de testes) e o aparelho com os dados só reenviava na **próxima edição**; além disso erros de leitura/gravação eram engolidos em silêncio.
