@@ -226,6 +226,9 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .muted{color:var(--text-muted);}
 .mt8{margin-top:8px;} .mt16{margin-top:16px;}
 .two-col{display:grid;grid-template-columns:1fr;gap:16px;}
+.two-col>.card{display:flex;flex-direction:column;}
+.two-col>.card>.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.mes-periodo{text-align:center;color:var(--text-muted);font-size:.8rem;font-weight:700;margin:-6px 0 12px;font-variant-numeric:tabular-nums;}
 @media(min-width:700px){.two-col{grid-template-columns:1.3fr 1fr;}}
 .chart-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
 .chart-wrap svg circle[fill="var(--surface)"]{fill:var(--surface);}
@@ -563,6 +566,10 @@ html.dark .px-ico{--ico-borda:1;}
 .sub-novo .graf-f input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
 .sub-novo .graf-f input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
 
+/* ---------- Acabamento: alinhamentos encontrados na auditoria ---------- */
+.nova-cat .icon-input{width:44px;height:44px;}
+.toolbar select{font-size:.92rem;text-overflow:ellipsis;}
+
 </style>
 </head>
 <body>
@@ -835,7 +842,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-11 · v12';
+const APP_VERSAO='2026-10-11 · v13';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -872,6 +879,13 @@ function aplicarTema(){
   const m=document.getElementById('metaTema'); if(m) m.content=escuro?'#11130e':'#16842f'; // barra de status do celular
 }
 if(mqEscuro && mqEscuro.addEventListener) mqEscuro.addEventListener('change',()=>{ if(state && state.config && typeof state.config.temaEscuro!=='boolean') aplicarTema(); });
+function definirDiaVirada(v){
+  const r=validarInteiro(v,{rotulo:'Dia da virada',min:1,max:28});
+  if(r.erro){ alert(r.erro); renderConfig(); return; }
+  state.config.diaVirada=r.valor; state.config.diaViradaEm=nowISO();
+  salvarEstado(); diaViradaAplicada=null; // volta para o mês-período atual
+  renderConfig(); toast(r.valor>1?'O mês agora vira no dia '+r.valor+'.':'O mês voltou a ser o do calendário.');
+}
 function definirTema(escuro){ // true | false | null (automático)
   state.config.temaEscuro=(escuro===true||escuro===false)? escuro : null; state.config.temaAtualizadoEm=nowISO();
   salvarEstado(); aplicarTema(); renderConfig();
@@ -1448,12 +1462,54 @@ function faturaAtualCartao(cartaoId){
 }
 // Mês (YYYY-MM) em que a transação conta nos totais: compra no crédito cai na fatura que fecha
 // no mês seguinte se feita a partir do dia de fechamento (fecha dia 8: 10/set e 05/out → out; 08/out → nov).
-function mesCompetencia(t){
+// Dia em que o mês financeiro vira (config; 1 = mês do calendário). Vale para o que não entra em fatura de cartão e não é fixo.
+function diaVirada(){
+  const d=parseInt(state&&state.config&&state.config.diaVirada,10);
+  return d>=1 && d<=28 ? d : 1;
+}
+// Mês (YYYY-MM) de uma data comum: com dia 10, 05/mar → fev; 10/mar → mar.
+function mesDaData(dataStr,dia){
+  const [a,m,d]=dataStr.split('-').map(Number);
+  if(!(dia>1) || d>=dia) return dataStr.slice(0,7);
+  const r=new Date(a,m-2,1);
+  return anoMesStr(r.getFullYear(),r.getMonth());
+}
+// Início e fim (inclusive) do mês financeiro: com dia 10, fev = 10/fev a 09/mar.
+function periodoDoMes(ano,mesIdx,dia){
+  const ym=anoMesStr(ano,mesIdx);
+  if(!(dia>1)) return [ym+'-01', ym+'-'+pad2(ultimoDiaDoMes(ano,mesIdx))];
+  const n=new Date(ano,mesIdx+1,1);
+  return [ym+'-'+pad2(dia), anoMesStr(n.getFullYear(),n.getMonth())+'-'+pad2(dia-1)];
+}
+function anoMesAtualPeriodo(){ return mesDaData(todayStr(),diaVirada()); }
+function mesCompetencia(t,dia){
   const c=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
-  if(!c || c.titular || !c.diaFechamento) return t.data.slice(0,7);
-  const [a,m,d]=t.data.split('-').map(Number);
-  const ref=new Date(a,m-1+(d>=c.diaFechamento?1:0),1); // Date resolve a virada de dezembro
-  return anoMesStr(ref.getFullYear(),ref.getMonth());
+  if(c && !c.titular && c.diaFechamento){ // fatura do cartão manda sobre qualquer outra regra
+    const [a,m,d]=t.data.split('-').map(Number);
+    const ref=new Date(a,m-1+(d>=c.diaFechamento?1:0),1); // Date resolve a virada de dezembro
+    return anoMesStr(ref.getFullYear(),ref.getMonth());
+  }
+  if(t.recorrenciaId) return t.data.slice(0,7); // fixos ficam no mês do calendário
+  return mesDaData(t.data, dia===undefined? diaVirada() : dia);
+}
+// Mês em que o lançamento aparece na LISTA: compra de cartão com fatura segue a data da compra; o resto segue mesCompetencia.
+function mesNaLista(t,dia){
+  const c=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
+  if(c && !c.titular && c.diaFechamento) return t.data.slice(0,7);
+  return mesCompetencia(t,dia);
+}
+// Quando a virada não é no dia 1, mostra o período do mês em uma linha pequena
+function dicaPeriodo(ano,mesIdx){
+  const dia=diaVirada(); if(dia<=1) return '';
+  const [i,f]=periodoDoMes(ano,mesIdx,dia), br=x=>fmtDate(x).slice(0,5);
+  return `<div class="mes-periodo">de ${br(i)} a ${br(f)}</div>`;
+}
+// Ao entrar, trocar de perfil ou mudar o dia: volta para o mês-período atual
+let diaViradaAplicada=null;
+function sincronizarPeriodoAtual(){
+  const d=diaVirada(); if(d===diaViradaAplicada) return; diaViradaAplicada=d;
+  const ym=anoMesAtualPeriodo(), [a,m]=ym.split('-').map(Number);
+  mesDash=new Date(a,m-1,1); filtroLanc.mes=ym; filtroLanc.limite=LANC_PAGINA;
 }
 function rotuloMes(ym){ const [a,m]=ym.split('-'); return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][m-1]+'/'+a.slice(2); }
 function pagamentosFaturaCartao(cartaoId){
@@ -1569,10 +1625,12 @@ function mudarMesDash(delta){
   renderAba(abaAtual); // Início e Gráficos compartilham o mês
 }
 function irParaMesAtual(){
-  mesDash=new Date(); mesDash.setDate(1); mesDash.setHours(0,0,0,0);
+  const [a,m]=anoMesAtualPeriodo().split('-').map(Number);
+  mesDash=new Date(a,m-1,1);
   renderAba(abaAtual);
 }
 function renderDashboard(){
+  sincronizarPeriodoAtual();
   const el=document.getElementById('tab-dashboard');
   const ano=mesDash.getFullYear(), mesIdx=mesDash.getMonth();
   const doMes=transacoesEfetivasDoMes(ano,mesIdx);
@@ -1605,7 +1663,7 @@ function renderDashboard(){
     return {c,uso,pct};
   }).filter(x=>x.pct>=0.7);
 
-  const anoMesAtual=anoMesStr(new Date().getFullYear(),new Date().getMonth());
+  const anoMesAtual=anoMesAtualPeriodo();
   const anoMesSel=anoMesStr(ano,mesIdx);
   const ehMesAtual=anoMesSel===anoMesAtual;
   const nomeMesBruto=mesDash.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
@@ -1613,7 +1671,7 @@ function renderDashboard(){
 
   let cardProjetado='';
   if(ehMesAtual){
-    const [,fimMes]=rangeDoMes(ano,mesIdx);
+    const [,fimMes]=periodoDoMes(ano,mesIdx,diaVirada());
     const futuras=doMes.filter(t=>t.data>hoje && t.data<=fimMes && t.metodoPagamento!=='credito');
     const delta=futuras.reduce((s,t)=>s+(t.tipo==='receita'?t.valor:t.tipo==='despesa'?-t.valor:0),0);
     const projetado=saldoTotalContas()+delta;
@@ -1626,6 +1684,7 @@ function renderDashboard(){
       <h2>${nomeMes}</h2>
       <button class="icon-btn" onclick="mudarMesDash(1)" title="Próximo mês">›</button>
     </div>
+    ${dicaPeriodo(ano,mesIdx)}
     ${!ehMesAtual?`<div style="text-align:center;margin:-8px 0 14px"><button class="btn btn-ghost btn-sm" onclick="irParaMesAtual()">Voltar para o mês atual</button></div>`:''}
 
     <div class="grid">
@@ -1792,14 +1851,15 @@ function compararCategorias(atual,anterior){
     return {nome,cor:ref.cor,icone:ref.icone,atual:va,anterior:vb,delta:round2(va-vb),pct:vb>0?Math.round((va-vb)/vb*100):null};
   }).sort((x,y)=>Math.abs(y.delta)-Math.abs(x.delta));
 }
-function kpisDoMes(doMes,ano,mesIdx,hojeStr){
+function kpisDoMes(doMes,ano,mesIdx,hojeStr,dia){
   let rec=0,des=0,maior=null;
   doMes.forEach(t=>{
     if(t.tipo==='receita') rec+=t.valor;
     else if(t.tipo==='despesa'){ des+=t.valor; if(!maior||t.valor>maior.valor) maior=t; }
   });
-  const ym=anoMesStr(ano,mesIdx), hojeYm=hojeStr.slice(0,7);
-  const dias = hojeYm===ym ? Math.max(1,parseInt(hojeStr.slice(8,10),10)) : (hojeYm>ym ? ultimoDiaDoMes(ano,mesIdx) : 0);
+  const [ini,fim]=periodoDoMes(ano,mesIdx,dia||1);
+  const nDias=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000)+1; // dias, inclusive
+  const dias = hojeStr<ini ? 0 : (hojeStr<=fim ? nDias(ini,hojeStr) : nDias(ini,fim));
   return {receitas:round2(rec),despesas:round2(des),saldo:round2(rec-des),
     taxaPoupanca: rec>0 ? Math.round((rec-des)/rec*100) : null,
     mediaDia: dias>0 ? round2(des/dias) : null, maior};
@@ -2036,15 +2096,16 @@ function htmlComparacaoMeses(atual,anterior,nomeMesAnt){
     </div>`).join('')}</div>`;
 }
 function renderGraficos(){
+  sincronizarPeriodoAtual();
   const el=document.getElementById('tab-graficos');
   const ano=mesDash.getFullYear(), mesIdx=mesDash.getMonth();
   const doMes=transacoesEfetivasDoMes(ano,mesIdx);
-  const k=kpisDoMes(doMes,ano,mesIdx,todayStr());
+  const k=kpisDoMes(doMes,ano,mesIdx,todayStr(),diaVirada());
   const ant=new Date(ano,mesIdx-1,1);
   const doAnt=transacoesEfetivasDoMes(ant.getFullYear(),ant.getMonth());
   const catAtual=distribuicaoDoMes(doMes,'categoria','despesa'), catAnt=distribuicaoDoMes(doAnt,'categoria','despesa');
   const nomeMes=rotuloMesLongo(anoMesStr(ano,mesIdx)), nomeAnt=rotuloMesLongo(anoMesStr(ant.getFullYear(),ant.getMonth()));
-  const ehMesAtual=anoMesStr(ano,mesIdx)===todayStr().slice(0,7);
+  const ehMesAtual=anoMesStr(ano,mesIdx)===anoMesAtualPeriodo();
   const top=doMes.filter(t=>t.tipo==='despesa').slice().sort((a,b)=>b.valor-a.valor).slice(0,5);
   const kpi=(rot,valor,sub,cls)=>`<div class="card"><h3>${rot}</h3><div class="value ${cls||''}">${valor}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
   el.innerHTML=`
@@ -2053,6 +2114,7 @@ function renderGraficos(){
       <h2>${nomeMes}</h2>
       <button class="icon-btn" onclick="mudarMesDash(1)" title="Próximo mês">›</button>
     </div>
+    ${dicaPeriodo(ano,mesIdx)}
     ${!ehMesAtual?`<div style="text-align:center;margin:-8px 0 14px"><button class="btn btn-ghost btn-sm" onclick="irParaMesAtual()">Voltar para o mês atual</button></div>`:''}
     <div class="grid kpis">
       ${kpi('Receitas',fmtMoney(k.receitas),'','income')}
@@ -2108,7 +2170,7 @@ function filtrarLancamentos(lista,f,hoje){
   let ini30=null;
   if(f.periodo==='30'){ const d=new Date(hoje+'T12:00:00'); d.setDate(d.getDate()-30); ini30=isoLocal(d); }
   const r=lista.filter(t=>{
-    if(f.periodo==='mes' && t.data.slice(0,7)!==f.mes) return false;
+    if(f.periodo==='mes' && mesNaLista(t,f.diaVirada||1)!==f.mes) return false;
     if(ini30 && (t.data<ini30 || t.data>hoje)) return false;
     if(f.tipo && t.tipo!==f.tipo) return false;
     if(f.categoria && t.categoriaId!==f.categoria) return false;
@@ -2137,8 +2199,9 @@ function mudarMesLanc(delta){
   filtroLanc.mes=anoMesStr(d.getFullYear(),d.getMonth()); filtroLanc.limite=LANC_PAGINA; renderLancamentos();
 }
 function renderLancamentos(){
+  sincronizarPeriodoAtual();
   const el=document.getElementById('tab-lancamentos');
-  const mesAtual=todayStr().slice(0,7);
+  const mesAtual=anoMesAtualPeriodo();
   const contasOpt=state.contas.map(c=>`<option value="c:${c.id}">${escapeHtml(c.nome)}</option>`).join('');
   const cartoesOpt=state.cartoes.map(c=>`<option value="k:${c.id}">${escapeHtml(c.nome)}${c.titular?' (de '+escapeHtml(c.titular)+')':''}</option>`).join('');
   const catOpt=['despesa','receita'].map(tp=>`<optgroup label="${tp==='despesa'?'Despesas':'Receitas'}">${state.categorias.filter(c=>c.tipo===tp).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</optgroup>`).join('');
@@ -2148,7 +2211,7 @@ function renderLancamentos(){
       <button class="icon-btn" onclick="mudarMesLanc(-1)" title="Mês anterior">‹</button>
       <h2>${rotuloMesLongo(filtroLanc.mes)}</h2>
       <button class="icon-btn" onclick="mudarMesLanc(1)" title="Próximo mês">›</button>
-    </div>${filtroLanc.mes!==mesAtual?'<div style="text-align:center;margin:-4px 0 12px"><button class="btn btn-ghost btn-sm" onclick="filtroLanc.mes=todayStr().slice(0,7);filtroLanc.limite=LANC_PAGINA;renderLancamentos()">Voltar para o mês atual</button></div>':''}`:''}
+    </div>${dicaPeriodo(+filtroLanc.mes.slice(0,4),+filtroLanc.mes.slice(5,7)-1)}${filtroLanc.mes!==mesAtual?'<div style="text-align:center;margin:-4px 0 12px"><button class="btn btn-ghost btn-sm" onclick="filtroLanc.mes=anoMesAtualPeriodo();filtroLanc.limite=LANC_PAGINA;renderLancamentos()">Voltar para o mês atual</button></div>':''}`:''}
     <div class="toolbar">
       <input type="text" class="search" id="lancQ" maxlength="60" placeholder="Buscar descrição..." aria-label="Buscar lançamento pela descrição" value="${escapeHtml(filtroLanc.q)}">
       <select id="lancPeriodo" aria-label="Período">
@@ -2200,7 +2263,7 @@ function renderLancamentos(){
 }
 function renderListaLancamentos(){
   const cont=document.getElementById('lancLista'), mais=document.getElementById('lancMais'), tot=document.getElementById('lancTotais');
-  const lista=filtrarLancamentos(state.transacoes,filtroLanc,todayStr());
+  const lista=filtrarLancamentos(state.transacoes,{...filtroLanc,diaVirada:diaVirada()},todayStr());
   const T=totaisLancamentos(lista);
   tot.innerHTML=`<span>Receitas <b class="income">+${fmtMoney(T.receitas)}</b></span><span>Despesas <b class="expense">-${fmtMoney(T.despesas)}</b></span><span>Saldo <b>${fmtMoney(T.saldo)}</b></span><span>${T.n} lançamento${T.n===1?'':'s'}</span>`;
   mais.innerHTML='';
@@ -3341,6 +3404,17 @@ function renderConfig(){
         <button class="btn btn-primary mt16" onclick="abrirCriarPerfilPJ()">+ Criar perfil PJ</button>`}
       <p class="hint mt16">Quer rever as perguntas de configuração inicial (conta principal, dia de receber, contas fixas...)?</p>
       <button class="btn mt16" onclick="refazerOnboarding()"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>Refazer configuração inicial</button>`;
+  const dv=diaVirada();
+  const exVirada=d=>{
+    if(d<=1) return 'Hoje o mês vai do dia 1 ao último dia, como no calendário.';
+    const [ym]=[anoMesAtualPeriodo()], [a,m]=ym.split('-').map(Number), [i,f]=periodoDoMes(a,m-1,d), br=x=>fmtDate(x).slice(0,5);
+    return `Com o dia ${d}: de ${br(i)} a ${br(f)} conta como <b>${escapeHtml(rotuloMesLongo(ym))}</b>. Gastos antes do dia ${d} entram no mês anterior.`;
+  };
+  const virada=`
+      <p class="hint" style="margin:10px 0 12px">Escolha em que dia o seu mês começa (ex.: o dia em que o salário cai). Vale para Pix, dinheiro, boleto e débito que não são fixos.</p>
+      <label class="graf-f"><span>O mês vira no dia</span><select id="selDiaVirada" aria-label="Dia em que o mês vira" onchange="definirDiaVirada(this.value)">${Array.from({length:28},(_,i)=>i+1).map(d=>`<option value="${d}" ${d===dv?'selected':''}>${d===1?'1 (mês do calendário)':d}</option>`).join('')}</select></label>
+      <p class="hint mt16" id="exVirada">${exVirada(dv)}</p>
+      <p class="hint">Compras no cartão de crédito continuam seguindo o dia de fechamento do cartão, e fixos ficam no mês em que caem.</p>`;
   const instalar=`
       ${promptInstalar
         ? `<p class="hint">Instale o Caixinha na tela inicial para abrir como um app, em tela cheia, sem a barra do navegador.</p><button class="btn btn-primary mt16" onclick="instalarApp()">Instalar o app</button>`
@@ -3407,6 +3481,7 @@ function renderConfig(){
   const sobre=`<p class="hint" style="margin-top:10px"><b>Versão:</b> ${escapeHtml(APP_VERSAO)}</p><button class="btn btn-sm mt8" onclick="atualizarAppAgora()">Atualizar o app agora</button><p class="hint mt16">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>`;
   const lista=[
     htmlSecaoConfig('geral','sun','Aparência e perfis',`${typeof state.config.temaEscuro!=='boolean'?'Automático ('+(temaEscuroAtivo()?'escuro':'claro')+')':state.config.temaEscuro?'Tema escuro':'Tema claro'} · ${perfilAtivo==='pj'?escapeHtml(estados.pj?.empresaNome||'Empresa'):'Pessoal'}`,geral),
+    htmlSecaoConfig('virada','calendar','Virada do mês',dv>1?`O mês vira no dia ${dv}`:'Mês do calendário',virada),
     appInstalado()?'':htmlSecaoConfig('instalar','play','Instalar o app','Abrir em tela cheia, como um app',instalar),
     htmlSecaoConfig('sync','repeat','Sincronização',escapeHtml(email)||'Conta',sync),
     ehAdmin(window.fbAuth?.currentUser)?htmlSecaoConfig('convites','bank','Convites','Quem pode usar o Caixinha',convites):'',
@@ -3671,6 +3746,9 @@ function mesclarEstadoEm(alvo,incoming){
   if(!alvo.empresaNome && incoming.empresaNome) alvo.empresaNome=incoming.empresaNome;
   if(cfgIn.temaAtualizadoEm && (!alvo.config.temaAtualizadoEm || cfgIn.temaAtualizadoEm>alvo.config.temaAtualizadoEm)){
     alvo.config.temaEscuro=cfgIn.temaEscuro===true? true : cfgIn.temaEscuro===false? false : null; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
+  }
+  if(cfgIn.diaViradaEm && (!alvo.config.diaViradaEm || cfgIn.diaViradaEm>alvo.config.diaViradaEm)){
+    alvo.config.diaVirada=cfgIn.diaVirada; alvo.config.diaViradaEm=cfgIn.diaViradaEm;
   }
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
   const corte=alvo.config.resetEm;

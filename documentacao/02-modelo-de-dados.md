@@ -67,3 +67,7 @@ Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...
 - `subcategorias: [{id, categoriaId, nome, updatedAt}]` por perfil; sincroniza como as demais listas (merge por id + `updatedAt`, lápides em `_tombstones.subcategorias`).
 - `transacoes[].subcategoriaId` e `recorrencias[].subcategoriaId`: opcionais (`null`/ausente = sem subcategoria). Vale só se a sub existe **e** pertence à `categoriaId` do registro (`subcategoriaValida`).
 - Chave nova exige `'subcategorias'` no `hasOnly` de `firestore.rules`; `paraNuvem()` omite a lista quando vazia.
+
+## Virada do mês (2026-10-11)
+- `config.diaVirada` (1–28; ausente = 1, mês do calendário) e `config.diaViradaEm` (ISO; o carimbo mais novo vence entre aparelhos). Por perfil.
+- `mesCompetencia(t)`: 1) crédito com cartão próprio e dia de fechamento → fatura; 2) fixo (`recorrenciaId`) → mês do calendário; 3) resto → `mesDaData(data, diaVirada)` (antes do dia da virada = mês anterior).

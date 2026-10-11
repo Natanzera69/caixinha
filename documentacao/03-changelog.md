@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-11 (8) — Virada do mês, quadro vazio preenchendo o cartão e auditoria de alinhamento
+
+- **Config → Virada do mês**: escolha o dia (1–28) em que o seu mês começa. Com dia 10, de 10/fev a 09/mar conta como **Fevereiro**. Vale para o que não entra em fatura de cartão e não é fixo (Pix, dinheiro, boleto, débito). Cartão de crédito continua pelo dia de fechamento do cartão; **fixos ficam no mês do calendário**. Segue em Início, Gráficos (incluindo média por dia, comparação e orçamento) e na lista de Lançamentos; o cabeçalho mostra o período ("de 10/10 a 09/11") e o "mês atual" respeita o dia (antes do dia 10 o mês atual ainda é o anterior). Por perfil (pessoal/PJ) e sincroniza entre aparelhos.
+- **Quadro pontilhado**: em cartões lado a lado (Próximos vencimentos, Comparado com o mês anterior, Maiores gastos) o estado vazio agora preenche a altura toda do cartão.
+- **Auditoria de alinhamento** (desktop 1280, tablet 768, celular 375; claro e escuro; todas as abas, seções da Config e janelas): corrigido o ícone da nova categoria (40 px ao lado de campos de 44 px) e a fonte dos filtros de Lançamentos no celular (texto encostava na seta). Ferramenta nova: `ferramentas/sonda-alinhamento.js` (botões fora do centro, irmãos desalinhados, estouro horizontal, cartões com alturas diferentes).
+- Testes: 34 casos (3 novos). Cache do service worker v13.
+
 ## 2026-10-11 (7) — Gráficos em listas, PIN sem "salvar senha" e Subcategorias em Config
 
 - **Painel de gráficos**: no lugar dos botões e chips, três listas com rótulo — **Mostrar** (Despesas/Receitas), **Agrupar por** (Categoria, Subcategoria, Banco, Pagamento, Evolução) e **Gráfico** (Rosca, Pizza, Barras, Colunas; na Evolução: Período e Colunas/Linha). Visão por subcategoria ganha a lista **Categoria**. A escolha continua salva no aparelho.

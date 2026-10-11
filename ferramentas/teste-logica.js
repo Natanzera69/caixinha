@@ -18,7 +18,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
-  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros'];
+  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -29,6 +29,7 @@ const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/c
 vm.runInContext(consts + '\n' + nomes.map(extrair).join('\n'), ctx);
 const novo = () => ({ contas: [], cartoes: [], categorias: [], transacoes: [], financiamentos: [], investimentos: [], recorrencias: [], config: { pinHash: null }, _tombstones: {} });
 const rec = () => ({ id: 'r1', descricao: 'Salário', valor: 5200, tipo: 'receita', diaDoMes: 5, intervaloMeses: 1, ativo: true, mesesGerados: [], categoriaId: 'c', metodoPagamento: 'pix', contaId: 'a', updatedAt: '2026-10-01T00:00:00Z' });
+const round = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const run = (c) => vm.runInContext(c, ctx);
 let ok = 0; const t = (nome, fn) => { fn(); ok++; console.log('ok  ' + nome); };
 
@@ -137,6 +138,7 @@ const lancs = [
 const F0 = { q: '', tipo: '', conta: '', categoria: '', periodo: 'mes', mes: '2026-10' };
 const filtra = (f) => { ctx.L = lancs; ctx.FF = { ...F0, ...f }; return run("filtrarLancamentos(L,FF,'2026-10-25')").map(t => t.id).join(''); };
 t('Lançamentos: filtros por mês, 30 dias, tudo, tipo, conta, cartão, categoria e busca sem acento', () => {
+  ctx.state = novo();
   assert.strictEqual(filtra({}), 'bda');                      // outubro, mais recente primeiro
   assert.strictEqual(filtra({ periodo: '30' }), 'bdac');      // 25/09 a 25/10 (28/09 entra)
   assert.strictEqual(filtra({ periodo: 'tudo' }), 'bdace');
@@ -374,5 +376,61 @@ t('Painel de gráficos usa listas e PIN não usa type=password', () => {
     const tag = html.match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0];
     assert.ok(tag.includes('type="text"') && tag.includes('pin-masked'), id);
   });
+});
+t('Virada do mês: dia 10 move o que não é fatura nem fixo; cartão e fixos não mudam', () => {
+  ctx.state = Object.assign(novo(), { cartoes: [{ id: 'k', diaFechamento: 8 }, { id: 'sem', diaFechamento: null }, { id: 'ter', diaFechamento: 8, titular: 'Ana' }] });
+  const mc = (d, extra, dia) => run('mesCompetencia(' + JSON.stringify(Object.assign({ data: d, metodoPagamento: 'pix' }, extra || {})) + ',' + dia + ')');
+  assert.strictEqual(mc('2026-03-05', {}, 10), '2026-02');                      // antes do dia 10 → mês anterior
+  assert.strictEqual(mc('2026-03-09', {}, 10), '2026-02');
+  assert.strictEqual(mc('2026-03-10', {}, 10), '2026-03');                      // a partir do dia 10 → o próprio mês
+  assert.strictEqual(mc('2026-01-05', {}, 10), '2025-12');                      // atravessa o ano
+  assert.strictEqual(mc('2026-03-05', {}, 1), '2026-03');                       // dia 1 = calendário
+  assert.strictEqual(mc('2026-03-05', { recorrenciaId: 'r' }, 10), '2026-03');  // fixo fica no mês do calendário
+  assert.strictEqual(mc('2026-03-05', { metodoPagamento: 'credito', cartaoId: 'k' }, 10), '2026-03'); // fatura (fecha dia 8): 05/mar → mar
+  assert.strictEqual(mc('2026-03-09', { metodoPagamento: 'credito', cartaoId: 'k' }, 10), '2026-04'); // fatura: 09/mar → abr (a virada não interfere)
+  assert.strictEqual(mc('2026-03-05', { metodoPagamento: 'credito', cartaoId: 'sem' }, 10), '2026-02'); // crédito sem fechamento conta como comum
+  assert.strictEqual(mc('2026-03-05', { metodoPagamento: 'credito', cartaoId: 'ter' }, 10), '2026-02'); // cartão emprestado também
+  assert.strictEqual(mc('2026-03-05', { metodoPagamento: 'debito' }, 10), '2026-02');
+  // padrão vem da config; valores inválidos viram 1
+  ctx.state.config.diaVirada = 10; assert.strictEqual(run('diaVirada()'), 10);
+  ctx.state.config.diaVirada = 40; assert.strictEqual(run('diaVirada()'), 1);
+  ctx.state.config.diaVirada = 'x'; assert.strictEqual(run('diaVirada()'), 1);
+  ctx.state.config.diaVirada = 10;
+  assert.strictEqual(run("mesCompetencia({data:'2026-03-05',metodoPagamento:'pix'})"), '2026-02');
+});
+t('Virada do mês: período, mês atual, KPIs e lista', () => {
+  const per = (a, m, d) => JSON.parse(JSON.stringify(run('periodoDoMes(' + a + ',' + m + ',' + d + ')')));
+  eq(per(2026, 1, 10), ['2026-02-10', '2026-03-09']);                          // fevereiro = 10/fev a 09/mar
+  eq(per(2026, 11, 10), ['2026-12-10', '2027-01-09']);                         // dezembro atravessa o ano
+  eq(per(2026, 1, 1), ['2026-02-01', '2026-02-28']);                           // dia 1 = calendário
+  eq(per(2024, 1, 28), ['2024-02-28', '2024-03-27']);
+  ctx.state = Object.assign(novo(), { config: { pinHash: null, diaVirada: 10 } });
+  ctx.hojeFake = run('todayStr()');
+  const ym = run("mesDaData('2026-03-05',10)"); assert.strictEqual(ym, '2026-02');
+  // KPIs: média por dia conta desde o início do período
+  ctx.D = [{ tipo: 'despesa', valor: 300, descricao: 'x' }];
+  assert.strictEqual(run("kpisDoMes(D,2026,1,'2026-02-19',10).mediaDia"), 30);   // 10..19/fev = 10 dias
+  assert.strictEqual(run("kpisDoMes(D,2026,1,'2026-03-20',10).mediaDia"), round(300 / 28));  // período fechado: 28 dias
+  assert.strictEqual(run("kpisDoMes(D,2026,1,'2026-02-05',10).mediaDia"), null);   // ainda não começou
+  assert.strictEqual(run("kpisDoMes(D,2026,9,'2026-10-10').mediaDia"), 30);        // sem o 5º argumento = calendário
+  // lista: filtro de mês segue a virada (cartão com fatura continua pela data da compra)
+  ctx.state.cartoes = [{ id: 'k', diaFechamento: 8 }];
+  ctx.L = [{ id: 'a', data: '2026-03-05', metodoPagamento: 'pix', tipo: 'despesa', valor: 1 }, { id: 'b', data: '2026-03-10', metodoPagamento: 'pix', tipo: 'despesa', valor: 1 },
+    { id: 'c', data: '2026-03-05', metodoPagamento: 'credito', cartaoId: 'k', tipo: 'despesa', valor: 1 }, { id: 'd', data: '2026-03-05', metodoPagamento: 'pix', recorrenciaId: 'r', tipo: 'despesa', valor: 1 }];
+  const ids = (mes, dia) => run('filtrarLancamentos(L,{periodo:"mes",mes:"' + mes + '",diaVirada:' + dia + '},"2026-03-20").map(x=>x.id).sort().join("")');
+  assert.strictEqual(ids('2026-02', 10), 'a');          // 05/mar (pix) entra em fevereiro
+  assert.strictEqual(ids('2026-03', 10), 'bcd');        // b: 10/mar; c: compra no cartão; d: fixo
+  assert.strictEqual(ids('2026-03', 1), 'abcd');        // dia 1: tudo em março, como antes
+  assert.strictEqual(run('dicaPeriodo(2026,1)'), '<div class="mes-periodo">de 10/02 a 09/03</div>');
+  ctx.state.config.diaVirada = 1; assert.strictEqual(run('dicaPeriodo(2026,1)'), '');
+});
+t('Virada do mês: o dia converge entre aparelhos pelo carimbo', () => {
+  const a = novo(), b = novo();
+  a.config = { pinHash: 'p', diaVirada: 5, diaViradaEm: '2026-10-01T00:00:00.000Z' };
+  b.config = { pinHash: null, diaVirada: 10, diaViradaEm: '2026-10-02T00:00:00.000Z' };
+  ctx.A = a; ctx.B = b; run('mesclarEstadoEm(A,B)');
+  assert.strictEqual(a.config.diaVirada, 10); assert.strictEqual(a.config.pinHash, 'p');
+  b.config.diaViradaEm = '2026-09-01T00:00:00.000Z'; b.config.diaVirada = 3; run('mesclarEstadoEm(A,B)');
+  assert.strictEqual(a.config.diaVirada, 10);                                    // carimbo mais velho não vence
 });
 console.log(`\n${ok} testes passaram`);

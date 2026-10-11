@@ -46,7 +46,7 @@ Economia/
   firestore.rules            <- regras do banco (colar no console do Firebase e Publicar)
   assets/                    <- logo, ícones 8-bit (assets/icons), moeda girando, ícones do app e emojis-pt.js
   documentacao/              <- estas notas, mantidas pelo Claude entre sessões (changelog, checklist, pendências)
-  ferramentas/               <- serve.js (preview local), seed.js (dados falsos), teste-logica.js, gerar-emojis.js, gerar-mockup-design.js
+  ferramentas/               <- serve.js (preview local), seed.js (dados falsos), teste-logica.js, sonda-alinhamento.js, gerar-emojis.js, gerar-mockup-design.js
   design/originais/          <- só as artes originais enviadas pelo usuário (Icone.jpg, Logo.png)
   design/pacotes/            <- pacotes gerados para o Claude Design (fora do git; `node ferramentas/gerar-mockup-design.js`)
   backups/                   <- snapshots .json gerados pelo botão "Fazer backup" (fora do git)
