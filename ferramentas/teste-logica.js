@@ -18,7 +18,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
-  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey'];
+  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -351,5 +351,28 @@ t('Versão do app no HTML bate com o cache do service worker', () => {
   const v = html.match(/const APP_VERSAO='[^']*· v(\d+)'/)[1];
   const c = fs.readFileSync(require('path').resolve(__dirname, '../sw.js'), 'utf8').match(/caixinha-v(\d+)/)[1];
   assert.strictEqual(v, c);
+});
+t('Subcategoria: criada ligada a uma categoria (mesmo sem subs antes); recusa duplicada, inválida e categoria inexistente', () => {
+  ctx.state = Object.assign(novo(), { categorias: [{ id: 'm', nome: 'Alimentação' }], subcategorias: [] });
+  const raiz = { querySelectorAll: () => [] };
+  const campo = v => ({ value: v, closest: () => null, parentNode: { appendChild() {} }, setAttribute() {}, removeAttribute() {}, focus() {}, scrollIntoView() {} });
+  ctx.RZ = raiz; ctx.I1 = campo('iFood');
+  const a = run("criarSubcategoria('m',I1,RZ)");
+  assert.ok(a && a.categoriaId === 'm' && a.nome === 'iFood' && a.id); assert.strictEqual(ctx.state.subcategorias.length, 1);
+  ctx.I2 = campo('IFOOD'); ctx.document = { createElement: () => ({ setAttribute() {}, set textContent(v) {} }) };
+  assert.strictEqual(run("criarSubcategoria('m',I2,RZ)"), null);                                  // duplicada na mesma categoria
+  ctx.I3 = campo('<b>'); assert.strictEqual(run("criarSubcategoria('m',I3,RZ)"), null);          // caractere proibido
+  ctx.I4 = campo('Qualquer'); assert.strictEqual(run("criarSubcategoria('nao-existe',I4,RZ)"), null);
+  assert.strictEqual(ctx.state.subcategorias.length, 1);
+});
+t('Painel de gráficos usa listas e PIN não usa type=password', () => {
+  const corpo = html.slice(html.indexOf('function htmlPainelGrafico'), html.indexOf('function grafSet'));
+  assert.ok(corpo.includes('<select') && !/class="chip|seg seg-sm/.test(corpo));
+  const senhas = html.match(/<input[^>]*type="password"[^>]*>/g) || [];
+  assert.strictEqual(senhas.length, 1); assert.ok(senhas[0].includes('id="loginSenha"'));        // só a senha do login
+  ['lockInput', 'promptPin1', 'promptPin2', 'wizPin1', 'wizPin2', 'novoPin', 'confPin'].forEach(id => {
+    const tag = html.match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'))[0];
+    assert.ok(tag.includes('type="text"') && tag.includes('pin-masked'), id);
+  });
 });
 console.log(`\n${ok} testes passaram`);

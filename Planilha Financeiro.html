@@ -337,20 +337,22 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 /* PIN: o #lockInput continua sendo o campo real, só que invisível; as caixinhas (.pin-boxes) espelham o que foi digitado */
 #lockInput.pin-real{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;padding:0;margin:0;border:0;}
 .pin-boxes{cursor:text;}
+.pin-masked{-webkit-text-security:disc;text-security:disc;} /* esconde os dígitos sem ser type=password (que faria o navegador oferecer "salvar senha") */
 .pin-boxes>span.filled .px-dot{--c:var(--text);}
 .card.projetado{background:var(--primary-soft);border:1.5px dashed var(--primary);box-shadow:none;}
 
 /* ---------- Gráficos ---------- */
 .graf-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
 .graf-head h3{margin:0;flex:1 1 200px;line-height:1.35;}
-.seg.seg-sm{padding:3px;}
-.seg.seg-sm button{padding:7px 12px;font-size:.78rem;flex:0 0 auto;}
-.graf-head .seg.seg-sm{flex:0 0 auto;}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
 .chip{border:1.5px solid var(--border);background:var(--surface-2);color:var(--text-muted);border-radius:999px;padding:7px 13px;font-weight:700;font-size:.8rem;}
 .chip.active{background:var(--primary);border-color:transparent;color:var(--primary-ink);box-shadow:0 2px 0 var(--primary-deep);}
-.graf-tipos{margin-bottom:14px;}
-.graf-tipos button{flex:1;}
+.graf-filtros{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.graf-f{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.graf-f span{font-size:.68rem;font-weight:800;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;}
+.graf-f select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background-color:var(--surface-2);}
+@media(max-width:480px){.graf-filtros{grid-template-columns:1fr 1fr;}}
+.graf-area .empty-state{padding:18px 10px;}
 .graf-area{min-height:120px;}
 .graf-corpo{display:grid;grid-template-columns:minmax(160px,210px) minmax(0,1fr);gap:20px;align-items:center;}
 @container (max-width:470px){.graf-corpo{grid-template-columns:minmax(0,1fr);}}
@@ -443,8 +445,6 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .sub-row{display:flex;align-items:center;gap:8px;padding:2px 0;}
 .sub-add{display:flex;gap:8px;align-items:flex-start;margin-top:8px;flex-wrap:wrap;}
 .sub-add .erro-campo{flex-basis:100%;}
-.graf-cat{margin:0 0 10px;}
-.graf-cat select{padding:9px 12px;}
 @media(pointer:coarse){.subs-btn{min-height:44px;padding:0 14px;}}
 
 /* ==========================================================
@@ -555,6 +555,14 @@ html.dark .px-ico{--ico-borda:1;}
 .acc[data-sec="zerar"] .acc-ico{background:var(--expense-soft);color:var(--expense);}
 .acc[data-sec="zerar"].open{border-color:var(--expense);}
 
+/* ---------- Subcategorias: campo nos formulários e seção da Config ---------- */
+.sub-line{display:flex;gap:8px;align-items:stretch;}
+.sub-line select{flex:1;min-width:0;}
+.sub-nova{display:flex;gap:8px;margin-top:8px;}
+.sub-nova input{flex:1;min-width:0;}
+.sub-novo .graf-f input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
+.sub-novo .graf-f input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+
 </style>
 </head>
 <body>
@@ -599,7 +607,7 @@ html.dark .px-ico{--ico-borda:1;}
     <h2>Caixinha trancada</h2>
     <p>Digite seu PIN para continuar</p>
     <div class="pin-boxes" id="pinBoxes" aria-hidden="true"></div>
-    <input id="lockInput" class="pin-real" type="password" inputmode="numeric" maxlength="8" autocomplete="off" aria-label="PIN">
+    <input id="lockInput" class="pin-real pin-masked" type="text" inputmode="numeric" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" aria-label="PIN">
     <div id="lockError"></div>
     <button class="btn btn-primary btn-block" onclick="tentarDesbloquear()">Entrar</button>
     <button class="btn btn-ghost btn-block mt16" onclick="esqueciPin()">Esqueci o PIN</button>
@@ -827,7 +835,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-11 · v11';
+const APP_VERSAO='2026-10-11 · v12';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1023,8 +1031,8 @@ function abrirPromptPin(){
     <h2>Proteja seu Caixinha</h2>
     <p class="hint">Crie um PIN de 4 dígitos. O app trava quando você minimiza e pede o PIN pra voltar. Dá pra desligar isso (ou trocar o PIN) em Config → Segurança.</p>
     <div class="row2 mt16">
-      <div class="field"><label>PIN (4 dígitos)</label><input id="promptPin1" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
-      <div class="field"><label>Confirmar</label><input id="promptPin2" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
+      <div class="field"><label>PIN (4 dígitos)</label><input id="promptPin1" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
+      <div class="field"><label>Confirmar</label><input id="promptPin2" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" pattern="\\d{4}" autocomplete="off"></div>
     </div>
     <div id="promptPinErro" style="color:var(--expense); font-size:.85rem; min-height:18px"></div>
     <div class="modal-actions">
@@ -1328,8 +1336,8 @@ function abrirWizardPin(){
     <h2>Quer definir um PIN de acesso?</h2>
     <p class="hint">PIN de 4 dígitos: o app trava quando você minimiza e pede o PIN pra voltar. Dá pra desligar isso (ou trocar/remover o PIN) depois, em Config.</p>
     <div class="row2">
-      <div class="field"><label>PIN (4 dígitos)</label><input id="wizPin1" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
-      <div class="field"><label>Confirmar</label><input id="wizPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+      <div class="field"><label>PIN (4 dígitos)</label><input id="wizPin1" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
+      <div class="field"><label>Confirmar</label><input id="wizPin2" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
     </div>
     <div id="wizPinErro" style="color:var(--expense); font-size:.85rem; min-height:18px"></div>
     <div class="modal-actions">
@@ -1925,16 +1933,18 @@ function htmlPainelGrafico(chave,dims){
   const titulo=ehEvo?`Receitas × despesas — ${est.meses} meses`:`${est.mov==='receita'?'Receitas':'Despesas'} por ${GRAF_DIMS[dim].toLowerCase()} — ${mesNome}`;
   const catsComSub=state.categorias.filter(c=>c.tipo===est.mov && subcategoriasDe(c.id).length);
   const catSel=catsComSub.some(c=>c.id===est.cat)?est.cat:'';
-  const filtroCat=dim==='subcategoria' && catsComSub.length>1?`<div class="field graf-cat"><select aria-label="Filtrar por categoria" onchange="grafSet('${chave}','cat',this.value)"><option value="">Todas as categorias</option>${catsComSub.map(c=>`<option value="${c.id}" ${c.id===catSel?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select></div>`:'';
-  const chips=dims.length>1?`<div class="chips" role="group" aria-label="Agrupar por">${dims.map(d=>`<button type="button" class="chip ${d===dim?'active':''}" onclick="grafSet('${chave}','dim','${d}')">${GRAF_DIMS[d]}</button>`).join('')}</div>`:'';
-  const movSeg=ehEvo?`<div class="seg seg-sm" role="group" aria-label="Período"><button type="button" class="${est.meses===6?'active':''}" onclick="grafSet('${chave}','meses',6)">6 meses</button><button type="button" class="${est.meses===12?'active':''}" onclick="grafSet('${chave}','meses',12)">12 meses</button></div>`
-    :`<div class="seg seg-sm" role="group" aria-label="Tipo de movimento"><button type="button" class="${est.mov==='despesa'?'active':''}" onclick="grafSet('${chave}','mov','despesa')">Despesas</button><button type="button" class="${est.mov==='receita'?'active':''}" onclick="grafSet('${chave}','mov','receita')">Receitas</button></div>`;
-  const tipoSeg=`<div class="seg seg-sm graf-tipos" role="group" aria-label="Tipo de gráfico">${tipos.map(t=>`<button type="button" class="${t===tipo?'active':''}" onclick="grafSet('${chave}','tipo','${t}')">${GRAF_TIPOS[t]}</button>`).join('')}</div>`;
+  // uma lista (select) por escolha: Mostrar / Agrupar por / Gráfico (+ Categoria na visão por subcategoria)
+  const lista=(rot,campo,opcoes,atual)=>`<label class="graf-f"><span>${rot}</span><select aria-label="${rot}" onchange="grafSet('${chave}','${campo}',this.value)">${opcoes.map(([v,t])=>`<option value="${escapeHtml(String(v))}" ${String(v)===String(atual)?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></label>`;
+  const fMostrar=ehEvo? lista('Período','meses',[[6,'Últimos 6 meses'],[12,'Últimos 12 meses']],est.meses)
+                      : lista('Mostrar','mov',[['despesa','Despesas'],['receita','Receitas']],est.mov);
+  const fAgrupar=dims.length>1? lista('Agrupar por','dim',dims.map(d=>[d,GRAF_DIMS[d]]),dim) : '';
+  const fTipo=lista('Gráfico','tipo',tipos.map(t=>[t,GRAF_TIPOS[t]]),tipo);
+  const fCat=(dim==='subcategoria' && catsComSub.length>1)? lista('Categoria','cat',[['','Todas'],...catsComSub.map(c=>[c.id,c.nome])],catSel) : '';
   const doMes=ehEvo?null:transacoesEfetivasDoMes(mesDash.getFullYear(),mesDash.getMonth());
   const corpo=ehEvo?htmlCorpoEvolucao(est):htmlCorpoDistribuicao(dim,est.mov,tipo,doMes,catSel);
   return `<div class="graf-painel" data-chave="${chave}" data-dims="${dims.join(',')}">
-    <div class="graf-head"><h3>${escapeHtml(titulo)}</h3>${movSeg}</div>
-    ${chips}${filtroCat}${tipoSeg}
+    <div class="graf-head"><h3>${escapeHtml(titulo)}</h3></div>
+    <div class="graf-filtros">${fMostrar}${fAgrupar}${fTipo}${fCat}</div>
     <div class="graf-area">${corpo}</div>
   </div>`;
 }
@@ -1945,7 +1955,7 @@ function grafSet(chave,campo,valor){
   if(campo==='dim' && GRAF_DIMS[valor]) est.dim=valor;
   else if(campo==='tipo'){ const evo=(dims.includes(est.dim)?est.dim:dims[0])==='evolucao'; if(evo && GRAF_TIPOS_EVO.includes(valor)) est.evoTipo=valor; else if(!evo && GRAF_TIPOS_DIST.includes(valor)) est.tipo=valor; }
   else if(campo==='mov' && (valor==='despesa'||valor==='receita')) est.mov=valor;
-  else if(campo==='meses' && (valor===6||valor===12)) est.meses=valor;
+  else if(campo==='meses'){ const n=Number(valor); if(n===6||n===12) est.meses=n; }
   else if(campo==='cat') est.cat = categoriaById(valor)? valor : '';
   grafSalvar();
   if(painel){ const c=document.createElement('div'); c.innerHTML=htmlPainelGrafico(chave,dims); painel.replaceWith(c.firstElementChild); }
@@ -2258,7 +2268,21 @@ function preencherSubcategorias(form,idCampo,catId,subId){
   const subs=catId? subcategoriasDe(catId) : [];
   sel.innerHTML='<option value="">— nenhuma —</option>'+subs.map(x=>`<option value="${x.id}">${escapeHtml(x.nome)}</option>`).join('');
   sel.value=subs.some(x=>x.id===subId)? subId : '';
-  campo.classList.toggle('hidden',!subs.length);
+  campo.classList.toggle('hidden',!catId); // aparece sempre que há categoria (só some na transferência)
+}
+// "+ Nova" dentro do formulário: cria a subcategoria na categoria escolhida e já a seleciona
+function novaSubNoForm(btn){
+  const box=btn.closest('.field').querySelector('.sub-nova');
+  box.classList.toggle('hidden');
+  if(!box.classList.contains('hidden')) box.querySelector('input').focus();
+}
+function confirmarSubNoForm(el){
+  const campo=el.closest('.field'), form=campo.closest('form'), inp=campo.querySelector('.sub-nova input');
+  const nova=criarSubcategoria(form.categoriaId.value,inp,campo);
+  if(!nova) return;
+  inp.value=''; campo.querySelector('.sub-nova').classList.add('hidden');
+  preencherSubcategorias(form,campo.id,form.categoriaId.value,nova.id);
+  toast('Subcategoria criada.');
 }
 function abrirFormTransacao(id){
   const t=id? state.transacoes.find(x=>x.id===id) : null;
@@ -2281,7 +2305,8 @@ function abrirFormTransacao(id){
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo||tipo==='transferencia').map(c=>`<option value="${c.id}" ${t&&t.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
       <div class="field hidden" id="campoSub"><label>Subcategoria (opcional)</label>
-        <select name="subcategoriaId"></select>
+        <div class="sub-line"><select name="subcategoriaId"></select><button type="button" class="btn btn-sm" onclick="novaSubNoForm(this)">+ Nova</button></div>
+        <div class="sub-nova hidden"><input type="text" maxlength="40" autocomplete="off" placeholder="Nome da subcategoria" aria-label="Nome da nova subcategoria" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarSubNoForm(this)}"><button type="button" class="btn btn-sm btn-primary" onclick="confirmarSubNoForm(this)">Adicionar</button></div>
       </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodo">${metodosPagamento().map(m=>`<option value="${m.id}" ${t&&t.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
@@ -2862,7 +2887,8 @@ function abrirFormRecorrencia(id){
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo).map(c=>`<option value="${c.id}" ${r&&r.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
       <div class="field hidden" id="campoSubRec"><label>Subcategoria (opcional)</label>
-        <select name="subcategoriaId"></select>
+        <div class="sub-line"><select name="subcategoriaId"></select><button type="button" class="btn btn-sm" onclick="novaSubNoForm(this)">+ Nova</button></div>
+        <div class="sub-nova hidden"><input type="text" maxlength="40" autocomplete="off" placeholder="Nome da subcategoria" aria-label="Nome da nova subcategoria" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarSubNoForm(this)}"><button type="button" class="btn btn-sm btn-primary" onclick="confirmarSubNoForm(this)">Adicionar</button></div>
       </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodoRec">${metodosPagamento().filter(m=>m.id!=='transferencia').map(m=>`<option value="${m.id}" ${r&&r.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
@@ -3133,7 +3159,8 @@ let secaoConfigAberta=null;
 let catBusca='';
 let orcSoComLimite=false;
 const catAbertos={despesa:false,receita:false};
-const catSubAbertas=new Set(); // categorias com a lista de subcategorias aberta (só na memória da página)
+const catSubAbertas=new Set(); // categorias com o grupo aberto na seção Subcategorias (só na memória da página)
+let subCatSel=''; // categoria escolhida no formulário de nova subcategoria
 function htmlSecaoConfig(id,icone,titulo,resumo,corpo){
   const aberta=secaoConfigAberta===id;
   return `<section class="acc ${aberta?'open':''}" data-sec="${id}">
@@ -3166,17 +3193,15 @@ function htmlCategoriasConfig(){
     const aberto=q? lista.length>0 : catAbertos[tipo];
     const linhas=lista.map(c=>{
       const subs=subcategoriasDe(c.id);
-      const painel=catSubAbertas.has(c.id) || (q && !semAcento(c.nome).includes(q) && subDaBusca(c));
       return `
       <div class="cat-item">
       <div class="cat-row">
         <button type="button" class="icon-input" title="Trocar ícone" aria-label="Trocar ícone de ${escapeHtml(c.nome)}" onclick="abrirSeletorIcone(e=>definirIconeCategoria('${c.id}',e))">${iconeSeguro(c.icone)}</button>
         <span class="cat-nome">${escapeHtml(c.nome)}</span>
-        <button type="button" class="subs-btn ${painel?'on':''}" aria-expanded="${painel}" aria-label="Subcategorias de ${escapeHtml(c.nome)}" onclick="alternarSubsCategoria('${c.id}')">${subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '+ sub'}</button>
+        <button type="button" class="subs-btn" aria-label="Subcategorias de ${escapeHtml(c.nome)}" onclick="irParaSubs('${c.id}')">${subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '+ sub'}</button>
         <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(c.nome)}" onclick="abrirFormRenomearCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
         <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(c.nome)}" onclick="excluirCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
       </div>
-      ${painel? htmlSubsPainel(c,subs) : ''}
       </div>`;}).join('');
     return `<details class="cat-grupo" ${aberto?'open':''} ontoggle="catAbertos['${tipo}']=this.open">
       <summary><span>${rot}</span><span class="qtd">${q?lista.length+' de '+todas.length:todas.length}</span></summary>
@@ -3190,37 +3215,67 @@ function filtrarCategoriasConfig(v){
   const box=document.getElementById('catLista'); if(box) box.innerHTML=htmlCategoriasConfig();
 }
 /* ---- Subcategorias (opcionais): vivem dentro de uma categoria ---- */
-function htmlSubsPainel(c,subs){
-  return `<div class="subs-panel">
-    <p class="hint" style="margin:0 0 8px">Subcategorias de <b>${escapeHtml(c.nome)}</b> são opcionais: um lançamento pode ter só a categoria.</p>
-    ${subs.map(x=>`
-      <div class="sub-row">
-        <span class="cat-nome">${escapeHtml(x.nome)}</span>
-        <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(x.nome)}" onclick="abrirFormRenomearSub('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
-        <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(x.nome)}" onclick="excluirSubcategoria('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
-      </div>`).join('')}
-    <div class="sub-add">
-      <div class="field" style="flex:1;margin:0"><input type="text" id="subNome_${c.id}" maxlength="40" autocomplete="off" placeholder="Nova subcategoria (ex.: iFood)" aria-label="Nova subcategoria de ${escapeHtml(c.nome)}" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarSubcategoria('${c.id}')}"></div>
-      <button type="button" class="btn btn-sm btn-primary" onclick="adicionarSubcategoria('${c.id}')">+ Adicionar</button>
-    </div>
-  </div>`;
-}
-function alternarSubsCategoria(id){
-  if(catSubAbertas.has(id)) catSubAbertas.delete(id); else catSubAbertas.add(id);
-  filtrarCategoriasConfig(catBusca);
-  if(catSubAbertas.has(id)){ const i=document.getElementById('subNome_'+id); if(i && !matchMedia('(pointer:coarse)').matches) i.focus(); }
-}
-function adicionarSubcategoria(catId){
-  const c=categoriaById(catId), inp=document.getElementById('subNome_'+catId); if(!c||!inp) return;
+// Valida e cria uma subcategoria ligada a uma categoria. Devolve a nova ou null (com o erro já mostrado perto do campo).
+function criarSubcategoria(catId,inp,raiz){
+  const c=categoriaById(catId);
+  if(!c){ mostrarErros(raiz,[[inp,{erro:'Categoria: escolha uma categoria.'}]]); return null; }
   const r=validarTexto(inp.value,{rotulo:'Nome',max:40});
   const checks=[[inp,r]];
   if(!r.erro && nomeDuplicado(subcategoriasDe(catId),r.valor,null)) checks.push([inp,{erro:'Nome: já existe essa subcategoria em '+c.nome+'.'}]);
-  if(mostrarErros(inp.closest('.subs-panel'),checks)) return;
+  if(mostrarErros(raiz,checks)) return null;
   if(!state.subcategorias) state.subcategorias=[];
-  state.subcategorias.push(tocar({id:uuid(),categoriaId:catId,nome:r.valor}));
-  catSubAbertas.add(catId);
-  salvarEstado(); renderConfig(); toast('Subcategoria adicionada.');
-  const novo=document.getElementById('subNome_'+catId); if(novo && !matchMedia('(pointer:coarse)').matches) novo.focus(); // dá para digitar várias em seguida
+  const nova=tocar({id:uuid(),categoriaId:catId,nome:r.valor});
+  state.subcategorias.push(nova);
+  salvarEstado();
+  return nova;
+}
+// Config → Subcategorias: formulário (categoria + nome)
+function adicionarSubDaConfig(){
+  const sel=document.getElementById('subNovaCat'), inp=document.getElementById('subNovaNome'); if(!sel||!inp) return;
+  const raiz=inp.closest('.sub-novo')||inp.parentNode;
+  const nova=criarSubcategoria(sel.value,inp,raiz);
+  if(!nova) return;
+  subCatSel=nova.categoriaId; catSubAbertas.add(nova.categoriaId);
+  renderConfig(); toast('Subcategoria adicionada.');
+  const i=document.getElementById('subNovaNome'); if(i && !matchMedia('(pointer:coarse)').matches) i.focus(); // dá para digitar várias em seguida
+}
+// "+ sub" / "N subs" em Categorias leva para a seção Subcategorias já com aquela categoria escolhida
+function irParaSubs(catId){
+  subCatSel=catId; catSubAbertas.add(catId); secaoConfigAberta='subs'; renderConfig();
+  const sec=document.querySelector('#tab-config .acc[data-sec="subs"]'); if(sec) sec.scrollIntoView({block:'start',behavior:'smooth'});
+  const i=document.getElementById('subNovaNome'); if(i && !matchMedia('(pointer:coarse)').matches) i.focus();
+}
+function htmlSubcategoriasConfig(){
+  const cats=state.categorias;
+  if(!cats.length) return '<p class="hint" style="margin-top:10px">Crie uma categoria antes.</p>';
+  if(!categoriaById(subCatSel)) subCatSel=cats.find(c=>c.tipo==='despesa')?.id||cats[0].id;
+  const opt=['despesa','receita'].map(tp=>{
+    const l=cats.filter(c=>c.tipo===tp); if(!l.length) return '';
+    return `<optgroup label="${tp==='despesa'?'Despesas':'Receitas'}">${l.map(c=>`<option value="${c.id}" ${c.id===subCatSel?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</optgroup>`;
+  }).join('');
+  const comSubs=cats.filter(c=>subcategoriasDe(c.id).length);
+  const grupos=comSubs.map(c=>{
+    const subs=subcategoriasDe(c.id);
+    return `<details class="cat-grupo" ${catSubAbertas.has(c.id)?'open':''} ontoggle="this.open?catSubAbertas.add('${c.id}'):catSubAbertas.delete('${c.id}')">
+      <summary><span>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</span><span class="qtd">${subs.length}</span></summary>
+      <div class="cat-lista">${subs.map(x=>`
+        <div class="sub-row">
+          <span class="cat-nome">${escapeHtml(x.nome)}</span>
+          <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(x.nome)}" onclick="abrirFormRenomearSub('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
+          <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(x.nome)}" onclick="excluirSubcategoria('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+        </div>`).join('')}</div>
+    </details>`;
+  }).join('');
+  return `
+    <p class="hint" style="margin:10px 0 12px">Detalhe uma categoria (ex.: <b>Alimentação</b> → iFood, Almoço do serviço). É sempre opcional: um lançamento pode ter só a categoria.</p>
+    <div class="sub-novo">
+      <div class="graf-filtros" style="margin-bottom:8px">
+        <label class="graf-f"><span>Categoria</span><select id="subNovaCat" aria-label="Categoria da nova subcategoria" onchange="subCatSel=this.value">${opt}</select></label>
+        <label class="graf-f"><span>Nome da subcategoria</span><input type="text" id="subNovaNome" maxlength="40" autocomplete="off" placeholder="Ex.: iFood" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarSubDaConfig()}"></label>
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" onclick="adicionarSubDaConfig()">+ Adicionar subcategoria</button>
+    </div>
+    <div style="margin-top:14px">${grupos||'<p class="hint">Nenhuma subcategoria ainda.</p>'}</div>`;
 }
 function abrirFormRenomearSub(id){
   const x=subcategoriaById(id); if(!x) return;
@@ -3268,6 +3323,7 @@ function renderConfig(){
   const suportaFS = 'showSaveFilePicker' in window;
   const email=window.fbAuth?.currentUser?.email||'';
   const nCat=state.categorias.length;
+  const nSub=(state.subcategorias||[]).length;
   const nOrc=state.categorias.filter(c=>c.tipo==='despesa' && c.orcamentoMensal>0).length;
   const geral=`
       <p class="hint" style="margin:10px 0 8px">Aparência</p>
@@ -3322,8 +3378,8 @@ function renderConfig(){
          <button class="btn btn-danger mt16" onclick="removerPin()">Remover PIN</button>`:
         `<p class="hint mt16">Crie um PIN de 4 dígitos para ativar o bloqueio. (Proteção básica neste aparelho — a segurança de verdade é a senha da sua conta.)</p>
          <div class="row2 mt16">
-           <div class="field"><label>Novo PIN</label><input id="novoPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
-           <div class="field"><label>Confirmar PIN</label><input id="confPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+           <div class="field"><label>Novo PIN</label><input id="novoPin" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
+           <div class="field"><label>Confirmar PIN</label><input id="confPin" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
          </div>
          <button class="btn btn-primary" onclick="definirPin()">Salvar PIN</button>`}
       ${fimDaSessao()?`<p class="hint mt16">Você fica conectado até <b>${fmtDate(isoLocal(fimDaSessao()))}</b>. Depois disso o app pede e-mail e senha de novo.</p>`:''}`;
@@ -3357,6 +3413,7 @@ function renderConfig(){
     htmlSecaoConfig('backup','receipt','Backup dos dados','Cópia em arquivo',backup),
     htmlSecaoConfig('seguranca','lock','Segurança',`PIN ${pinDoAparelho()?'ligado':'desligado'} · bloqueio ${bloqueioAoMinimizarAtivo()?'ao minimizar':'desligado'}`,seguranca),
     htmlSecaoConfig('categorias','pie','Categorias',`${nCat} categoria${nCat===1?'':'s'}`,categorias),
+    htmlSecaoConfig('subs','bill','Subcategorias',nSub? `${nSub} subcategoria${nSub===1?'':'s'}` : 'Detalhe uma categoria (opcional)',htmlSubcategoriasConfig()),
     htmlSecaoConfig('orcamentos','chart','Orçamento por categoria',nOrc?`${nOrc} com limite`:'Nenhum limite definido',orcamentos),
     htmlSecaoConfig('zerar','trash','Zerar tudo','Apagar lançamentos e configurações',zerar),
     htmlSecaoConfig('sobre','dot','Sobre','Caixinha · '+escapeHtml(APP_VERSAO),sobre)

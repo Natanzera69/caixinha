@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-11 (7) — Gráficos em listas, PIN sem "salvar senha" e Subcategorias em Config
+
+- **Painel de gráficos**: no lugar dos botões e chips, três listas com rótulo — **Mostrar** (Despesas/Receitas), **Agrupar por** (Categoria, Subcategoria, Banco, Pagamento, Evolução) e **Gráfico** (Rosca, Pizza, Barras, Colunas; na Evolução: Período e Colunas/Linha). Visão por subcategoria ganha a lista **Categoria**. A escolha continua salva no aparelho.
+- **PIN**: os campos de PIN deixaram de ser `type="password"` (o navegador oferecia "salvar senha" no Google/Samsung Pass a cada PIN). Agora são texto numérico mascarado por CSS (`-webkit-text-security`) com atributos que gerenciadores de senha ignoram. A senha do **login** continua normal.
+- **Subcategorias**: nova seção **Config → Subcategorias** (logo abaixo de Categorias) com formulário Categoria + Nome e a lista agrupada por categoria (renomear/excluir). Em Categorias, "+ sub"/"N subs" leva até lá com a categoria escolhida. No lançamento e no fixo o campo **Subcategoria (opcional)** aparece sempre (fora transferência), com **+ Nova** para criar na hora.
+- Testes: 31 casos (2 novos). Cache do service worker v12.
+
 ## 2026-10-11 (6) — Reset geral da conta e ajustes para o modo escuro do navegador
 
 - **Config → Zerar tudo → "Apagar tudo e recomeçar"**: apaga lançamentos, contas, cartões, categorias, subcategorias, fixos, parcelamentos, financiamentos, investimentos, o perfil PJ e as configurações, **em todos os aparelhos**; o login (e o PIN do aparelho) continuam. Pede para digitar APAGAR, oferece "Baixar backup antes" e só mexe no aparelho depois de conseguir zerar a nuvem.
