@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-11 (9) — PIN da conta (vale em todos os aparelhos)
+
+- O PIN deixou de ser só do aparelho: fica em `config.pinConta` do perfil pessoal (hash com "tempero" do usuário, nunca o número) e sincroniza. Criar, trocar ou remover o PIN em um aparelho vale em todos, na próxima sincronização; em aparelho novo, depois do login, o app já trava com o PIN da conta.
+- Cada aparelho guarda uma cópia local do hash para travar mesmo offline. PINs antigos (sem tempero) continuam valendo, e o PIN que já existia em um aparelho vira o da conta (o primeiro aparelho a sincronizar vence; os outros passam a usar o da conta).
+- Continuam por aparelho: "bloquear ao minimizar" e a sessão de 30 dias. O backup em arquivo nunca leva o PIN, e o reset geral mantém o PIN.
+- Testes: 36 casos. Cache do service worker v14.
+
 ## 2026-10-11 (8) — Virada do mês, quadro vazio preenchendo o cartão e auditoria de alinhamento
 
 - **Config → Virada do mês**: escolha o dia (1–28) em que o seu mês começa. Com dia 10, de 10/fev a 09/mar conta como **Fevereiro**. Vale para o que não entra em fatura de cartão e não é fixo (Pix, dinheiro, boleto, débito). Cartão de crédito continua pelo dia de fechamento do cartão; **fixos ficam no mês do calendário**. Segue em Início, Gráficos (incluindo média por dia, comparação e orçamento) e na lista de Lançamentos; o cabeçalho mostra o período ("de 10/10 a 09/11") e o "mês atual" respeita o dia (antes do dia 10 o mês atual ainda é o anterior). Por perfil (pessoal/PJ) e sincroniza entre aparelhos.

@@ -18,11 +18,12 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
-  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo'];
+  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo',
+  'hashPin', 'pinConfere', 'enviarPinDaConta', 'aplicarPinDaConta'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
-ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
+ctx.window = ctx; ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
 vm.createContext(ctx);
 const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' + script.match(/const VALOR_MAX=[^\n]*\n/)[0] + script.match(/const TEXTO_PROIBIDO=[^\n]*\n/)[0] + script.match(/const PALETA=[^\n]*\n/)[0] + script.match(/const GRAF_OUTROS_COR=[^\n]*\n/)[0] + script.match(/const MESES_CURTOS=[^\n]*\n/)[0] +
   script.match(/const lsGet=[^\n]*\nconst lsSet=[^\n]*\nconst lsDel=[^\n]*\n/)[0];
@@ -432,5 +433,41 @@ t('Virada do mês: o dia converge entre aparelhos pelo carimbo', () => {
   assert.strictEqual(a.config.diaVirada, 10); assert.strictEqual(a.config.pinHash, 'p');
   b.config.diaViradaEm = '2026-09-01T00:00:00.000Z'; b.config.diaVirada = 3; run('mesclarEstadoEm(A,B)');
   assert.strictEqual(a.config.diaVirada, 10);                                    // carimbo mais velho não vence
+});
+t('PIN da conta: vale em todos os aparelhos, converge pelo carimbo e some junto com a remoção', async () => {
+  const limpar = () => { run('lsDel(SEG.pin); lsDel(SEG.pinLen)'); };
+  limpar(); store.planilhaFinanceiro_uid = 'uidA';
+  ctx.estados.pessoal = Object.assign(novo(), { config: { pinHash: null } }); ctx.estados.pj = null; ctx.state = ctx.estados.pessoal;
+  await run("definirPinAparelho('4321')");
+  const c = ctx.estados.pessoal.config.pinConta;
+  assert.strictEqual(c.len, 4); assert.strictEqual(c.hash.length, 64); assert.ok(c.em);
+  assert.strictEqual(c.hash, store.planilhaFinanceiro_pin);                                   // cópia local = PIN da conta
+  assert.ok(!JSON.stringify(c).includes('4321'));
+  assert.strictEqual(await run("pinConfere('4321')"), true); assert.strictEqual(await run("pinConfere('1234')"), false);
+  // tempero: outro usuário (outro uid) gera outro hash para o mesmo PIN
+  store.planilhaFinanceiro_uid = 'uidB'; assert.notStrictEqual(await run("hashPin('4321')"), c.hash); store.planilhaFinanceiro_uid = 'uidA';
+  // aparelho novo: recebe a conta com PIN e passa a travar com ele
+  limpar(); assert.strictEqual(run('pinDoAparelho()'), null);
+  const remoto = novo(); remoto.config = { pinHash: null, pinConta: c };
+  run('mesclarEstadoEm(estados.pessoal,{config:{}})');
+  ctx.R = remoto; ctx.estados.pessoal = Object.assign(novo(), { config: { pinHash: null } }); ctx.state = ctx.estados.pessoal;
+  run('mesclarEstadoEm(estados.pessoal,R)');
+  assert.strictEqual(store.planilhaFinanceiro_pin, c.hash); assert.strictEqual(store.planilhaFinanceiro_pinLen, '4');
+  assert.strictEqual(await run("pinConfere('4321')"), true);
+  // outro aparelho remove o PIN depois: a remoção (carimbo mais novo) apaga a cópia local
+  const remocao = novo(); remocao.config = { pinHash: null, pinConta: { hash: null, len: null, em: new Date(Date.now() + 1000).toISOString() } };
+  ctx.R2 = remocao; run('mesclarEstadoEm(estados.pessoal,R2)');
+  assert.strictEqual(run('pinDoAparelho()'), null);
+  // carimbo mais velho não desfaz a remoção
+  ctx.R3 = remoto; run('mesclarEstadoEm(estados.pessoal,R3)'); assert.strictEqual(run('pinDoAparelho()'), null);
+  // PIN antigo só deste aparelho sobe para a conta (uma vez) e o PIN antigo sem tempero ainda confere
+  limpar(); ctx.estados.pessoal = Object.assign(novo(), { config: { pinHash: null } }); ctx.state = ctx.estados.pessoal;
+  const antigo = await run("hashTexto('9999')"); store.planilhaFinanceiro_pin = antigo; store.planilhaFinanceiro_pinLen = '4';
+  run('aplicarPinDaConta(true)'); assert.strictEqual(ctx.estados.pessoal.config.pinConta.hash, antigo);
+  assert.strictEqual(await run("pinConfere('9999')"), true);
+});
+t('Backup nunca leva o PIN da conta', () => {
+  ctx.BKP = { formatoBackup: 2, pessoal: { contas: [], transacoes: [], config: { pinConta: { hash: 'x', em: 'y' }, temaEscuro: true } } };
+  assert.ok(!('pinConta' in run('lerObjetoBackup(BKP).pessoal.config')));
 });
 console.log(`\n${ok} testes passaram`);

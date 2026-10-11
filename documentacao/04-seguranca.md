@@ -23,7 +23,7 @@ Regras em [`../firestore.rules`](../firestore.rules) (fonte da verdade; para val
 - "Sair da conta" pergunta se apaga os dados deste aparelho (cópia local + cache offline do Firestore).
 - "Esqueci a senha" no login manda e-mail de redefinição (resposta igual exista a conta ou não).
 - CSP no `<head>` (só código do próprio site, gstatic, Firebase/Google e fontes), anti-clickjacking, ícone/cor de categoria escapados.
-- O PIN é só uma trava local; a segurança real é a senha da conta. Backups em arquivo continuam legíveis (JSON).
+- O PIN (4 dígitos, vale em todos os aparelhos da conta) é só uma trava local contra quem pega o aparelho desbloqueado; como são só 10.000 combinações e o hash fica na nuvem, quem lê o seu documento o descobre, mas quem lê o documento já tem os dados. A segurança real é a senha da conta e as regras do Firestore. Backups em arquivo continuam legíveis (JSON).
 
 ## Checklist do console (quem executa: o dono do projeto)
 1. **Firestore → Regras**: colar `firestore.rules` e **Publicar**. (Antes: "Fazer backup" no app.)

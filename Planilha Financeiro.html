@@ -842,7 +842,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-11 · v13';
+const APP_VERSAO='2026-10-11 · v14';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -942,8 +942,40 @@ function pinDoAparelho(){
   }
   return h||null;
 }
-async function definirPinAparelho(pin){ lsSet(SEG.pin,await hashTexto(pin)); lsSet(SEG.pinLen,String(pin.length)); }
-function removerPinAparelho(){ lsDel(SEG.pin); lsDel(SEG.pinLen); }
+// O PIN vale para a CONTA (todos os aparelhos): vai em config.pinConta do perfil pessoal, com tempero do usuário no hash.
+// Cada aparelho guarda uma cópia (SEG.pin) para travar mesmo offline. PINs antigos (hash sem tempero) continuam valendo.
+function hashPin(pin){ return hashTexto('cx1:'+(lsGet('planilhaFinanceiro_uid')||'')+':'+pin); }
+async function pinConfere(digitado){
+  const guardado=pinDoAparelho(); if(!guardado) return false;
+  return (await hashPin(digitado))===guardado || (await hashTexto(digitado))===guardado;
+}
+function enviarPinDaConta(){
+  if(!estados.pessoal) return;
+  salvarPerfilLocal('pessoal');
+  if(window.fbUid && typeof agendarEnvio==='function') agendarEnvio('pessoal',0);
+}
+async function definirPinAparelho(pin){
+  const hash=await hashPin(pin);
+  lsSet(SEG.pin,hash); lsSet(SEG.pinLen,String(pin.length));
+  if(estados.pessoal && estados.pessoal.config){ estados.pessoal.config.pinConta={hash,len:pin.length,em:nowISO()}; enviarPinDaConta(); }
+}
+function removerPinAparelho(){
+  lsDel(SEG.pin); lsDel(SEG.pinLen);
+  if(estados.pessoal && estados.pessoal.config){ estados.pessoal.config.pinConta={hash:null,len:null,em:nowISO()}; enviarPinDaConta(); }
+}
+// A conta manda: copia o PIN (ou a remoção) da conta para este aparelho. promover=true: se a conta ainda não tem PIN
+// e este aparelho tem um (de antes desta mudança), ele vira o PIN da conta.
+function aplicarPinDaConta(promover){
+  const p=estados.pessoal; if(!p||!p.config) return;
+  const c=p.config.pinConta;
+  if(c && c.em){
+    if(c.hash){ if(lsGet(SEG.pin)!==c.hash) lsSet(SEG.pin,c.hash); lsSet(SEG.pinLen,String(c.len||4)); }
+    else{ lsDel(SEG.pin); lsDel(SEG.pinLen); }
+  }else if(promover){
+    const h=lsGet(SEG.pin);
+    if(h){ p.config.pinConta={hash:h,len:Number(lsGet(SEG.pinLen))||4,em:nowISO()}; enviarPinDaConta(); }
+  }
+}
 function bloqueioAoMinimizarAtivo(){ return lsGet(SEG.lockMin)!=='0'; } // padrão: ligado
 function definirBloqueioAoMinimizar(ligado){ lsSet(SEG.lockMin,ligado?'1':'0'); renderConfig(); toast(ligado?'Vai bloquear ao minimizar.':'Bloqueio ao minimizar desligado.'); }
 function sessaoExpirada(){ const t=Number(lsGet(SEG.loginEm)); return !!t && Date.now()-t>SESSAO_DIAS*86400000; }
@@ -973,8 +1005,7 @@ let pinErros=0;
 async function tentarDesbloquear(){
   const input=document.getElementById('lockInput');
   if(verificarSessao()) return;
-  const hash=await hashTexto(input.value);
-  if(hash===pinDoAparelho()){
+  if(await pinConfere(input.value)){
     pinErros=0;
     const lock=document.getElementById('lockScreen'), app=document.getElementById('app');
     input.value=''; desenharPinBoxes();
@@ -3448,9 +3479,9 @@ function renderConfig(){
         <button type="button" class="${bloqueioAoMinimizarAtivo()?'':'active'}" onclick="definirBloqueioAoMinimizar(false)">Desligado</button>
       </div>
       ${pinDoAparelho()?
-        `<p class="hint mt16">PIN criado neste aparelho (vale para o perfil pessoal e o empresarial). Ele também é pedido toda vez que você abre o app.</p>
+        `<p class="hint mt16">PIN da sua conta: vale em <b>todos os aparelhos</b> e nos perfis pessoal e empresarial. Para trocar, remova e crie outro.</p>
          <button class="btn btn-danger mt16" onclick="removerPin()">Remover PIN</button>`:
-        `<p class="hint mt16">Crie um PIN de 4 dígitos para ativar o bloqueio. (Proteção básica neste aparelho — a segurança de verdade é a senha da sua conta.)</p>
+        `<p class="hint mt16">Crie um PIN de 4 dígitos para ativar o bloqueio. Ele vale em todos os aparelhos da sua conta. (É uma trava básica; a segurança de verdade é a senha da conta.)</p>
          <div class="row2 mt16">
            <div class="field"><label>Novo PIN</label><input id="novoPin" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
            <div class="field"><label>Confirmar PIN</label><input id="confPin" type="text" inputmode="numeric" class="pin-masked" autocapitalize="off" spellcheck="false" enterkeyhint="done" data-lpignore="true" data-1p-ignore data-form-type="other" maxlength="4" autocomplete="off"></div>
@@ -3570,7 +3601,7 @@ async function definirPin(){
   renderConfig(); toast('PIN definido.');
 }
 function removerPin(){
-  if(!confirm('Remover o PIN de acesso?')) return;
+  if(!confirm('Remover o PIN de acesso? Ele deixa de valer em todos os aparelhos da sua conta.')) return;
   removerPinAparelho(); renderConfig(); toast('PIN removido.');
 }
 
@@ -3582,8 +3613,8 @@ function nomeArquivoBackup(){
 async function fazerBackup(){
   const paraExportar={
     formatoBackup:2,
-    pessoal:{...estados.pessoal,config:{...estados.pessoal.config,pinHash:null}},
-    pj: estados.pj ? {...estados.pj,config:{...estados.pj.config,pinHash:null}} : null
+    pessoal:{...estados.pessoal,config:{...estados.pessoal.config,pinHash:null,pinConta:undefined}},
+    pj: estados.pj ? {...estados.pj,config:{...estados.pj.config,pinHash:null,pinConta:undefined}} : null
   };
   const conteudo=JSON.stringify(paraExportar,null,2);
   if('showSaveFilePicker' in window){
@@ -3615,7 +3646,7 @@ function sanearPerfilBackup(p){
     if(!Array.isArray(arr) || arr.length>50000) throw new Error('Backup com formato inesperado ('+k+').');
     out[k]=arr.filter(r=>r && typeof r==='object' && typeof r.id==='string' && r.id.length>0 && r.id.length<=80);
   }
-  if(p.config && typeof p.config==='object'){ out.config={...p.config,pinHash:null}; } // PIN nunca vem de arquivo
+  if(p.config && typeof p.config==='object'){ out.config={...p.config,pinHash:null}; delete out.config.pinConta; } // PIN nunca vem de arquivo
   if(p._tombstones && typeof p._tombstones==='object'){
     for(const k of CHAVES_SINCRONIZAVEIS){
       const t=p._tombstones[k]; if(Array.isArray(t)) out._tombstones[k]=t.filter(x=>x&&typeof x.id==='string'&&typeof x.updatedAt==='string');
@@ -3709,7 +3740,7 @@ function mesclarEstadoEm(alvo,incoming){
   if(rIn>rLoc){
     CHAVES_SINCRONIZAVEIS.forEach(k=>{ alvo[k]=[]; });
     alvo._tombstones={};
-    alvo.config={pinHash:alvo.config.pinHash||null,resetEm:rIn};
+    alvo.config={pinHash:alvo.config.pinHash||null,pinConta:alvo.config.pinConta,resetEm:rIn}; // o PIN sobrevive ao reset
   }
   const tumbasIncoming=incoming._tombstones||{};
 
@@ -3747,10 +3778,13 @@ function mesclarEstadoEm(alvo,incoming){
   if(cfgIn.temaAtualizadoEm && (!alvo.config.temaAtualizadoEm || cfgIn.temaAtualizadoEm>alvo.config.temaAtualizadoEm)){
     alvo.config.temaEscuro=cfgIn.temaEscuro===true? true : cfgIn.temaEscuro===false? false : null; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
   }
+  const pIn=cfgIn.pinConta, pLoc=alvo.config.pinConta;
+  if(pIn && pIn.em && (!pLoc || !pLoc.em || pIn.em>pLoc.em)) alvo.config.pinConta=pIn;
   if(cfgIn.diaViradaEm && (!alvo.config.diaViradaEm || cfgIn.diaViradaEm>alvo.config.diaViradaEm)){
     alvo.config.diaVirada=cfgIn.diaVirada; alvo.config.diaViradaEm=cfgIn.diaViradaEm;
   }
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
+  if(typeof aplicarPinDaConta==='function' && typeof estados!=='undefined' && alvo===estados.pessoal) aplicarPinDaConta(false);
   const corte=alvo.config.resetEm;
   if(corte){
     CHAVES_SINCRONIZAVEIS.forEach(k=>{ alvo[k]=(alvo[k]||[]).filter(r=>(r.updatedAt||'')>=corte); });
@@ -4100,6 +4134,7 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
     }else if(acao==='mesclar'){
       mesclarEstadoEm(estados[perfil],snap.data());
     }
+    if(perfil==='pessoal') aplicarPinDaConta(true);
     if(nuvemTem){
       if(perfil===perfilAtivo){
         state=estados[perfil];
@@ -4265,6 +4300,7 @@ async function reiniciarTudo(){
   ['pessoal','pj'].forEach(p=>{ clearTimeout(fbSaveTimeout[p]); fbPendente[p]=false; });
   const agora=nowISO();
   const novo=estadoInicial(); novo.config={pinHash:null,onboardingConcluido:false,resetEm:agora};
+  if(estados.pessoal && estados.pessoal.config && estados.pessoal.config.pinConta) novo.config.pinConta=estados.pessoal.config.pinConta; // o PIN continua
   const marcadorPJ=estadoVazio(); marcadorPJ.config={pinHash:null,resetEm:agora,removerPerfil:true};
   try{
     // nuvem primeiro: se falhar, nada muda neste aparelho
