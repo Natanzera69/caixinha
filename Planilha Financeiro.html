@@ -570,6 +570,9 @@ html.dark .px-ico{--ico-borda:1;}
 .nova-cat .icon-input{width:44px;height:44px;}
 .toolbar select{font-size:.92rem;text-overflow:ellipsis;}
 
+/* Telas de login/PIN/espera: botões empilhados com o mesmo espaçamento */
+.lock-card .btn-block + .btn-block{margin-top:12px;}
+
 </style>
 </head>
 <body>
@@ -842,7 +845,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-11 · v15';
+const APP_VERSAO='2026-10-11 · v16';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{

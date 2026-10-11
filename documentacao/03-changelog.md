@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-11 (11) — Espaçamento dos botões do login
+
+- "Criar conta nova" e "Esqueci a senha" estavam colados; botões empilhados nas telas de login, PIN e espera agora têm 12 px de espaço entre todos. Cache v16.
+
 ## 2026-10-11 (10) — Fim da tela de carregamento "duplicada"
 
 - Antes: ao abrir depois de uma atualização, aparecia "contando moedas" → login → "contando moedas" de novo (recarregamento automático da versão nova) → login.
