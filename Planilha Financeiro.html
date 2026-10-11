@@ -842,7 +842,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-11 · v14';
+const APP_VERSAO='2026-10-11 · v15';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -4398,18 +4398,25 @@ async function copiarConvite(email){
   try{ await navigator.clipboard.writeText(textoConvite(email)); toast('Convite copiado.'); }
   catch(e){ prompt('Copie o convite:',textoConvite(email)); }
 }
-if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js').then(reg=>reg.update());
-  // quando uma versão nova assume o controle (skipWaiting+clients.claim no sw.js),
-  // recarrega sozinho uma vez — sem isso o usuário fica preso na versão antiga em cache
+// Atualização do app SEM piscar: a tela "contando moedas" fica até saber se há versão nova. Se houver, ela continua
+// na tela enquanto o app recarrega (uma vez) e só então aparece o login; se não houver, segue direto (no máximo 4 s de espera).
+// O login/estado só é avaliado depois disso (o onAuthStateChanged do módulo espera por window.__swPronto).
+window.__swPronto=new Promise(resolve=>{
+  if(!('serviceWorker' in navigator) || !location.protocol.startsWith('http')){ resolve(); return; }
+  const tinhaControlador=!!navigator.serviceWorker.controller; // 1ª instalação não precisa recarregar: a página já veio da rede
   let jaRecarregou=false;
+  const limite=setTimeout(resolve,4000);
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(jaRecarregou) return;
+    if(jaRecarregou || !tinhaControlador) return;
     jaRecarregou=true;
-    if(!document.getElementById('modalRoot').classList.contains('hidden')){ window.recarregarAoFechar=true; return; } // não perde o que está sendo digitado
-    location.reload();
+    if(!document.getElementById('modalRoot').classList.contains('hidden')){ window.recarregarAoFechar=true; clearTimeout(limite); resolve(); return; } // não perde o que está sendo digitado
+    location.reload(); // a tela de carregamento continua visível até a página nova abrir
   });
-}
+  navigator.serviceWorker.register('sw.js')
+    .then(reg=>reg.update().then(()=>reg))
+    .then(reg=>{ if(!(reg.installing||reg.waiting)){ clearTimeout(limite); resolve(); } }) // sem versão nova: segue
+    .catch(()=>{ clearTimeout(limite); resolve(); }); // sem internet etc.: segue com o que há
+});
 </script>
 
 <script type="module">
@@ -4447,7 +4454,7 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.fbTerminate = terminate;
   window.fbClearPersist = clearIndexedDbPersistence;
 
-  onAuthStateChanged(window.fbAuth, user => window.onFbAuthChange(user));
+  onAuthStateChanged(window.fbAuth, user => (window.__swPronto||Promise.resolve()).then(()=>window.onFbAuthChange(user)));
 </script>
 </body>
 </html>

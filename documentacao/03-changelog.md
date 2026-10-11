@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-11 (10) — Fim da tela de carregamento "duplicada"
+
+- Antes: ao abrir depois de uma atualização, aparecia "contando moedas" → login → "contando moedas" de novo (recarregamento automático da versão nova) → login.
+- Agora o app só decide o que mostrar depois de saber se há versão nova: se houver, a tela de carregamento continua na tela enquanto ele recarrega **uma vez**, e só depois aparece o login/app; se não houver, segue direto (espera no máximo 4 s). A primeira instalação do service worker não recarrega mais. Cache v15.
+
 ## 2026-10-11 (9) — PIN da conta (vale em todos os aparelhos)
 
 - O PIN deixou de ser só do aparelho: fica em `config.pinConta` do perfil pessoal (hash com "tempero" do usuário, nunca o número) e sincroniza. Criar, trocar ou remover o PIN em um aparelho vale em todos, na próxima sincronização; em aparelho novo, depois do login, o app já trava com o PIN da conta.
