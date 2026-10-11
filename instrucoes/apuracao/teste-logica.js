@@ -15,13 +15,14 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes'];
+  'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
+  'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
 ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
 vm.createContext(ctx);
-const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' +
+const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' + script.match(/const VALOR_MAX=[^\n]*\n/)[0] + script.match(/const TEXTO_PROIBIDO=[^\n]*\n/)[0] +
   script.match(/const lsGet=[^\n]*\nconst lsSet=[^\n]*\nconst lsDel=[^\n]*\n/)[0];
 vm.runInContext(consts + '\n' + nomes.map(extrair).join('\n'), ctx);
 const novo = () => ({ contas: [], cartoes: [], categorias: [], transacoes: [], financiamentos: [], investimentos: [], recorrencias: [], config: { pinHash: null }, _tombstones: {} });
@@ -186,5 +187,50 @@ t('Sincronização: decide enviar/baixar/mesclar sem sobrescrever às cegas', ()
   assert.match(run("codigoErroSync({code:'permission-denied'})"), /permissão negada/);
   assert.match(run("codigoErroSync({code:'unavailable'})"), /sem conexão/);
   assert.strictEqual(run('resumoPerfil(P1)'), '1 lançamentos, 0 contas, 0 cartões, 0 fixos');
+});
+t('Validação: texto — proibidos, tamanho, espaços e vazio', () => {
+  const tx = (v, o) => run('validarTexto(' + JSON.stringify(v) + ',' + JSON.stringify(o || {}) + ')');
+  assert.strictEqual(tx('  Mercado   do  João  ', { max: 60 }).valor, 'Mercado do João');
+  assert.strictEqual(tx('Café & Pão (padaria) - 50% off', {}).valor, 'Café & Pão (padaria) - 50% off');
+  ['<script>', 'a{b}', 'a\\b', 'a`b', 'a\u0007b', 'a​b'].forEach(x => assert.match(tx(x, {}).erro, /não use/));
+  assert.match(tx('', { rotulo: 'Nome' }).erro, /Nome: preencha/); assert.strictEqual(tx('', { opcional: true }).valor, '');
+  assert.match(tx('a'.repeat(61), { max: 60 }).erro, /no máximo 60/); assert.match(tx('a', { min: 2 }).erro, /pelo menos 2/);
+  assert.strictEqual(tx('linha1\n\n\n\nlinha2', { multilinha: true, max: 300 }).valor, 'linha1\n\nlinha2');
+});
+t('Validação: valor — negativo, zero, NaN, máximo, vírgula', () => {
+  const v = (x, o) => run('validarValor(' + JSON.stringify(x) + ',' + JSON.stringify(o || {}) + ')');
+  assert.strictEqual(v('1250,90').valor, 1250.9);
+  assert.match(v('-5').erro, /negativo/); assert.match(v('0').erro, /maior que zero/); assert.match(v('').erro, /informe/);
+  assert.match(v('abc').erro, /só números/); assert.match(v('1e5').erro, /só números/); assert.match(v('Infinity').erro, /só números/);
+  assert.match(v('1000000000').erro, /máximo/); assert.strictEqual(v('999999999.99').valor, 999999999.99);
+  assert.strictEqual(v('0', { min: 0 }).valor, 0); assert.strictEqual(v('', { opcional: true, min: 0 }).valor, 0);
+  assert.strictEqual(v('-50', { negativo: true, min: -999999999.99 }).valor, -50);
+});
+t('Validação: inteiro e data', () => {
+  const n = (x, o) => run('validarInteiro(' + JSON.stringify(x) + ',' + JSON.stringify(o) + ')');
+  assert.strictEqual(n('12', { min: 1, max: 120 }).valor, 12); assert.match(n('121', { min: 1, max: 120 }).erro, /de 1 a 120/);
+  assert.match(n('1,5', { min: 1, max: 9 }).erro, /inteiro/); assert.match(n('0', { min: 1, max: 31 }).erro, /de 1 a 31/); assert.strictEqual(n('', { opcional: true }).valor, null);
+  const d = x => run('validarData(' + JSON.stringify(x) + ')');
+  assert.strictEqual(d('2026-02-28').valor, '2026-02-28'); assert.match(d('2026-02-31').erro, /não existe/); assert.match(d('').erro, /válida/);
+  assert.match(d('1999-12-31').erro, /2000 e 2100/); assert.match(d('2101-01-01').erro, /2000 e 2100/);
+  assert.ok(d('2099-01-01').aviso); assert.ok(!d(run('todayStr()')).aviso);
+});
+t('Validação: nome duplicado ignora acento, caixa e o próprio registro', () => {
+  ctx.L = [{ id: '1', nome: 'Nubank' }, { id: '2', nome: 'Itaú', tipo: 'despesa' }];
+  assert.strictEqual(run("nomeDuplicado(L,'  nubank ')"), true); assert.strictEqual(run("nomeDuplicado(L,'itau')"), true);
+  assert.strictEqual(run("nomeDuplicado(L,'Nubank','1')"), false); assert.strictEqual(run("nomeDuplicado(L,'Inter')"), false);
+  assert.strictEqual(run("nomeDuplicado(L,'itau',null,x=>x.tipo==='receita')"), false);
+});
+t('Parcelas: já pagas nunca passam do total; só as que faltam são criadas', () => {
+  const pg = (x, tot) => run('validarParcelasPagas(' + JSON.stringify(x) + ',' + tot + ')');
+  assert.strictEqual(pg('', 12).valor, 0); assert.strictEqual(pg('3', 12).valor, 3); assert.strictEqual(pg('11', 12).valor, 11);
+  assert.match(pg('15', 12).erro, /não dá para ter pago 15 de 12/); assert.match(pg('12', 12).erro, /não há o que lançar/);
+  assert.match(pg('-1', 12).erro, /sem sinal/); assert.match(pg('2,5', 12).erro, /inteiro/);
+  const r = run("parcelasRestantes(1000,12,3,'2026-10-31')");
+  assert.deepStrictEqual([r.length, r[0].n, r[8].n], [9, 4, 12]);
+  assert.strictEqual(r[0].data, '2027-01-31'); assert.strictEqual(r[1].data, '2027-02-28');            // 31/10 + 3 meses; fevereiro vira 28
+  assert.strictEqual(r[0].valor, 83.33); assert.strictEqual(r[8].valor, 83.37);                          // resto de centavos na última
+  assert.strictEqual(run("parcelasRestantes(1000,12,0,'2026-10-05')").length, 12);
+  assert.strictEqual(run("parcelasRestantes(600,6,2,'2026-10-05').reduce((s,p)=>s+p.valor,0)"), 400);   // 4 parcelas de 100
 });
 console.log(`\n${ok} testes passaram`);

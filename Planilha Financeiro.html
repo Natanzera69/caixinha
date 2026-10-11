@@ -186,6 +186,10 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
 .field textarea{resize:vertical;min-height:56px;}
+.erro-campo{color:var(--expense);font-size:.8rem;font-weight:700;margin-top:6px;line-height:1.35;}
+.field input[aria-invalid="true"],.field select[aria-invalid="true"],.field textarea[aria-invalid="true"],.input-sm[aria-invalid="true"]{border-color:var(--expense);}
+.preview-parc{background:var(--surface-2);border:1.5px dashed var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:.84rem;line-height:1.5;margin-bottom:12px;}
+.preview-parc b{font-variant-numeric:tabular-nums;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .seg{display:flex;gap:4px;background:var(--surface-2);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:4px;}
 .seg button{flex:1;padding:9px 4px;background:transparent;border:none;border-radius:9px;font-weight:700;font-size:.84rem;color:var(--text-muted);}
@@ -438,6 +442,76 @@ function addMonths(dateStr,n){
   return isoLocal(dt);
 }
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---- Validação de campos: funções puras (testadas em node). Cada uma devolve {valor} ou {erro} ---- */
+const VALOR_MAX=999999999.99;
+// Proibidos: marcação/escape (< > { } \ `) e caracteres de controle ou invisíveis (colar texto de site traz isso).
+const TEXTO_PROIBIDO=/[<>{}\\`\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF]/;
+function validarTexto(s,o){
+  o=Object.assign({rotulo:'Texto',min:1,max:60,opcional:false,multilinha:false},o);
+  let v=String(s??'').replace(/\r\n?/g,'\n');
+  v=(o.multilinha? v.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n') : v.replace(/\s+/g,' ')).trim();
+  if(!v) return o.opcional? {valor:''} : {erro:`${o.rotulo}: preencha este campo.`};
+  if(v.length<o.min) return {erro:`${o.rotulo}: use pelo menos ${o.min} caracteres.`};
+  if(v.length>o.max) return {erro:`${o.rotulo}: no máximo ${o.max} caracteres (tem ${v.length}).`};
+  if(TEXTO_PROIBIDO.test(v.replace(/\n/g,' '))) return {erro:`${o.rotulo}: não use os caracteres < > { } \\ \``};
+  return {valor:v};
+}
+function validarValor(raw,o){
+  o=Object.assign({rotulo:'Valor',min:0.01,max:VALOR_MAX,negativo:false,opcional:false},o);
+  const s=String(raw??'').trim().replace(',','.');
+  if(s==='') return o.opcional? {valor:0} : {erro:`${o.rotulo}: informe um valor.`};
+  if(!/^-?\d+(\.\d+)?$/.test(s)) return {erro:`${o.rotulo}: digite só números (ex.: 1250,90).`};
+  const n=round2(Number(s));
+  if(!o.negativo && n<0) return {erro:`${o.rotulo}: não pode ser negativo.`};
+  if(n<o.min) return {erro:o.min>0 && o.min<=0.01 ? `${o.rotulo}: precisa ser maior que zero.` : `${o.rotulo}: mínimo de ${fmtMoney(o.min)}.`};
+  if(Math.abs(n)>o.max) return {erro:`${o.rotulo}: máximo de ${fmtMoney(o.max)}.`};
+  return {valor:n};
+}
+function validarInteiro(raw,o){
+  o=Object.assign({rotulo:'Número',min:1,max:999,opcional:false},o);
+  const s=String(raw??'').trim();
+  if(s==='') return o.opcional? {valor:null} : {erro:`${o.rotulo}: informe um número.`};
+  if(!/^-?\d+$/.test(s)) return {erro:`${o.rotulo}: use um número inteiro, sem vírgula.`};
+  const n=parseInt(s,10);
+  if(n<o.min || n>o.max) return {erro:`${o.rotulo}: use um número de ${o.min} a ${o.max}.`};
+  return {valor:n};
+}
+// Data AAAA-MM-DD real (rejeita 2026-02-31) entre 2000 e 2100. Mais de 1 ano à frente passa, mas com {aviso}.
+function validarData(s,o){
+  o=Object.assign({rotulo:'Data'},o);
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s??'').trim());
+  if(!m) return {erro:`${o.rotulo}: informe uma data válida.`};
+  const a=+m[1], me=+m[2], d=+m[3];
+  const dt=new Date(a,me-1,d);
+  if(dt.getFullYear()!==a || dt.getMonth()!==me-1 || dt.getDate()!==d) return {erro:`${o.rotulo}: essa data não existe.`};
+  if(a<2000 || a>2100) return {erro:`${o.rotulo}: use um ano entre 2000 e 2100.`};
+  const r={valor:m[0]};
+  const lim=new Date(); lim.setFullYear(lim.getFullYear()+1);
+  if(dt>lim) r.aviso=`${o.rotulo}: ${fmtDate(m[0])} está a mais de 1 ano daqui. Está certo?`;
+  return r;
+}
+// Nome já usado (sem diferenciar acento/maiúscula). `mesmo` filtra o que conta como conflito (ex.: só categorias do mesmo tipo).
+function nomeDuplicado(lista,nome,idAtual,mesmo){
+  const k=semAcento(String(nome||'').trim());
+  return (lista||[]).some(x=>x.id!==idAtual && semAcento(String(x.nome||'').trim())===k && (!mesmo||mesmo(x)));
+}
+// Marca os campos com erro (mensagem vermelha embaixo + foco no primeiro). checks: [[nomeOuElemento, resultado],...]. true = há erro.
+function mostrarErros(raiz,checks){
+  raiz.querySelectorAll('.erro-campo').forEach(e=>e.remove());
+  raiz.querySelectorAll('[aria-invalid]').forEach(i=>i.removeAttribute('aria-invalid'));
+  let primeiro=null;
+  checks.forEach(([alvo,r])=>{
+    if(!r || !r.erro) return;
+    const el=typeof alvo==='string'? raiz.querySelector(`[name="${alvo}"]`) : alvo; if(!el) return;
+    const p=document.createElement('div'); p.className='erro-campo'; p.setAttribute('role','alert'); p.textContent=r.erro;
+    (el.closest('.field')||el.parentNode).appendChild(p);
+    el.setAttribute('aria-invalid','true');
+    if(!primeiro) primeiro=el;
+  });
+  if(primeiro){ primeiro.focus(); if(primeiro.scrollIntoView) primeiro.scrollIntoView({block:'center',behavior:'smooth'}); }
+  return !!primeiro;
+}
 function toast(msg){
   const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
   document.getElementById('toastRoot').appendChild(el);
@@ -754,7 +828,10 @@ function abrirWizardContaPrincipal(){
     </div>`;
 }
 function wizardSalvarConta(){
-  const nome=document.getElementById('wizContaNome').value.trim();
+  const inp=document.getElementById('wizContaNome');
+  const r=validarTexto(inp.value,{rotulo:'Nome do banco',max:40,opcional:true});
+  if(mostrarErros(document.getElementById('modalCard'),[[inp,r]])) return;
+  const nome=r.valor;
   const contaSeed=state.contas[0];
   if(nome && contaSeed && contaSeed.nome==='Carteira'){
     contaSeed.nome=nome;
@@ -788,8 +865,11 @@ function abrirWizardDiaRecebimento(){
 function wizardSalvarRecebimento(){
   const sim=document.querySelector('#segRecebe button.active').dataset.v==='sim';
   if(sim){
-    const dia=Math.min(31,Math.max(1,parseInt(document.getElementById('wizDiaReceb').value)||5));
-    const valor=round2(parseFloat(document.getElementById('wizValorReceb').value))||0;
+    const iDia=document.getElementById('wizDiaReceb'), iVal=document.getElementById('wizValorReceb');
+    const rDia=validarInteiro(iDia.value,{rotulo:'Dia',min:1,max:31});
+    const rVal=validarValor(iVal.value,{rotulo:'Valor',min:0,opcional:true});
+    if(mostrarErros(document.getElementById('modalCard'),[[iDia,rDia],[iVal,rVal]])) return;
+    const dia=rDia.valor, valor=rVal.valor;
     const catReceita=state.categorias.find(c=>c.tipo==='receita' && c.nome==='Salário')||state.categorias.find(c=>c.tipo==='receita');
     state.recorrencias.push(tocar({id:uuid(),descricao:'Salário',valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
       tipo:'receita',categoriaId:catReceita.id,metodoPagamento:'pix',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
@@ -829,10 +909,19 @@ function wizAdicionarLinhaContaFixa(){
 }
 function wizardSalvarContasFixas(){
   const catDespesa=state.categorias.find(c=>c.tipo==='despesa');
-  wizContasFixasTemp.forEach(c=>{
-    const desc=(c.desc||'').trim(); const valor=round2(parseFloat(c.valor));
-    if(!desc || !valor) return;
-    const dia=Math.min(31,Math.max(1,parseInt(c.dia)||10));
+  const raiz=document.getElementById('modalCard');
+  const campo=(i,n)=>raiz.querySelector(`[data-i="${i}"][data-campo="${n}"]`);
+  const checks=[], validas=[];
+  wizContasFixasTemp.forEach((c,i)=>{
+    if(!String(c.desc||'').trim() && !String(c.valor||'').trim()) return; // linha em branco: ignora
+    const rDesc=validarTexto(c.desc,{rotulo:'Descrição',min:2,max:60});
+    const rVal=validarValor(c.valor,{rotulo:'Valor'});
+    const rDia=validarInteiro(c.dia,{rotulo:'Dia',min:1,max:31});
+    checks.push([campo(i,'desc'),rDesc],[campo(i,'valor'),rVal],[campo(i,'dia'),rDia]);
+    if(!rDesc.erro && !rVal.erro && !rDia.erro) validas.push({desc:rDesc.valor,valor:rVal.valor,dia:rDia.valor});
+  });
+  if(mostrarErros(raiz,checks)) return;
+  validas.forEach(({desc,valor,dia})=>{
     state.recorrencias.push(tocar({id:uuid(),descricao:desc,valor,diaDoMes:dia,intervaloMeses:1,mesInicio:null,
       tipo:'despesa',categoriaId:catDespesa.id,metodoPagamento:'pix',contaId:state.contas[0]?.id||null,cartaoId:null,ativo:true,mesesGerados:[]}));
   });
@@ -877,7 +966,10 @@ function wizardSalvarEmpresa(){
     else{ abrirWizardPin(); }
     return;
   }
-  const nome=document.getElementById('wizNomeEmpresa').value.trim()||'Minha Empresa';
+  const inp=document.getElementById('wizNomeEmpresa');
+  const r=validarTexto(inp.value,{rotulo:'Nome da empresa',max:60,opcional:true});
+  if(mostrarErros(document.getElementById('modalCard'),[[inp,r]])) return;
+  const nome=r.valor||'Minha Empresa';
   estados.pj=estadoInicialPJ(nome);
   abrirWizardPJConta();
 }
@@ -892,7 +984,10 @@ function abrirWizardPJConta(){
     </div>`;
 }
 function wizardSalvarPJConta(){
-  const nome=document.getElementById('wizPJContaNome').value.trim();
+  const inp=document.getElementById('wizPJContaNome');
+  const r=validarTexto(inp.value,{rotulo:'Nome do banco',max:40,opcional:true});
+  if(mostrarErros(document.getElementById('modalCard'),[[inp,r]])) return;
+  const nome=r.valor;
   // sem conta nenhuma os lançamentos do PJ não afetariam saldo: se pulou, cria um "Caixa PJ" (dá pra renomear em Contas)
   estados.pj.contas.push(tocar({id:uuid(),nome:nome||'Caixa PJ',tipo:nome?'corrente':'dinheiro',saldoInicial:0,cor:PALETA[0],ativo:true}));
   abrirWizardPJObrigacoes();
@@ -916,16 +1011,22 @@ function abrirWizardPJObrigacoes(){
 }
 function wizardSalvarPJObrigacoes(){
   const contaPJ=estados.pj.contas[0]?.id||null;
-  const diaDAS=parseInt(document.getElementById('wizDiaDAS').value);
+  const el=id=>document.getElementById(id);
+  const rDiaDAS=validarInteiro(el('wizDiaDAS').value,{rotulo:'Dia do DAS',min:1,max:28,opcional:true});
+  const rValDAS=validarValor(el('wizValorDAS').value,{rotulo:'Valor do DAS',min:0,opcional:true});
+  const rDiaPro=validarInteiro(el('wizDiaProlabore').value,{rotulo:'Dia do pró-labore',min:1,max:31,opcional:true});
+  const rValPro=validarValor(el('wizValorProlabore').value,{rotulo:'Valor do pró-labore',min:0,opcional:true});
+  if(mostrarErros(document.getElementById('modalCard'),[[el('wizDiaDAS'),rDiaDAS],[el('wizValorDAS'),rValDAS],[el('wizDiaProlabore'),rDiaPro],[el('wizValorProlabore'),rValPro]])) return;
+  const diaDAS=rDiaDAS.valor;
   if(diaDAS>=1 && diaDAS<=28){
-    const valorDAS=round2(parseFloat(document.getElementById('wizValorDAS').value))||0;
+    const valorDAS=rValDAS.valor;
     const catDAS=estados.pj.categorias.find(c=>c.nome==='Impostos (DAS)');
     estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'DAS',valor:valorDAS,diaDoMes:diaDAS,intervaloMeses:1,mesInicio:null,
       tipo:'despesa',categoriaId:catDAS.id,metodoPagamento:'boleto',contaId:contaPJ,cartaoId:null,ativo:true,mesesGerados:[]}));
   }
-  const diaPro=parseInt(document.getElementById('wizDiaProlabore').value);
+  const diaPro=rDiaPro.valor;
   if(diaPro>=1 && diaPro<=31){
-    const valorPro=round2(parseFloat(document.getElementById('wizValorProlabore').value))||0;
+    const valorPro=rValPro.valor;
     const catPro=estados.pj.categorias.find(c=>c.nome==='Pró-labore');
     estados.pj.recorrencias.push(tocar({id:uuid(),descricao:'Pró-labore',valor:valorPro,diaDoMes:diaPro,intervaloMeses:1,mesInicio:null,
       tipo:'despesa',categoriaId:catPro.id,metodoPagamento:'boleto',contaId:contaPJ,cartaoId:null,ativo:true,mesesGerados:[]}));
@@ -946,8 +1047,11 @@ function abrirWizardPJContador(){
     </div>`;
 }
 function wizardSalvarPJContador(){
-  const dia=parseInt(document.getElementById('wizDiaContador').value);
-  const valor=round2(parseFloat(document.getElementById('wizValorContador').value))||0;
+  const iDia=document.getElementById('wizDiaContador'), iVal=document.getElementById('wizValorContador');
+  const rDia=validarInteiro(iDia.value,{rotulo:'Dia',min:1,max:31,opcional:true});
+  const rVal=validarValor(iVal.value,{rotulo:'Valor',min:0,opcional:true});
+  if(mostrarErros(document.getElementById('modalCard'),[[iDia,rDia],[iVal,rVal]])) return;
+  const dia=rDia.valor, valor=rVal.valor;
   if(dia>=1 && dia<=31 && valor>0){
     const contaPJ=estados.pj.contas[0]?.id||null;
     const catContador=estados.pj.categorias.find(c=>c.nome==='Contador');
@@ -1426,7 +1530,7 @@ function renderLancamentos(){
       <button class="icon-btn" onclick="mudarMesLanc(1)" title="Próximo mês">›</button>
     </div>${filtroLanc.mes!==mesAtual?'<div style="text-align:center;margin:-4px 0 12px"><button class="btn btn-ghost btn-sm" onclick="filtroLanc.mes=todayStr().slice(0,7);filtroLanc.limite=LANC_PAGINA;renderLancamentos()">Voltar para o mês atual</button></div>':''}`:''}
     <div class="toolbar">
-      <input type="text" class="search" id="lancQ" placeholder="Buscar descrição..." aria-label="Buscar lançamento pela descrição" value="${escapeHtml(filtroLanc.q)}">
+      <input type="text" class="search" id="lancQ" maxlength="60" placeholder="Buscar descrição..." aria-label="Buscar lançamento pela descrição" value="${escapeHtml(filtroLanc.q)}">
       <select id="lancPeriodo" aria-label="Período">
         <option value="mes">Mês</option>
         <option value="30">Últimos 30 dias</option>
@@ -1509,22 +1613,38 @@ function tocarLinhaLanc(id){
 }
 
 /* ---- Formulário de transação ---- */
+// Parcelas que ainda faltam de uma compra: n = pagas+1..total, uma por mês a partir da data da compra; o resto de centavos vai na última.
+function parcelasRestantes(valor,total,pagas,dataCompra){
+  const base=round2(valor/total), r=[];
+  for(let i=pagas+1;i<=total;i++) r.push({n:i,data:addMonths(dataCompra,i-1),valor: i===total? round2(valor-base*(total-1)) : base});
+  return r;
+}
+// "Já pagas" não pode passar do total, nem ser igual a ele (aí não há o que lançar).
+function validarParcelasPagas(raw,total){
+  const s=String(raw??'').trim();
+  if(s==='') return {valor:0};
+  if(!/^\d+$/.test(s)) return {erro:'Parcelas já pagas: use um número inteiro, sem sinal e sem vírgula.'};
+  const n=parseInt(s,10);
+  if(n>total) return {erro:`Parcelas já pagas: não dá para ter pago ${n} de ${total} parcelas.`};
+  if(n===total) return {erro:`Parcelas já pagas: se as ${total} já foram pagas, não há o que lançar (use no máximo ${total-1}).`};
+  return {valor:n};
+}
 function abrirFormTransacao(id){
   const t=id? state.transacoes.find(x=>x.id===id) : null;
   const tipo=t?t.tipo:'despesa';
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>${t?'Editar lançamento':'Novo lançamento'}</h2>
-    <form id="formTransacao">
+    <form id="formTransacao" novalidate>
       <div class="seg" id="segTipo">
         <button type="button" data-v="despesa" class="${tipo==='despesa'?'active':''}">Despesa</button>
         <button type="button" data-v="receita" class="${tipo==='receita'?'active':''}">Receita</button>
         <button type="button" data-v="transferencia" class="${tipo==='transferencia'?'active':''}">Transferência</button>
       </div>
-      <div class="field mt16"><label>Descrição</label><input required name="descricao" value="${t?escapeHtml(t.descricao):''}" placeholder="Ex: Balinha, Mercado, Uber..."></div>
+      <div class="field mt16"><label>Descrição</label><input required name="descricao" maxlength="60" autocomplete="off" value="${t?escapeHtml(t.descricao):''}" placeholder="Ex: Balinha, Mercado, Uber..."></div>
       <div class="row2">
-        <div class="field"><label>Valor (R$)</label><input required type="number" step="0.01" min="0" name="valor" value="${t?t.valor:''}"></div>
-        <div class="field"><label>Data</label><input required type="date" name="data" value="${t?t.data:todayStr()}"></div>
+        <div class="field"><label>Valor (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" name="valor" value="${t?t.valor:''}"></div>
+        <div class="field" id="campoData"><label>Data</label><input required type="date" name="data" min="2000-01-01" max="2100-12-31" value="${t?t.data:todayStr()}"></div>
       </div>
       <div class="field" id="campoCategoria"><label>Categoria</label>
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo||tipo==='transferencia').map(c=>`<option value="${c.id}" ${t&&t.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
@@ -1541,8 +1661,14 @@ function abrirFormTransacao(id){
       <div class="field hidden" id="campoCartao"><label>Cartão</label>
         <select name="cartaoId">${state.cartoes.map(c=>`<option value="${c.id}" ${t&&t.cartaoId===c.id?'selected':''}>${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
-      ${!t?`<div class="field" id="campoParcelas"><label>Parcelar em quantas vezes?</label><input type="number" min="1" max="120" name="parcelas" value="1"></div>`:''}
-      <div class="field"><label>Notas (opcional)</label><textarea name="notas">${t?escapeHtml(t.notas||''):''}</textarea></div>
+      ${!t?`<div id="campoParcelas">
+        <div class="row2">
+          <div class="field"><label>Parcelar em quantas vezes?</label><input type="number" inputmode="numeric" min="1" max="120" step="1" name="parcelas" value="1"></div>
+          <div class="field hidden" id="campoPagas"><label>Parcelas já pagas</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasPagas" value="0"></div>
+        </div>
+        <div class="preview-parc hidden" id="previewParc" aria-live="polite"></div>
+      </div>`:''}
+      <div class="field"><label>Notas (opcional)</label><textarea name="notas" maxlength="300">${t?escapeHtml(t.notas||''):''}</textarea></div>
       <div class="modal-actions">
         ${t?`<button type="button" class="btn btn-danger" onclick="if(excluirTransacao('${t.id}')) fecharModal()">Excluir</button>`:''}
         <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
@@ -1575,8 +1701,31 @@ function abrirFormTransacao(id){
     }
     const parc=document.getElementById('campoParcelas');
     if(parc) parc.style.display = v==='credito' ? '' : 'none';
+    atualizarParcelas();
+  }
+  // Mostra "já pagas" só com 2+ parcelas e a prévia do que será criado; a data vira "data da compra" quando há parcelas pagas.
+  function atualizarParcelas(){
+    const prev=document.getElementById('previewParc'), campoPagas=document.getElementById('campoPagas');
+    if(!prev) return;
+    const rotData=document.querySelector('#campoData label');
+    const total=parseInt(form.parcelas.value,10), credito=form.metodoPagamento.value==='credito';
+    const multi=credito && total>=2 && total<=120;
+    campoPagas.classList.toggle('hidden',!multi);
+    prev.classList.add('hidden'); if(rotData) rotData.textContent='Data';
+    if(!multi) return;
+    const rp=validarParcelasPagas(form.parcelasPagas.value,total), rv=validarValor(form.valor.value);
+    if(rp.erro){ prev.textContent=rp.erro; prev.classList.remove('hidden'); return; }
+    if(rp.valor>0 && rotData) rotData.textContent='Data da compra (1ª parcela)';
+    if(rv.erro) return;
+    const rest=parcelasRestantes(rv.valor,total,rp.valor,form.data.value||todayStr());
+    if(!rest.length) return;
+    const soma=round2(rest.reduce((s,p)=>s+p.valor,0));
+    prev.innerHTML=`<b>${total}x de ${fmtMoney(round2(rv.valor/total))}</b>`+
+      (rp.valor>0?` · ${rp.valor} já paga${rp.valor===1?'':'s'} · restam <b>${rest.length}</b> (${fmtMoney(soma)}) · próxima: ${rest[0].n}/${total} em ${fmtDate(rest[0].data)}`:'');
+    prev.classList.remove('hidden');
   }
   form.metodoPagamento.addEventListener('change',metodoMudou);
+  ['parcelas','parcelasPagas','valor','data'].forEach(n=>{ if(form[n]) form[n].addEventListener('input',atualizarParcelas); });
   metodoMudou();
   if(!t) setTipo('despesa');
 
@@ -1584,48 +1733,61 @@ function abrirFormTransacao(id){
     e.preventDefault();
     const fd=new FormData(form);
     const tipoSel=form.querySelector('#segTipo button.active').dataset.v;
-    const valor=round2(parseFloat(fd.get('valor')));
-    const parcelas=Math.max(1,parseInt(fd.get('parcelas')||1));
     const metodo=fd.get('metodoPagamento');
     const usaCartao = metodo==='credito' || metodo==='debito';
-    if(tipoSel==='transferencia' && fd.get('contaId') && fd.get('contaId')===fd.get('contaDestinoId')){
-      alert('Escolha contas diferentes na origem e no destino da transferência.'); return;
+    const rDesc=validarTexto(fd.get('descricao'),{rotulo:'Descrição',min:2,max:60});
+    const rValor=validarValor(fd.get('valor'),{rotulo:'Valor'});
+    const rData=validarData(fd.get('data'));
+    const rNotas=validarTexto(fd.get('notas'),{rotulo:'Notas',max:300,opcional:true,multilinha:true});
+    const checks=[['descricao',rDesc],['valor',rValor],['data',rData],['notas',rNotas]];
+    let parcelas=1, pagas=0;
+    if(!t && metodo==='credito'){
+      const rParc=validarInteiro(fd.get('parcelas'),{rotulo:'Parcelas',min:1,max:120});
+      checks.push(['parcelas',rParc]);
+      if(!rParc.erro){
+        parcelas=rParc.valor;
+        if(parcelas>1){
+          const rPagas=validarParcelasPagas(fd.get('parcelasPagas'),parcelas);
+          checks.push(['parcelasPagas',rPagas]);
+          if(!rPagas.erro) pagas=rPagas.valor;
+          if(!rValor.erro && round2(rValor.valor/parcelas)<0.01) checks.push(['parcelas',{erro:'Parcelas: o valor é pequeno demais para tantas parcelas.'}]);
+        }
+      }
     }
-    if(usaCartao && !fd.get('cartaoId')){
-      alert(`Cadastre um cartão de ${metodo==='credito'?'crédito':'débito'} em Contas antes de lançar com esse método.`);
-      return;
-    }
+    if(tipoSel==='transferencia' && fd.get('contaId') && fd.get('contaId')===fd.get('contaDestinoId')) checks.push(['contaDestinoId',{erro:'Conta de destino: escolha uma conta diferente da origem.'}]);
+    if(usaCartao && !fd.get('cartaoId')) checks.push(['cartaoId',{erro:`Cartão: cadastre um cartão de ${metodo==='credito'?'crédito':'débito'} em Contas antes de lançar com esse método.`}]);
     if(!usaCartao && !state.contas.length){ alert('Cadastre uma conta em Contas antes de criar lançamentos.'); return; }
+    if(mostrarErros(form,checks)) return;
+    if(rData.aviso && !confirm(rData.aviso)) return;
+    const valor=rValor.valor;
     const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
     const base={
-      descricao:fd.get('descricao').trim(),
-      data:fd.get('data'),
+      descricao:rDesc.valor,
+      data:rData.valor,
       tipo:tipoSel,
       categoriaId: tipoSel==='transferencia'? null : fd.get('categoriaId'),
       metodoPagamento:metodo,
       contaId: metodo==='credito'? null : (metodo==='debito'? (cartaoSelecionado?cartaoSelecionado.contaId:null) : fd.get('contaId')),
       contaDestinoId: tipoSel==='transferencia'? fd.get('contaDestinoId') : null,
       cartaoId: usaCartao? fd.get('cartaoId') : null,
-      notas:fd.get('notas').trim()
+      notas:rNotas.valor
     };
+    let msg=t?'Lançamento atualizado.':'Lançamento adicionado.';
     if(t){
       Object.assign(t,base,{valor}); tocar(t);
-    }else if(fd.get('metodoPagamento')==='credito' && parcelas>1){
-      const grupoId=uuid();
-      const parcelaBase=round2(valor/parcelas);
-      const hoje=todayStr();
-      for(let i=1;i<=parcelas;i++){
-        const data=addMonths(base.data,i-1);
-        const v = i===parcelas ? round2(valor-parcelaBase*(parcelas-1)) : parcelaBase;
-        state.transacoes.push(tocar({id:uuid(),...base,data,valor:v,
-          descricao:`${base.descricao}`,
-          parcelaGrupoId:grupoId,parcelaAtual:i,parcelaTotal:parcelas,
-          status: data<=hoje?'pago':'pendente'}));
-      }
+    }else if(metodo==='credito' && parcelas>1){
+      const grupoId=uuid(); const hoje=todayStr();
+      // Só as parcelas que faltam: as já pagas não viram lançamento (não mexem em dívida do cartão, saldo nem relatórios).
+      parcelasRestantes(valor,parcelas,pagas,base.data).forEach(p=>{
+        state.transacoes.push(tocar({id:uuid(),...base,data:p.data,valor:p.valor,
+          parcelaGrupoId:grupoId,parcelaAtual:p.n,parcelaTotal:parcelas,
+          status: p.data<=hoje?'pago':'pendente'}));
+      });
+      msg = pagas>0 ? `Parcelamento adicionado: restam ${parcelas-pagas} de ${parcelas} parcelas.` : `Parcelamento adicionado em ${parcelas}x.`;
     }else{
       state.transacoes.push(tocar({id:uuid(),...base,valor,status: base.data<=todayStr()?'pago':'pendente'}));
     }
-    salvarEstado(); fecharModal(); renderTudo(); toast(t?'Lançamento atualizado.':'Lançamento adicionado.');
+    salvarEstado(); fecharModal(); renderTudo(); toast(msg);
   });
   abrirModal();
 }
@@ -1706,8 +1868,8 @@ function abrirFormConta(id){
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>${c?'Editar conta':'Nova conta'}</h2>
-    <form id="formConta">
-      <div class="field"><label>Nome</label><input required name="nome" value="${c?escapeHtml(c.nome):''}" placeholder="Ex: Nubank, Itaú, Carteira"></div>
+    <form id="formConta" novalidate>
+      <div class="field"><label>Nome</label><input required name="nome" maxlength="40" autocomplete="off" value="${c?escapeHtml(c.nome):''}" placeholder="Ex: Nubank, Itaú, Carteira"></div>
       <div class="field"><label>Tipo</label>
         <select name="tipo">
           <option value="corrente" ${c&&c.tipo==='corrente'?'selected':''}>Conta corrente</option>
@@ -1716,7 +1878,7 @@ function abrirFormConta(id){
           <option value="investimento" ${c&&c.tipo==='investimento'?'selected':''}>Conta investimento</option>
         </select>
       </div>
-      <div class="field"><label>Saldo inicial (R$)</label><input required type="number" step="0.01" name="saldoInicial" value="${c?c.saldoInicial:'0'}"></div>
+      <div class="field"><label>Saldo inicial (R$)</label><input required type="number" inputmode="decimal" step="0.01" name="saldoInicial" value="${c?c.saldoInicial:'0'}"></div>
       <div class="field"><label>Cor</label><div class="swatches">${PALETA.map(cor=>`<span style="background:${cor}" class="${c&&c.cor===cor?'sel':''}" onclick="this.parentNode.querySelectorAll('span').forEach(s=>s.classList.remove('sel'));this.classList.add('sel');this.dataset.pick='1'" data-cor="${cor}"></span>`).join('')}</div></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
@@ -1730,7 +1892,13 @@ function abrirFormConta(id){
     e.preventDefault();
     const fd=new FormData(e.target);
     const cor=document.querySelector('.swatches .sel').dataset.cor;
-    const data={nome:fd.get('nome').trim(),tipo:fd.get('tipo'),saldoInicial:round2(parseFloat(fd.get('saldoInicial'))),cor,ativo:true};
+    const rNome=validarTexto(fd.get('nome'),{rotulo:'Nome',max:40});
+    const rSaldo=validarValor(fd.get('saldoInicial'),{rotulo:'Saldo inicial',min:-VALOR_MAX,negativo:true,opcional:true});
+    const checks=[['nome',rNome],['saldoInicial',rSaldo]];
+    if(!rNome.erro && nomeDuplicado(state.contas,rNome.valor,c&&c.id)) checks.push(['nome',{erro:'Nome: já existe uma conta com esse nome.'}]);
+    if(mostrarErros(e.target,checks)) return;
+    if(rSaldo.valor<0 && !confirm('O saldo inicial é negativo (conta no vermelho). Está certo?')) return;
+    const data={nome:rNome.valor,tipo:fd.get('tipo'),saldoInicial:rSaldo.valor,cor,ativo:true};
     if(c){ Object.assign(c,data); tocar(c); } else { state.contas.push(tocar({id:uuid(),...data})); }
     salvarEstado(); fecharModal(); renderTudo(); toast('Conta salva.');
   });
@@ -1767,26 +1935,26 @@ function abrirFormCartao(id){
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>${c?'Editar cartão':'Novo cartão'}</h2>
-    <form id="formCartao">
+    <form id="formCartao" novalidate>
       <div class="seg" id="segTitular">
         <button type="button" data-v="proprio" class="${!ehEmprestado?'active':''}">Meu cartão</button>
         <button type="button" data-v="emprestado" class="${ehEmprestado?'active':''}">Emprestado</button>
       </div>
-      <div class="field mt16 hidden" id="campoTitular"><label>De quem é o cartão?</label><input name="titular" value="${c?escapeHtml(c.titular||''):''}" placeholder="Ex: Namorada, Bruna..."></div>
+      <div class="field mt16 hidden" id="campoTitular"><label>De quem é o cartão?</label><input name="titular" maxlength="40" autocomplete="off" value="${c?escapeHtml(c.titular||''):''}" placeholder="Ex: Namorada, Bruna..."></div>
       <div class="seg mt16" id="segTipoCartao">
         <button type="button" data-v="credito" class="${tipo==='credito'?'active':''}">Crédito</button>
         <button type="button" data-v="debito" class="${tipo==='debito'?'active':''}">Débito</button>
       </div>
-      <div class="field mt16"><label>Nome do cartão</label><input required name="nome" value="${c?escapeHtml(c.nome):''}" placeholder="Ex: Nubank Ultravioleta"></div>
+      <div class="field mt16"><label>Nome do cartão</label><input required name="nome" maxlength="40" autocomplete="off" value="${c?escapeHtml(c.nome):''}" placeholder="Ex: Nubank Ultravioleta"></div>
       <div class="field" id="campoContaCartao"><label>Conta vinculada</label>
         <select name="contaId">${state.contas.map(ct=>`<option value="${ct.id}" ${c&&c.contaId===ct.id?'selected':''}>${escapeHtml(ct.nome)}</option>`).join('')}</select>
       </div>
       <p class="hint hidden" id="hintEmprestado">Cartão de terceiro: não precisa estar ligado a uma das suas contas. O app soma tudo que você gasta nele como "você deve" — registre um pagamento quando acertar as contas.</p>
       <div id="camposCredito">
-        <div class="field"><label>Limite (R$)</label><input type="number" step="0.01" name="limite" value="${c?c.limite:''}"></div>
+        <div class="field"><label>Limite (R$)</label><input type="number" inputmode="decimal" step="0.01" min="0" name="limite" value="${c?c.limite:''}"></div>
         <div class="row2">
-          <div class="field"><label>Dia de fechamento</label><input type="number" min="1" max="31" name="diaFechamento" value="${c?c.diaFechamento:''}"></div>
-          <div class="field"><label>Dia de vencimento</label><input type="number" min="1" max="31" name="diaVencimento" value="${c?c.diaVencimento:''}"></div>
+          <div class="field"><label>Dia de fechamento</label><input type="number" inputmode="numeric" min="1" max="31" step="1" name="diaFechamento" value="${c?c.diaFechamento:''}"></div>
+          <div class="field"><label>Dia de vencimento</label><input type="number" inputmode="numeric" min="1" max="31" step="1" name="diaVencimento" value="${c?c.diaVencimento:''}"></div>
         </div>
       </div>
       <div class="modal-actions">
@@ -1818,13 +1986,34 @@ function abrirFormCartao(id){
     const fd=new FormData(form);
     const tipoSel=form.querySelector('#segTipoCartao button.active').dataset.v;
     const titularSel=form.querySelector('#segTitular button.active').dataset.v==='emprestado';
-    const data={nome:fd.get('nome').trim(),tipo:tipoSel,ativo:true,
-      titular: titularSel? fd.get('titular').trim() : null,
+    const rNome=validarTexto(fd.get('nome'),{rotulo:'Nome do cartão',max:40});
+    const checks=[['nome',rNome]];
+    if(!rNome.erro && nomeDuplicado(state.cartoes,rNome.valor,c&&c.id)) checks.push(['nome',{erro:'Nome do cartão: já existe um cartão com esse nome.'}]);
+    const rTit= titularSel? validarTexto(fd.get('titular'),{rotulo:'Dono do cartão',max:40}) : {valor:null};
+    if(titularSel) checks.push(['titular',rTit]);
+    if(!titularSel && !fd.get('contaId')) checks.push(['contaId',{erro:'Conta vinculada: escolha uma conta.'}]);
+    let rLim,rFech,rVenc;
+    if(tipoSel==='credito'){
+      rLim=validarValor(fd.get('limite'),{rotulo:'Limite',min:0,opcional:titularSel});
+      checks.push(['limite',rLim]);
+      if(!titularSel){
+        rFech=validarInteiro(fd.get('diaFechamento'),{rotulo:'Dia de fechamento',min:1,max:31});
+        rVenc=validarInteiro(fd.get('diaVencimento'),{rotulo:'Dia de vencimento',min:1,max:31});
+        checks.push(['diaFechamento',rFech],['diaVencimento',rVenc]);
+      }else{
+        rFech=validarInteiro(fd.get('diaFechamento'),{rotulo:'Dia de fechamento',min:1,max:31,opcional:true});
+        rVenc=validarInteiro(fd.get('diaVencimento'),{rotulo:'Dia de vencimento',min:1,max:31,opcional:true});
+        checks.push(['diaFechamento',rFech],['diaVencimento',rVenc]);
+      }
+    }
+    if(mostrarErros(form,checks)) return;
+    const data={nome:rNome.valor,tipo:tipoSel,ativo:true,
+      titular: titularSel? rTit.valor : null,
       contaId: titularSel? null : fd.get('contaId')};
     if(tipoSel==='credito'){
-      data.limite=round2(parseFloat(fd.get('limite'))||0);
-      data.diaFechamento=parseInt(fd.get('diaFechamento'))||null;
-      data.diaVencimento=parseInt(fd.get('diaVencimento'))||null;
+      data.limite=rLim.valor;
+      data.diaFechamento=rFech.valor;
+      data.diaVencimento=rVenc.valor;
     }
     if(c){ Object.assign(c,data); tocar(c); } else { state.cartoes.push(tocar({id:uuid(),...data,pagamentosFeitos:0})); }
     salvarEstado(); fecharModal(); renderTudo(); toast('Cartão salvo.');
@@ -1843,8 +2032,8 @@ function registrarPagamentoCartao(cartaoId){
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>Registrar pagamento</h2>
     <p class="hint">Você deve ${fmtMoney(deve)} pra ${escapeHtml(c.titular)} no cartão "${escapeHtml(c.nome)}". Registre quanto já pagou de volta.</p>
-    <form id="formPagamentoCartao">
-      <div class="field mt16"><label>Valor pago (R$)</label><input required type="number" step="0.01" min="0.01" max="${deve}" name="valor" value="${deve}"></div>
+    <form id="formPagamentoCartao" novalidate>
+      <div class="field mt16"><label>Valor pago (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" max="${deve}" name="valor" value="${deve}"></div>
       <div class="field"><label>Saiu de qual conta sua? (opcional)</label>
         <select name="contaId"><option value="">Não registrar saída de conta</option>${state.contas.map(ct=>`<option value="${ct.id}">${escapeHtml(ct.nome)}</option>`).join('')}</select>
       </div>
@@ -1858,7 +2047,9 @@ function registrarPagamentoCartao(cartaoId){
   document.getElementById('formPagamentoCartao').addEventListener('submit',e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    const valor=round2(parseFloat(fd.get('valor')));
+    const rValor=validarValor(fd.get('valor'),{rotulo:'Valor pago',max:Math.max(0.01,deve)});
+    if(mostrarErros(e.target,[['valor',rValor]])) return;
+    const valor=rValor.valor;
     const contaId=fd.get('contaId');
     c.pagamentosFeitos=round2((c.pagamentosFeitos||0)+valor); tocar(c);
     if(contaId){
@@ -1882,8 +2073,8 @@ function pagarFaturaCartao(cartaoId){
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>Pagar fatura</h2>
     <p class="hint">Cartão "${escapeHtml(c.nome)}" · dívida total ${fmtMoney(divida)}. O valor sai da conta escolhida e abate a dívida do cartão.</p>
-    <form id="formPagarFatura">
-      <div class="field mt16"><label>Valor pago (R$)</label><input required type="number" step="0.01" min="0.01" max="${divida}" name="valor" value="${sugerido}"></div>
+    <form id="formPagarFatura" novalidate>
+      <div class="field mt16"><label>Valor pago (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" max="${divida}" name="valor" value="${sugerido}"></div>
       <div class="field"><label>Pago com qual conta?</label>
         <select name="contaId">${state.contas.map(ct=>`<option value="${ct.id}" ${ct.id===c.contaId?'selected':''}>${escapeHtml(ct.nome)}</option>`).join('')}</select>
       </div>
@@ -1897,8 +2088,12 @@ function pagarFaturaCartao(cartaoId){
   document.getElementById('formPagarFatura').addEventListener('submit',e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    state.transacoes.push(tocar({id:uuid(),descricao:`Pagamento fatura ${c.nome}`,data:fd.get('data'),
-      valor:round2(parseFloat(fd.get('valor'))),tipo:'transferencia',categoriaId:null,metodoPagamento:'transferencia',
+    const rValor=validarValor(fd.get('valor'),{rotulo:'Valor pago',max:Math.max(0.01,divida)});
+    const rData=validarData(fd.get('data'),{rotulo:'Data do pagamento'});
+    if(mostrarErros(e.target,[['valor',rValor],['data',rData]])) return;
+    if(rData.aviso && !confirm(rData.aviso)) return;
+    state.transacoes.push(tocar({id:uuid(),descricao:`Pagamento fatura ${c.nome}`,data:rData.valor,
+      valor:rValor.valor,tipo:'transferencia',categoriaId:null,metodoPagamento:'transferencia',
       contaId:fd.get('contaId'),contaDestinoId:null,cartaoId,pagamentoFatura:true,status:'pago',notas:''}));
     salvarEstado(); fecharModal(); renderTudo(); toast('Fatura paga.');
   });
@@ -1916,10 +2111,12 @@ function renderParcelamentos(){
   const hoje=todayStr();
   const listaGrupos=Object.values(grupos).map(arr=>{
     arr.sort((a,b)=>a.parcelaAtual-b.parcelaAtual);
-    const pagas=arr.filter(t=>t.data<=hoje).length;
-    const total=arr.length;
-    const restante=arr.filter(t=>t.data>hoje).reduce((s,t)=>s+t.valor,0);
-    const prox=arr.find(t=>t.data>hoje);
+    // O grupo pode começar na parcela N+1 (compra cadastrada com parcelas já pagas): o total vem de parcelaTotal.
+    const total=Math.max(arr[0].parcelaTotal||0,arr.length);
+    const aVencer=arr.filter(t=>t.data>hoje);
+    const pagas=total-aVencer.length;
+    const restante=aVencer.reduce((s,t)=>s+t.valor,0);
+    const prox=aVencer[0];
     return {desc:arr[0].descricao,pagas,total,restante,prox,valorTotal:arr.reduce((s,t)=>s+t.valor,0)};
   }).filter(g=>g.pagas<g.total);
 
@@ -1988,7 +2185,7 @@ function abrirFormParcelamento(){
   form.metodoPagamento.value='credito';
   form.metodoPagamento.dispatchEvent(new Event('change'));
   const parcelasInput=form.querySelector('[name=parcelas]');
-  if(parcelasInput){ parcelasInput.value=2; parcelasInput.focus(); parcelasInput.select(); }
+  if(parcelasInput){ parcelasInput.value=2; parcelasInput.dispatchEvent(new Event('input')); parcelasInput.focus(); parcelasInput.select(); }
 }
 function abrirFormRecorrencia(id){
   const r=id? state.recorrencias.find(x=>x.id===id):null;
@@ -1996,15 +2193,15 @@ function abrirFormRecorrencia(id){
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>${r?'Editar fixo':'Novo fixo'}</h2>
-    <form id="formRecorrencia">
+    <form id="formRecorrencia" novalidate>
       <div class="seg" id="segTipoRec">
         <button type="button" data-v="despesa" class="${tipo==='despesa'?'active':''}">Despesa</button>
         <button type="button" data-v="receita" class="${tipo==='receita'?'active':''}">Receita</button>
       </div>
-      <div class="field mt16"><label>Descrição</label><input required name="descricao" value="${r?escapeHtml(r.descricao):''}" placeholder="Ex: Salário, Aluguel, Telefone..."></div>
+      <div class="field mt16"><label>Descrição</label><input required name="descricao" maxlength="60" autocomplete="off" value="${r?escapeHtml(r.descricao):''}" placeholder="Ex: Salário, Aluguel, Telefone..."></div>
       <div class="row2">
-        <div class="field"><label>Valor (R$)</label><input required type="number" step="0.01" min="0" name="valor" value="${r?r.valor:''}"></div>
-        <div class="field"><label>Todo dia</label><input required type="number" min="1" max="31" name="diaDoMes" value="${r?r.diaDoMes:'5'}"></div>
+        <div class="field"><label>Valor (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" name="valor" value="${r?r.valor:''}"></div>
+        <div class="field"><label>Todo dia</label><input required type="number" inputmode="numeric" min="1" max="31" step="1" name="diaDoMes" value="${r?r.diaDoMes:'5'}"></div>
       </div>
       <div class="field"><label>Repete</label>
         <div class="seg" id="segModoRec">
@@ -2014,7 +2211,7 @@ function abrirFormRecorrencia(id){
       </div>
       <div class="row2">
         <div class="field" id="campoQtdMesesRec"><label>A cada quantos meses</label>
-          <input type="number" min="1" max="11" name="intervaloMesesQtd" value="${r&&r.intervaloMeses<12?r.intervaloMeses:1}">
+          <input type="number" inputmode="numeric" min="1" max="11" step="1" name="intervaloMesesQtd" value="${r&&r.intervaloMeses<12?r.intervaloMeses:1}">
         </div>
         <div class="field ${(!r||r.intervaloMeses===1)?'hidden':''}" id="campoMesInicioRec"><label>A partir de</label>
           <input type="month" name="mesInicio" value="${r&&r.mesInicio?r.mesInicio:anoMesStr(new Date().getFullYear(),new Date().getMonth())}">
@@ -2085,19 +2282,31 @@ function abrirFormRecorrencia(id){
     const tipoSel=form.querySelector('#segTipoRec button.active').dataset.v;
     const metodo=fd.get('metodoPagamento');
     const usaCartao = metodo==='credito' || metodo==='debito';
-    if(usaCartao && !fd.get('cartaoId')){
-      alert(`Cadastre um cartão de ${metodo==='credito'?'crédito':'débito'} em Contas antes de criar esse fixo.`);
-      return;
-    }
-    const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
     const modoRepeticao=form.querySelector('#segModoRec button.active').dataset.v;
-    const intervaloMeses = modoRepeticao==='ano' ? 12 : Math.min(11,Math.max(1,parseInt(fd.get('intervaloMesesQtd'))||1));
+    const rDesc=validarTexto(fd.get('descricao'),{rotulo:'Descrição',min:2,max:60});
+    const rValor=validarValor(fd.get('valor'),{rotulo:'Valor'});
+    const rDia=validarInteiro(fd.get('diaDoMes'),{rotulo:'Dia do mês',min:1,max:31});
+    const checks=[['descricao',rDesc],['valor',rValor],['diaDoMes',rDia]];
+    let intervaloMeses=12;
+    if(modoRepeticao!=='ano'){
+      const rInt=validarInteiro(fd.get('intervaloMesesQtd'),{rotulo:'A cada quantos meses',min:1,max:11});
+      checks.push(['intervaloMesesQtd',rInt]); intervaloMeses=rInt.valor||1;
+    }
+    let mesInicio=null;
+    if(intervaloMeses>1){
+      mesInicio=String(fd.get('mesInicio')||'');
+      if(!/^(20\d\d|2100)-(0[1-9]|1[0-2])$/.test(mesInicio)) checks.push(['mesInicio',{erro:'A partir de: informe um mês válido.'}]);
+    }
+    if(usaCartao && !fd.get('cartaoId')) checks.push(['cartaoId',{erro:`Cartão: cadastre um cartão de ${metodo==='credito'?'crédito':'débito'} em Contas antes de criar esse fixo.`}]);
+    if(!usaCartao && !fd.get('contaId')) checks.push(['contaId',{erro:'Conta: cadastre uma conta em Contas antes de criar esse fixo.'}]);
+    if(mostrarErros(form,checks)) return;
+    const cartaoSelecionado = usaCartao ? cartaoById(fd.get('cartaoId')) : null;
     const dados={
-      descricao:fd.get('descricao').trim(),
-      valor:round2(parseFloat(fd.get('valor'))),
-      diaDoMes:Math.min(31,Math.max(1,parseInt(fd.get('diaDoMes')))),
+      descricao:rDesc.valor,
+      valor:rValor.valor,
+      diaDoMes:rDia.valor,
       intervaloMeses,
-      mesInicio: intervaloMeses>1 ? fd.get('mesInicio') : null,
+      mesInicio: intervaloMeses>1 ? mesInicio : null,
       tipo:tipoSel,
       categoriaId:fd.get('categoriaId'),
       metodoPagamento:metodo,
@@ -2127,15 +2336,15 @@ function abrirFormFinanciamento(){
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>Novo financiamento</h2>
-    <form id="formFinanciamento">
-      <div class="field"><label>Descrição</label><input required name="descricao" placeholder="Ex: Financiamento do carro"></div>
-      <div class="field"><label>Instituição</label><input name="instituicao" placeholder="Ex: Banco XYZ"></div>
+    <form id="formFinanciamento" novalidate>
+      <div class="field"><label>Descrição</label><input required name="descricao" maxlength="60" autocomplete="off" placeholder="Ex: Financiamento do carro"></div>
+      <div class="field"><label>Instituição</label><input name="instituicao" maxlength="40" autocomplete="off" placeholder="Ex: Banco XYZ"></div>
       <div class="row2">
-        <div class="field"><label>Valor da parcela (R$)</label><input required type="number" step="0.01" name="valorParcela"></div>
-        <div class="field"><label>Nº total de parcelas</label><input required type="number" min="1" name="parcelasTotal"></div>
+        <div class="field"><label>Valor da parcela (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" name="valorParcela"></div>
+        <div class="field"><label>Nº total de parcelas</label><input required type="number" inputmode="numeric" min="1" max="600" step="1" name="parcelasTotal"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Parcelas já pagas</label><input required type="number" min="0" name="parcelasPagas" value="0"></div>
+        <div class="field"><label>Parcelas já pagas</label><input required type="number" inputmode="numeric" min="0" step="1" name="parcelasPagas" value="0"></div>
         <div class="field"><label>Conta para debitar pagamentos</label>
           <select name="contaId">${state.contas.map(c=>`<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('')}</select>
         </div>
@@ -2149,10 +2358,26 @@ function abrirFormFinanciamento(){
   document.getElementById('formFinanciamento').addEventListener('submit',e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    state.financiamentos.push(tocar({id:uuid(),descricao:fd.get('descricao').trim(),instituicao:fd.get('instituicao').trim(),
-      valorParcela:round2(parseFloat(fd.get('valorParcela'))),parcelasTotal:parseInt(fd.get('parcelasTotal')),
-      parcelasPagas:parseInt(fd.get('parcelasPagas')),contaId:fd.get('contaId'),dataInicio:todayStr()}));
-    salvarEstado(); fecharModal(); renderTudo(); toast('Financiamento adicionado.');
+    const rDesc=validarTexto(fd.get('descricao'),{rotulo:'Descrição',min:2,max:60});
+    const rInst=validarTexto(fd.get('instituicao'),{rotulo:'Instituição',max:40,opcional:true});
+    const rParc=validarValor(fd.get('valorParcela'),{rotulo:'Valor da parcela'});
+    const rTotal=validarInteiro(fd.get('parcelasTotal'),{rotulo:'Total de parcelas',min:1,max:600});
+    const checks=[['descricao',rDesc],['instituicao',rInst],['valorParcela',rParc],['parcelasTotal',rTotal]];
+    let pagas=0;
+    if(!rTotal.erro){
+      const s=String(fd.get('parcelasPagas')||'').trim();
+      if(s!=='' && !/^\d+$/.test(s)) checks.push(['parcelasPagas',{erro:'Parcelas já pagas: use um número inteiro, sem sinal e sem vírgula.'}]);
+      else{
+        pagas=s===''?0:parseInt(s,10);
+        if(pagas>rTotal.valor) checks.push(['parcelasPagas',{erro:`Parcelas já pagas: não dá para ter pago ${pagas} de ${rTotal.valor} parcelas.`}]);
+      }
+    }
+    if(!fd.get('contaId')) checks.push(['contaId',{erro:'Conta: cadastre uma conta em Contas antes.'}]);
+    if(mostrarErros(e.target,checks)) return;
+    state.financiamentos.push(tocar({id:uuid(),descricao:rDesc.valor,instituicao:rInst.valor,
+      valorParcela:rParc.valor,parcelasTotal:rTotal.valor,
+      parcelasPagas:pagas,contaId:fd.get('contaId'),dataInicio:todayStr()}));
+    salvarEstado(); fecharModal(); renderTudo(); toast(pagas===rTotal.valor?'Financiamento adicionado (já quitado).':'Financiamento adicionado.');
   });
   abrirModal();
 }
@@ -2213,17 +2438,17 @@ function abrirFormInvestimento(id){
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
     <h2>${i?'Editar investimento':'Novo investimento'}</h2>
-    <form id="formInvestimento">
-      <div class="field"><label>Nome</label><input required name="nome" value="${i?escapeHtml(i.nome):''}" placeholder="Ex: Tesouro Selic, PETR4..."></div>
+    <form id="formInvestimento" novalidate>
+      <div class="field"><label>Nome</label><input required name="nome" maxlength="40" autocomplete="off" value="${i?escapeHtml(i.nome):''}" placeholder="Ex: Tesouro Selic, PETR4..."></div>
       <div class="field"><label>Tipo</label>
         <select name="tipo">
           ${['Renda Fixa','Ações','Fundos','Cripto','Poupança','Outro'].map(t=>`<option ${i&&i.tipo===t?'selected':''}>${t}</option>`).join('')}
         </select>
       </div>
-      <div class="field"><label>Instituição/Corretora</label><input name="instituicao" value="${i?escapeHtml(i.instituicao||''):''}"></div>
+      <div class="field"><label>Instituição/Corretora</label><input name="instituicao" maxlength="40" autocomplete="off" value="${i?escapeHtml(i.instituicao||''):''}"></div>
       <div class="row2">
-        <div class="field"><label>Valor aportado (R$)</label><input required type="number" step="0.01" name="valorAportado" value="${i?i.valorAportado:''}"></div>
-        <div class="field"><label>Valor atual (R$)</label><input required type="number" step="0.01" name="valorAtual" value="${i?i.valorAtual:''}"></div>
+        <div class="field"><label>Valor aportado (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0" name="valorAportado" value="${i?i.valorAportado:''}"></div>
+        <div class="field"><label>Valor atual (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0" name="valorAtual" value="${i?i.valorAtual:''}"></div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
@@ -2234,8 +2459,15 @@ function abrirFormInvestimento(id){
   document.getElementById('formInvestimento').addEventListener('submit',e=>{
     e.preventDefault();
     const fd=new FormData(e.target);
-    const data={nome:fd.get('nome').trim(),tipo:fd.get('tipo'),instituicao:fd.get('instituicao').trim(),
-      valorAportado:round2(parseFloat(fd.get('valorAportado'))),valorAtual:round2(parseFloat(fd.get('valorAtual')))};
+    const rNome=validarTexto(fd.get('nome'),{rotulo:'Nome',max:40});
+    const rInst=validarTexto(fd.get('instituicao'),{rotulo:'Instituição',max:40,opcional:true});
+    const rAport=validarValor(fd.get('valorAportado'),{rotulo:'Valor aportado',min:0});
+    const rAtual=validarValor(fd.get('valorAtual'),{rotulo:'Valor atual',min:0});
+    const checks=[['nome',rNome],['instituicao',rInst],['valorAportado',rAport],['valorAtual',rAtual]];
+    if(!rNome.erro && nomeDuplicado(state.investimentos,rNome.valor,i&&i.id)) checks.push(['nome',{erro:'Nome: já existe um investimento com esse nome.'}]);
+    if(mostrarErros(e.target,checks)) return;
+    const data={nome:rNome.valor,tipo:fd.get('tipo'),instituicao:rInst.valor,
+      valorAportado:rAport.valor,valorAtual:rAtual.valor};
     if(i){ Object.assign(i,data); tocar(i); } else { state.investimentos.push(tocar({id:uuid(),...data,data:todayStr()})); }
     salvarEstado(); fecharModal(); renderTudo(); toast('Investimento salvo.');
   });
@@ -3069,7 +3301,7 @@ async function carregarPainelConvites(){
 }
 async function liberarEmail(email,pedidoUid){
   const e=emailChave(email);
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)){ alert('Digite um e-mail válido.'); return; }
+  if(e.length>254 || !/^[^\s@<>{}\\`]+@[^\s@<>{}\\`]+\.[^\s@<>{}\\`]+$/.test(e)){ alert('Digite um e-mail válido.'); return; }
   try{
     await window.fbSetDoc(window.fbDoc(window.fbDb,'convites',e),{por:ADMIN_UID,em:nowISO()});
     if(pedidoUid) await window.fbDeleteDoc(window.fbDoc(window.fbDb,'pedidos',pedidoUid));
