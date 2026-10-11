@@ -74,3 +74,9 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - Conferido no preview (1024 e 375 px; claro e escuro nos gráficos): aba Gráficos, painel do Início (rosca, colunas, evolução), Config e Categorias, validação de conta/cartão/fixo/financiamento/investimento/renomear, parcelamento 12x com 3 pagas.
 - **Teste do usuário**: parcelar no crédito com parcelas já pagas e conferir Fixos (ex.: 3/12) e a fatura; tocar nas fatias no celular; abrir cada seção de Config; barra inferior com 7 abas no seu celular.
 - Não conferido: tema escuro na Config, tablet, leitor de tela (o tema escuro dos gráficos foi conferido).
+
+## Rodada de 2026-10-11 (2) — subcategorias e X dos modais
+- Feito: subcategorias (Config, lançamento, fixo, lista, filtro, gráfico), X centralizado, regra do Firestore, 26 testes.
+- Conferido no preview: criar 3 subs, duplicado/tag recusados, lançar com e sem sub, editar, trocar de categoria zera, excluir sub em uso, gráfico por subcategoria, X em 3 modais (desvio 0 px).
+- **Antes do push**: republicar `firestore.rules` (Firestore → Regras → colar → Publicar) e depois criar uma subcategoria no app e conferir Config → Sincronização ("Verificar agora" sem erro).
+- Teste do usuário: lançar "iFood" com subcategoria, ver no gráfico por Subcategoria, abrir em outro aparelho e conferir que as subs apareceram.

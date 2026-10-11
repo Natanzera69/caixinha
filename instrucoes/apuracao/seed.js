@@ -27,6 +27,8 @@ window.__seed = (tab) => {
   state.recorrencias = [
     { id: 'r1', descricao: 'Salário', valor: 5200, tipo: 'receita', categoriaId: c('Salário'), metodoPagamento: 'pix', contaId: 'c2', diaDoMes: 5, intervaloMeses: 1, ativo: true, mesesGerados: ['2026-10'] },
     { id: 'r2', descricao: 'Revisão do patinete', valor: 150, tipo: 'despesa', categoriaId: c('Transporte'), metodoPagamento: 'pix', contaId: 'c1', diaDoMes: 10, intervaloMeses: 3, mesInicio: '2026-10', ativo: false, mesesGerados: [] }];
+  state.subcategorias = [{ id: 'sc1', categoriaId: c('Mercado'), nome: 'Besteira' }, { id: 'sc2', categoriaId: c('Mercado'), nome: 'Feira' }];
+  state.transacoes.forEach(t => { if (t.id === 't2') t.subcategoriaId = 'sc2'; });
   state.investimentos = [{ id: 'i1', nome: 'Tesouro Selic', tipo: 'Renda Fixa', instituicao: 'Nubank', valorAportado: 8000, valorAtual: 8250 }];
   state.categorias.forEach(x => { if (x.tipo === 'despesa' && ['Mercado', 'Lazer', 'Transporte'].includes(x.nome)) x.orcamentoMensal = { Mercado: 500, Lazer: 400, Transporte: 280 }[x.nome]; });
   estados.pj = estados.pj || { empresaNome: 'Minha Empresa' };

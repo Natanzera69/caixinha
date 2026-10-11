@@ -57,3 +57,4 @@ Veja também: [01-arquitetura.md](01-arquitetura.md) (decisões técnicas), [02-
 - **Início** e **Gráficos** usam o mesmo painel (`htmlPainelGrafico`): tipo, agrupamento e movimento ficam salvos por aparelho. Sem biblioteca externa.
 - **Config** é uma sanfona (uma seção aberta por vez). Categorias: busca e grupos Despesas/Receitas.
 - Compra parcelada aceita "parcelas já pagas" (só cria as que faltam).
+- **Subcategorias** (opcionais): Config → Categorias → "N subs" em cada categoria; escolhidas no lançamento/fixo; aparecem na lista e no gráfico "Subcategoria".

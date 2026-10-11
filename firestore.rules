@@ -15,7 +15,7 @@ service cloud.firestore {
       allow read, delete: if dono();
       // request.resource só existe em create/update, por isso a checagem de campos fica separada da leitura
       allow create, update: if dono() && request.resource.data.keys().hasOnly(
-        ['version','contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias','config','_tombstones','empresaNome']);
+        ['version','contas','cartoes','categorias','subcategorias','transacoes','financiamentos','investimentos','recorrencias','config','_tombstones','empresaNome']);
     }
 
     // Lista de e-mails liberados: só o admin mexe; a própria pessoa só consegue ler o seu (pro app saber que foi liberada).

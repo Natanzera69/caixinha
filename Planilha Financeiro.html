@@ -196,7 +196,8 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .seg button.active{background:var(--primary);color:var(--primary-ink);box-shadow:0 2px 0 var(--primary-deep);font-weight:800;}
 .modal-actions{display:flex;gap:8px;margin-top:16px;}
 .modal-actions .btn{flex:1;} .modal-actions .btn-primary{flex:2;}
-.close-x{position:absolute;top:16px;right:14px;width:34px;height:34px;border-radius:10px;background:var(--surface-2);border:none;font-size:.95rem;color:var(--text-muted);}
+.close-x{position:absolute;top:16px;right:14px;width:34px;height:34px;border-radius:10px;background:var(--surface-2);border:none;font-size:.95rem;color:var(--text-muted);display:flex;align-items:center;justify-content:center;padding:0;line-height:0;}
+.close-x .px-ico.sm,.close-x .px-ico{margin:0;vertical-align:0;width:14px;height:14px;}
 
 /* ---------- Toast ---------- */
 #toastRoot{position:fixed;left:0;right:0;bottom:calc(96px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:300;pointer-events:none;}
@@ -432,6 +433,18 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .nova-cat{margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--border);}
 @media(pointer:coarse){.mini{width:44px;height:44px;} .chip{min-height:40px;}}
 
+/* ---------- Subcategorias ---------- */
+.cat-item{border-radius:10px;}
+.subs-btn{flex:none;border:1.5px solid var(--border);background:var(--surface-2);color:var(--text-muted);border-radius:999px;padding:5px 11px;font-size:.76rem;font-weight:800;min-height:32px;}
+.subs-btn.on{background:var(--primary-soft);border-color:var(--primary);color:var(--primary);}
+.subs-panel{margin:2px 6px 10px 22px;padding:10px 12px;border-left:3px solid var(--border);background:var(--surface-2);border-radius:0 12px 12px 0;}
+.sub-row{display:flex;align-items:center;gap:8px;padding:2px 0;}
+.sub-add{display:flex;gap:8px;align-items:flex-start;margin-top:8px;flex-wrap:wrap;}
+.sub-add .erro-campo{flex-basis:100%;}
+.graf-cat{margin:0 0 10px;}
+.graf-cat select{padding:9px 12px;}
+@media(pointer:coarse){.subs-btn{min-height:44px;padding:0 14px;}}
+
 </style>
 </head>
 <body>
@@ -647,7 +660,13 @@ function categoriasDefaultPJ(){
   rec.forEach(([nome,icone])=>out.push({id:uuid(),nome,icone,tipo:'receita',cor:PALETA[i++%PALETA.length],updatedAt:nowISO()}));
   return out;
 }
-const CHAVES_SINCRONIZAVEIS=['contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias'];
+const CHAVES_SINCRONIZAVEIS=['contas','cartoes','categorias','subcategorias','transacoes','financiamentos','investimentos','recorrencias'];
+// Subcategorias ainda exigem a chave nas regras do Firestore: enquanto a lista está vazia, ela nem é enviada (quem não usa o recurso não depende da regra nova).
+function paraNuvem(estado){
+  const o={...estado,config:{...estado.config,pinHash:null}};
+  if(!o.subcategorias || !o.subcategorias.length) delete o.subcategorias;
+  return JSON.parse(JSON.stringify(o)); // JSON limpa `undefined` (Firestore rejeita)
+}
 
 function estadoInicial(){
   return {
@@ -655,6 +674,7 @@ function estadoInicial(){
     contas:[{id:uuid(),nome:'Carteira',tipo:'dinheiro',saldoInicial:0,cor:PALETA[0],ativo:true,updatedAt:nowISO()}],
     cartoes:[],
     categorias:categoriasDefault(),
+    subcategorias:[],
     transacoes:[],
     financiamentos:[],
     investimentos:[],
@@ -670,6 +690,7 @@ function estadoInicialPJ(nomeEmpresa){
     contas:[],
     cartoes:[],
     categorias:categoriasDefaultPJ(),
+    subcategorias:[],
     transacoes:[],
     financiamentos:[],
     investimentos:[],
@@ -679,10 +700,11 @@ function estadoInicialPJ(nomeEmpresa){
   };
 }
 function estadoVazio(){
-  return {version:1,contas:[],cartoes:[],categorias:[],transacoes:[],financiamentos:[],investimentos:[],recorrencias:[],config:{pinHash:null},_tombstones:{}};
+  return {version:1,contas:[],cartoes:[],categorias:[],subcategorias:[],transacoes:[],financiamentos:[],investimentos:[],recorrencias:[],config:{pinHash:null},_tombstones:{}};
 }
 function normalizarEstado(alvo){
   if(!alvo.financiamentos) alvo.financiamentos=[];
+  if(!Array.isArray(alvo.subcategorias)) alvo.subcategorias=[];
   if(!alvo.recorrencias) alvo.recorrencias=[];
   alvo.recorrencias.forEach(r=>{ if(!r.intervaloMeses) r.intervaloMeses=1; });
   if(!alvo._tombstones) alvo._tombstones={};
@@ -1161,7 +1183,7 @@ function wizardFinalizarPJ(){
   salvarPerfilLocal('pj');
   if(window.fbUid){
     const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj'));
-    window.fbSetDoc(ref, JSON.parse(JSON.stringify({...estados.pj, config:{...estados.pj.config, pinHash:null}}))).catch(()=>{});
+    window.fbSetDoc(ref, paraNuvem(estados.pj)).catch(()=>{});
   }
   renderSeletorPerfil();
   toast('Perfil PJ criado! Troque pra ele no seletor do topo quando quiser.');
@@ -1233,6 +1255,10 @@ function alternarPerfilComLoading(){
 function contaById(id){ return state.contas.find(c=>c.id===id); }
 function cartaoById(id){ return state.cartoes.find(c=>c.id===id); }
 function categoriaById(id){ return state.categorias.find(c=>c.id===id); }
+function subcategoriaById(id){ return id? (state.subcategorias||[]).find(x=>x.id===id) : null; }
+function subcategoriasDe(catId){ return (state.subcategorias||[]).filter(x=>x.categoriaId===catId).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')); }
+// Subcategoria só vale se ainda existe e pertence à categoria do lançamento (outro aparelho pode ter apagado/movido).
+function subcategoriaValida(catId,subId){ const x=subcategoriaById(subId); return x && x.categoriaId===catId ? x : null; }
 function metodosPagamento(){
   return [
     {id:'dinheiro',nome:'Dinheiro',icone:'💵'},
@@ -1370,7 +1396,7 @@ function gerarTransacoesRecorrentesDoMes(ano,mesIdx){
     const id=`rec_${r.id}_${anoMes}`;
     const jaExiste=state.transacoes.some(t=>t.id===id) || (state._tombstones.transacoes||[]).some(t=>t.id===id);
     if(!jaExiste) state.transacoes.push(tocar({id,descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
-      categoriaId:r.categoriaId,metodoPagamento:r.metodoPagamento,
+      categoriaId:r.categoriaId,...(r.subcategoriaId?{subcategoriaId:r.subcategoriaId}:{}),metodoPagamento:r.metodoPagamento,
       contaId:r.contaId, cartaoId:r.cartaoId,
       status:data<=hoje?'pago':'pendente',recorrenciaId:r.id,notas:''}));
     if(!r.mesesGerados) r.mesesGerados=[];
@@ -1389,7 +1415,7 @@ function transacoesEfetivasDoMes(ano,mesIdx){
     const dia=Math.min(r.diaDoMes||1, ultimoDiaDoMes(ano,mesIdx));
     const data=`${anoMes}-${pad2(dia)}`;
     return {id:'virtual_'+r.id+'_'+anoMes,descricao:r.descricao,data,valor:r.valor,tipo:r.tipo,
-      categoriaId:r.categoriaId,metodoPagamento:r.metodoPagamento,contaId:r.contaId,cartaoId:r.cartaoId,
+      categoriaId:r.categoriaId,subcategoriaId:r.subcategoriaId||null,metodoPagamento:r.metodoPagamento,contaId:r.contaId,cartaoId:r.cartaoId,
       status:'pendente',recorrenciaId:r.id,virtual:true};
   });
   return [...reais, ...virtuais];
@@ -1477,7 +1503,7 @@ function renderDashboard(){
         </div>`).join('')}</div>`:''}
 
     <div class="two-col mt16">
-      <div class="card">${htmlPainelGrafico('inicio',['categoria','banco','pagamento','evolucao'])}</div>
+      <div class="card">${htmlPainelGrafico('inicio',['categoria','subcategoria','banco','pagamento','evolucao'])}</div>
       <div class="card">
         <h3>Próximos vencimentos</h3>
         ${proximosVenc.length?`<div class="list mt8">${proximosVenc.map(t=>`
@@ -1536,7 +1562,7 @@ function renderCartoesResumo(){
 // Sem biblioteca: agregações puras (testadas em node) + SVG/HTML próprios. Dois lugares usam o mesmo painel: Início e aba Gráficos.
 const GRAF_KEY='planilhaFinanceiro_graf';
 const GRAF_OUTROS_COR='#9a9e8a';
-const GRAF_DIMS={categoria:'Categoria',banco:'Banco',pagamento:'Pagamento',evolucao:'Evolução'};
+const GRAF_DIMS={categoria:'Categoria',subcategoria:'Subcategoria',banco:'Banco',pagamento:'Pagamento',evolucao:'Evolução'};
 const GRAF_TIPOS={rosca:'Rosca',pizza:'Pizza',barras:'Barras',colunas:'Colunas',linha:'Linha'};
 const GRAF_TIPOS_DIST=['rosca','pizza','barras','colunas'];
 const GRAF_TIPOS_EVO=['colunas','linha'];
@@ -1544,7 +1570,7 @@ const MESES_CURTOS=['jan','fev','mar','abr','mai','jun','jul','ago','set','out',
 
 // Preferência de visual por aparelho (não sincroniza): chave do painel → {dim,tipo,mov,evoTipo,meses}
 const grafEstado=(()=>{
-  const padrao=()=>({dim:'categoria',tipo:'rosca',mov:'despesa',evoTipo:'colunas',meses:6});
+  const padrao=()=>({dim:'categoria',tipo:'rosca',mov:'despesa',evoTipo:'colunas',meses:6,cat:''});
   let salvo={}; try{ salvo=JSON.parse(localStorage.getItem(GRAF_KEY)||'{}')||{}; }catch(e){ salvo={}; }
   const r={};
   ['inicio','graf','evo'].forEach(k=>{
@@ -1554,7 +1580,8 @@ const grafEstado=(()=>{
       tipo: GRAF_TIPOS_DIST.includes(s.tipo)? s.tipo : p.tipo,
       mov: s.mov==='receita'? 'receita' : 'despesa',
       evoTipo: GRAF_TIPOS_EVO.includes(s.evoTipo)? s.evoTipo : p.evoTipo,
-      meses: s.meses===12? 12 : 6
+      meses: s.meses===12? 12 : 6,
+      cat: typeof s.cat==='string' && s.cat.length<=80 ? s.cat : ''
     };
   });
   return r;
@@ -1577,12 +1604,17 @@ function tetoGrafico(v){
   return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e;
 }
 // Soma despesas (ou receitas) do mês por categoria, banco ou forma de pagamento; maior primeiro.
-function distribuicaoDoMes(doMes,dim,mov){
+function distribuicaoDoMes(doMes,dim,mov,catFiltro){
   const mapa=new Map();
   doMes.forEach(t=>{
     if(t.tipo!==mov) return;
     let nome,cor=null,icone='';
-    if(dim==='categoria'){ const c=categoriaById(t.categoriaId); nome=c?c.nome:'Sem categoria'; cor=c?c.cor:GRAF_OUTROS_COR; icone=c?c.icone:''; }
+    if(dim==='subcategoria'){
+      // fatias "Categoria › Sub"; o que não tem subcategoria entra só com o nome da categoria (o total continua batendo)
+      if(catFiltro && t.categoriaId!==catFiltro) return;
+      const c=categoriaById(t.categoriaId), sb=subcategoriaValida(t.categoriaId,t.subcategoriaId);
+      nome = c? (sb? c.nome+' › '+sb.nome : c.nome) : 'Sem categoria'; icone=c?c.icone:'';
+    }else if(dim==='categoria'){ const c=categoriaById(t.categoriaId); nome=c?c.nome:'Sem categoria'; cor=c?c.cor:GRAF_OUTROS_COR; icone=c?c.icone:''; }
     else if(dim==='banco'){
       const id=t.metodoPagamento==='credito'? (cartaoById(t.cartaoId)||{}).contaId : t.contaId;
       const c=id?contaById(id):null; if(!c) return; nome=c.nome; cor=c.cor;
@@ -1730,8 +1762,8 @@ function svgEvolucao(serie,tipo){
   });
   return `<svg class="graf-svg wide" viewBox="0 0 ${W} ${H}" role="img" aria-label="Receitas e despesas por mês">${grade}${corpo}${rotulos}${alvos}</svg>`;
 }
-function htmlCorpoDistribuicao(dim,mov,tipo,doMes){
-  const itens=distribuicaoDoMes(doMes,dim,mov);
+function htmlCorpoDistribuicao(dim,mov,tipo,doMes,cat){
+  const itens=distribuicaoDoMes(doMes,dim,mov,cat);
   const total=round2(itens.reduce((s,x)=>s+x.valor,0));
   if(!itens.length||total<=0) return `<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/chart.svg)"></span></span>${mov==='receita'?'Sem receitas':'Sem despesas'} ${dim==='banco'?'vinculadas a uma conta ':''}neste mês.</div>`;
   const g=agruparOutros(itens,7);
@@ -1750,6 +1782,7 @@ function htmlCorpoEvolucao(est){
 }
 // Painel interativo. chave: 'inicio' | 'graf' | 'evo'. dims: quais visões o painel oferece.
 function htmlPainelGrafico(chave,dims){
+  dims=dims.filter(d=>d!=='subcategoria' || (state.subcategorias||[]).length>0); // a visão só aparece depois de criar a 1ª subcategoria
   const est=grafEstado[chave];
   const dim=dims.includes(est.dim)?est.dim:dims[0];
   const ehEvo=dim==='evolucao';
@@ -1757,15 +1790,18 @@ function htmlPainelGrafico(chave,dims){
   const tipo=ehEvo?est.evoTipo:est.tipo;
   const mesNome=rotuloMesLongo(anoMesStr(mesDash.getFullYear(),mesDash.getMonth()));
   const titulo=ehEvo?`Receitas × despesas — ${est.meses} meses`:`${est.mov==='receita'?'Receitas':'Despesas'} por ${GRAF_DIMS[dim].toLowerCase()} — ${mesNome}`;
+  const catsComSub=state.categorias.filter(c=>c.tipo===est.mov && subcategoriasDe(c.id).length);
+  const catSel=catsComSub.some(c=>c.id===est.cat)?est.cat:'';
+  const filtroCat=dim==='subcategoria' && catsComSub.length>1?`<div class="field graf-cat"><select aria-label="Filtrar por categoria" onchange="grafSet('${chave}','cat',this.value)"><option value="">Todas as categorias</option>${catsComSub.map(c=>`<option value="${c.id}" ${c.id===catSel?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select></div>`:'';
   const chips=dims.length>1?`<div class="chips" role="group" aria-label="Agrupar por">${dims.map(d=>`<button type="button" class="chip ${d===dim?'active':''}" onclick="grafSet('${chave}','dim','${d}')">${GRAF_DIMS[d]}</button>`).join('')}</div>`:'';
   const movSeg=ehEvo?`<div class="seg seg-sm" role="group" aria-label="Período"><button type="button" class="${est.meses===6?'active':''}" onclick="grafSet('${chave}','meses',6)">6 meses</button><button type="button" class="${est.meses===12?'active':''}" onclick="grafSet('${chave}','meses',12)">12 meses</button></div>`
     :`<div class="seg seg-sm" role="group" aria-label="Tipo de movimento"><button type="button" class="${est.mov==='despesa'?'active':''}" onclick="grafSet('${chave}','mov','despesa')">Despesas</button><button type="button" class="${est.mov==='receita'?'active':''}" onclick="grafSet('${chave}','mov','receita')">Receitas</button></div>`;
   const tipoSeg=`<div class="seg seg-sm graf-tipos" role="group" aria-label="Tipo de gráfico">${tipos.map(t=>`<button type="button" class="${t===tipo?'active':''}" onclick="grafSet('${chave}','tipo','${t}')">${GRAF_TIPOS[t]}</button>`).join('')}</div>`;
   const doMes=ehEvo?null:transacoesEfetivasDoMes(mesDash.getFullYear(),mesDash.getMonth());
-  const corpo=ehEvo?htmlCorpoEvolucao(est):htmlCorpoDistribuicao(dim,est.mov,tipo,doMes);
+  const corpo=ehEvo?htmlCorpoEvolucao(est):htmlCorpoDistribuicao(dim,est.mov,tipo,doMes,catSel);
   return `<div class="graf-painel" data-chave="${chave}" data-dims="${dims.join(',')}">
     <div class="graf-head"><h3>${escapeHtml(titulo)}</h3>${movSeg}</div>
-    ${chips}${tipoSeg}
+    ${chips}${filtroCat}${tipoSeg}
     <div class="graf-area">${corpo}</div>
   </div>`;
 }
@@ -1777,6 +1813,7 @@ function grafSet(chave,campo,valor){
   else if(campo==='tipo'){ const evo=(dims.includes(est.dim)?est.dim:dims[0])==='evolucao'; if(evo && GRAF_TIPOS_EVO.includes(valor)) est.evoTipo=valor; else if(!evo && GRAF_TIPOS_DIST.includes(valor)) est.tipo=valor; }
   else if(campo==='mov' && (valor==='despesa'||valor==='receita')) est.mov=valor;
   else if(campo==='meses' && (valor===6||valor===12)) est.meses=valor;
+  else if(campo==='cat') est.cat = categoriaById(valor)? valor : '';
   grafSalvar();
   if(painel){ const c=document.createElement('div'); c.innerHTML=htmlPainelGrafico(chave,dims); painel.replaceWith(c.firstElementChild); }
 }
@@ -1882,14 +1919,14 @@ function renderGraficos(){
       ${kpi('Média por dia',k.mediaDia===null?'—':fmtMoney(k.mediaDia),'de despesa')}
       ${kpi('Maior gasto',k.maior?fmtMoney(k.maior.valor):'—',k.maior?escapeHtml(k.maior.descricao):'')}
     </div>
-    <div class="card mt16">${htmlPainelGrafico('graf',['categoria','banco','pagamento'])}</div>
+    <div class="card mt16">${htmlPainelGrafico('graf',['categoria','subcategoria','banco','pagamento'])}</div>
     <div class="card mt16">${htmlPainelGrafico('evo',['evolucao'])}</div>
     <div class="two-col mt16">
       <div class="card"><h3>Comparado com ${escapeHtml(nomeAnt)}</h3>${htmlComparacaoMeses(catAtual,catAnt,nomeAnt)}</div>
       <div class="card"><h3>Maiores gastos do mês</h3>
-        ${top.length?`<div class="list mt8">${top.map(t=>{ const c=categoriaById(t.categoriaId); return `
+        ${top.length?`<div class="list mt8">${top.map(t=>{ const c=categoriaById(t.categoriaId), sb=subcategoriaValida(t.categoriaId,t.subcategoriaId); return `
           <div class="row-card"><div class="row-icon">${c?iconeSeguro(c.icone):'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>'}</div>
-            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}</div><div class="t2">${fmtDate(t.data)}${c?' · '+escapeHtml(c.nome):''}</div></div>
+            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}</div><div class="t2">${fmtDate(t.data)}${c?' · '+escapeHtml(c.nome)+(sb?' › '+escapeHtml(sb.nome):''):''}</div></div>
             <div class="row-value expense">${fmtMoney(t.valor)}</div></div>`; }).join('')}</div>`
         :'<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/receipt.svg)"></span></span>Sem despesas neste mês.</div>'}
       </div>
@@ -1921,7 +1958,7 @@ function htmlOrcamentoProgresso(catAtual){
 
 /* ================= Lançamentos ================= */
 const LANC_PAGINA=200;
-let filtroLanc={q:'',tipo:'',conta:'',categoria:'',periodo:'mes',mes:todayStr().slice(0,7),limite:LANC_PAGINA};
+let filtroLanc={q:'',tipo:'',conta:'',categoria:'',subcategoria:'',periodo:'mes',mes:todayStr().slice(0,7),limite:LANC_PAGINA};
 // Lógica pura (testável em node): filtra e ordena. conta = 'c:<id>' (conta) ou 'k:<id>' (cartão).
 function filtrarLancamentos(lista,f,hoje){
   const q=semAcento(f.q||'').trim();
@@ -1932,6 +1969,7 @@ function filtrarLancamentos(lista,f,hoje){
     if(ini30 && (t.data<ini30 || t.data>hoje)) return false;
     if(f.tipo && t.tipo!==f.tipo) return false;
     if(f.categoria && t.categoriaId!==f.categoria) return false;
+    if(f.subcategoria && t.subcategoriaId!==f.subcategoria) return false;
     if(f.conta){
       const id=f.conta.slice(2);
       if(f.conta[0]==='c' ? !(t.contaId===id||t.contaDestinoId===id) : t.cartaoId!==id) return false;
@@ -1989,6 +2027,7 @@ function renderLancamentos(){
       <select id="lancCategoria" aria-label="Categoria">
         <option value="">Todas as categorias</option>${catOpt}
       </select>
+      <select id="lancSub" class="hidden" aria-label="Subcategoria"></select>
     </div>
     <div class="totais-lanc" id="lancTotais"></div>
     <div class="list" id="lancLista"></div>
@@ -1997,12 +2036,22 @@ function renderLancamentos(){
   const qEl=document.getElementById('lancQ'), tEl=document.getElementById('lancTipo'), pEl=document.getElementById('lancPeriodo'), cEl=document.getElementById('lancConta'), gEl=document.getElementById('lancCategoria');
   qEl.value=filtroLanc.q; tEl.value=filtroLanc.tipo; pEl.value=filtroLanc.periodo; cEl.value=filtroLanc.conta; gEl.value=filtroLanc.categoria;
   if(cEl.value!==filtroLanc.conta) filtroLanc.conta=''; // conta/cartão que não existe mais
-  if(gEl.value!==filtroLanc.categoria) filtroLanc.categoria='';
+  if(gEl.value!==filtroLanc.categoria){ filtroLanc.categoria=''; filtroLanc.subcategoria=''; }
+  const sEl=document.getElementById('lancSub');
+  const montarSub=()=>{ // o filtro de subcategoria só aparece quando a categoria filtrada tem subcategorias
+    const subs=filtroLanc.categoria? subcategoriasDe(filtroLanc.categoria) : [];
+    sEl.innerHTML='<option value="">Todas as subcategorias</option>'+subs.map(x=>`<option value="${x.id}">${escapeHtml(x.nome)}</option>`).join('');
+    sEl.value=filtroLanc.subcategoria;
+    if(sEl.value!==filtroLanc.subcategoria) filtroLanc.subcategoria='';
+    sEl.classList.toggle('hidden',!subs.length);
+  };
+  montarSub();
   const mudou=()=>{ filtroLanc.limite=LANC_PAGINA; renderListaLancamentos(); };
   qEl.oninput=()=>{ filtroLanc.q=qEl.value; mudou(); };
   tEl.onchange=()=>{ filtroLanc.tipo=tEl.value; mudou(); };
   cEl.onchange=()=>{ filtroLanc.conta=cEl.value; mudou(); };
-  gEl.onchange=()=>{ filtroLanc.categoria=gEl.value; mudou(); };
+  gEl.onchange=()=>{ filtroLanc.categoria=gEl.value; filtroLanc.subcategoria=''; montarSub(); mudou(); };
+  sEl.onchange=()=>{ filtroLanc.subcategoria=sEl.value; mudou(); };
   pEl.onchange=()=>{ filtroLanc.periodo=pEl.value; filtroLanc.limite=LANC_PAGINA; renderLancamentos(); }; // mostra/esconde a navegação de mês
   renderListaLancamentos();
 }
@@ -2016,6 +2065,7 @@ function renderListaLancamentos(){
   const visiveis=lista.slice(0,filtroLanc.limite);
   cont.innerHTML=visiveis.map(t=>{
     const cat=categoriaById(t.categoriaId);
+    const sub=subcategoriaValida(t.categoriaId,t.subcategoriaId);
     const met=metodoInfo(t.metodoPagamento);
     const local = (t.metodoPagamento==='credito'||t.metodoPagamento==='debito')? cartaoById(t.cartaoId)?.nome : contaById(t.contaId)?.nome;
     const sinalCls=t.tipo==='receita'?'income':t.tipo==='despesa'?'expense':'';
@@ -2027,7 +2077,7 @@ function renderListaLancamentos(){
       <div class="row-icon">${cat?iconeSeguro(cat.icone):(t.tipo==='transferencia'?'<span class="px-ico" style="--i:url(assets/icons/repeat.svg)"></span>':'<span class="px-ico" style="--i:url(assets/icons/dot.svg)"></span>')}</div>
       <div class="row-main">
         <div class="t1">${escapeHtml(t.descricao)}${t.parcelaTotal?` <span class="muted">(${t.parcelaAtual}/${t.parcelaTotal})</span>`:''}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>fixo</span>':''}</div>
-        <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''}${fat?' · fatura '+fat:''} <span class="badge ${st}">${st}</span></div>
+        <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''}${sub?' · '+escapeHtml(cat.nome)+' › '+escapeHtml(sub.nome):''}${fat?' · fatura '+fat:''} <span class="badge ${st}">${st}</span></div>
       </div>
       <div class="row-value ${sinalCls}">${sinal}${fmtMoney(t.valor)}</div>
       <div class="row-actions">
@@ -2068,6 +2118,15 @@ function validarParcelasPagas(raw,total){
   if(n===total) return {erro:`Parcelas já pagas: se as ${total} já foram pagas, não há o que lançar (use no máximo ${total-1}).`};
   return {valor:n};
 }
+// Preenche o select "Subcategoria (opcional)" com as subs da categoria; some quando a categoria não tem nenhuma.
+function preencherSubcategorias(form,idCampo,catId,subId){
+  const campo=document.getElementById(idCampo), sel=form.subcategoriaId;
+  if(!campo||!sel) return;
+  const subs=catId? subcategoriasDe(catId) : [];
+  sel.innerHTML='<option value="">— nenhuma —</option>'+subs.map(x=>`<option value="${x.id}">${escapeHtml(x.nome)}</option>`).join('');
+  sel.value=subs.some(x=>x.id===subId)? subId : '';
+  campo.classList.toggle('hidden',!subs.length);
+}
 function abrirFormTransacao(id){
   const t=id? state.transacoes.find(x=>x.id===id) : null;
   const tipo=t?t.tipo:'despesa';
@@ -2087,6 +2146,9 @@ function abrirFormTransacao(id){
       </div>
       <div class="field" id="campoCategoria"><label>Categoria</label>
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo||tipo==='transferencia').map(c=>`<option value="${c.id}" ${t&&t.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
+      </div>
+      <div class="field hidden" id="campoSub"><label>Subcategoria (opcional)</label>
+        <select name="subcategoriaId"></select>
       </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodo">${metodosPagamento().map(m=>`<option value="${m.id}" ${t&&t.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
@@ -2123,8 +2185,11 @@ function abrirFormTransacao(id){
     document.getElementById('campoCategoria').classList.toggle('hidden',v==='transferencia');
     const catSel=form.categoriaId;
     catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('');
+    preencherSubcategorias(form,'campoSub',v==='transferencia'?'':catSel.value,'');
   }
   segBtns.forEach(b=>b.addEventListener('click',()=>setTipo(b.dataset.v)));
+  form.categoriaId.addEventListener('change',()=>preencherSubcategorias(form,'campoSub',form.categoriaId.value,''));
+  preencherSubcategorias(form,'campoSub',tipo==='transferencia'?'':form.categoriaId.value,t&&t.subcategoriaId);
   function metodoMudou(){
     const v=form.metodoPagamento.value;
     const usaCartao = v==='credito' || v==='debito';
@@ -2205,6 +2270,7 @@ function abrirFormTransacao(id){
       data:rData.valor,
       tipo:tipoSel,
       categoriaId: tipoSel==='transferencia'? null : fd.get('categoriaId'),
+      subcategoriaId: tipoSel==='transferencia'? null : (subcategoriaValida(fd.get('categoriaId'),fd.get('subcategoriaId'))||{id:null}).id,
       metodoPagamento:metodo,
       contaId: metodo==='credito'? null : (metodo==='debito'? (cartaoSelecionado?cartaoSelecionado.contaId:null) : fd.get('contaId')),
       contaDestinoId: tipoSel==='transferencia'? fd.get('contaDestinoId') : null,
@@ -2358,6 +2424,9 @@ function usosDe(tipo,id,st){
   }else if(tipo==='categoria'){
     add(n(st.transacoes,t=>t.categoriaId===id),'lançamento','lançamentos');
     add(n(st.recorrencias,r=>r.categoriaId===id),'fixo','fixos');
+  }else if(tipo==='subcategoria'){
+    add(n(st.transacoes,t=>t.subcategoriaId===id),'lançamento','lançamentos');
+    add(n(st.recorrencias,r=>r.subcategoriaId===id),'fixo','fixos');
   }
   return u;
 }
@@ -2659,6 +2728,9 @@ function abrirFormRecorrencia(id){
       <div class="field"><label>Categoria</label>
         <select name="categoriaId">${state.categorias.filter(c=>c.tipo===tipo).map(c=>`<option value="${c.id}" ${r&&r.categoriaId===c.id?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
       </div>
+      <div class="field hidden" id="campoSubRec"><label>Subcategoria (opcional)</label>
+        <select name="subcategoriaId"></select>
+      </div>
       <div class="field"><label>Método de pagamento</label>
         <select name="metodoPagamento" id="selMetodoRec">${metodosPagamento().filter(m=>m.id!=='transferencia').map(m=>`<option value="${m.id}" ${r&&r.metodoPagamento===m.id?'selected':''}>${m.nome}</option>`).join('')}</select>
       </div>
@@ -2681,8 +2753,11 @@ function abrirFormRecorrencia(id){
     segBtns.forEach(b=>b.classList.toggle('active',b.dataset.v===v));
     const catSel=form.categoriaId;
     catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('');
+    preencherSubcategorias(form,'campoSubRec',catSel.value,'');
   }
   segBtns.forEach(b=>b.addEventListener('click',()=>setTipo(b.dataset.v)));
+  form.categoriaId.addEventListener('change',()=>preencherSubcategorias(form,'campoSubRec',form.categoriaId.value,''));
+  preencherSubcategorias(form,'campoSubRec',form.categoriaId.value,r&&r.subcategoriaId);
   function metodoMudou(){
     const v=form.metodoPagamento.value;
     const usaCartao = v==='credito' || v==='debito';
@@ -2748,6 +2823,7 @@ function abrirFormRecorrencia(id){
       mesInicio: intervaloMeses>1 ? mesInicio : null,
       tipo:tipoSel,
       categoriaId:fd.get('categoriaId'),
+      subcategoriaId:(subcategoriaValida(fd.get('categoriaId'),fd.get('subcategoriaId'))||{id:null}).id,
       metodoPagamento:metodo,
       contaId: metodo==='credito'? null : (metodo==='debito'? (cartaoSelecionado?cartaoSelecionado.contaId:null) : fd.get('contaId')),
       cartaoId: usaCartao? fd.get('cartaoId') : null,
@@ -2924,6 +3000,7 @@ let secaoConfigAberta=null;
 let catBusca='';
 let orcSoComLimite=false;
 const catAbertos={despesa:false,receita:false};
+const catSubAbertas=new Set(); // categorias com a lista de subcategorias aberta (só na memória da página)
 function htmlSecaoConfig(id,icone,titulo,resumo,corpo){
   const aberta=secaoConfigAberta===id;
   return `<section class="acc ${aberta?'open':''}" data-sec="${id}">
@@ -2951,15 +3028,23 @@ function htmlCategoriasConfig(){
   const grupos=[['despesa','Despesas'],['receita','Receitas']];
   const html=grupos.map(([tipo,rot])=>{
     const todas=state.categorias.filter(c=>c.tipo===tipo);
-    const lista=q? todas.filter(c=>semAcento(c.nome).includes(q)) : todas;
+    const subDaBusca=c=>subcategoriasDe(c.id).some(x=>semAcento(x.nome).includes(q));
+    const lista=q? todas.filter(c=>semAcento(c.nome).includes(q)||subDaBusca(c)) : todas;
     const aberto=q? lista.length>0 : catAbertos[tipo];
-    const linhas=lista.map(c=>`
+    const linhas=lista.map(c=>{
+      const subs=subcategoriasDe(c.id);
+      const painel=catSubAbertas.has(c.id) || (q && !semAcento(c.nome).includes(q) && subDaBusca(c));
+      return `
+      <div class="cat-item">
       <div class="cat-row">
         <button type="button" class="icon-input" title="Trocar ícone" aria-label="Trocar ícone de ${escapeHtml(c.nome)}" onclick="abrirSeletorIcone(e=>definirIconeCategoria('${c.id}',e))">${iconeSeguro(c.icone)}</button>
         <span class="cat-nome">${escapeHtml(c.nome)}</span>
+        <button type="button" class="subs-btn ${painel?'on':''}" aria-expanded="${painel}" aria-label="Subcategorias de ${escapeHtml(c.nome)}" onclick="alternarSubsCategoria('${c.id}')">${subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '+ sub'}</button>
         <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(c.nome)}" onclick="abrirFormRenomearCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
         <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(c.nome)}" onclick="excluirCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
-      </div>`).join('');
+      </div>
+      ${painel? htmlSubsPainel(c,subs) : ''}
+      </div>`;}).join('');
     return `<details class="cat-grupo" ${aberto?'open':''} ontoggle="catAbertos['${tipo}']=this.open">
       <summary><span>${rot}</span><span class="qtd">${q?lista.length+' de '+todas.length:todas.length}</span></summary>
       <div class="cat-lista">${linhas||'<p class="hint" style="margin:8px">Nenhuma categoria encontrada.</p>'}</div>
@@ -2970,6 +3055,70 @@ function htmlCategoriasConfig(){
 function filtrarCategoriasConfig(v){
   catBusca=String(v||'').slice(0,40);
   const box=document.getElementById('catLista'); if(box) box.innerHTML=htmlCategoriasConfig();
+}
+/* ---- Subcategorias (opcionais): vivem dentro de uma categoria ---- */
+function htmlSubsPainel(c,subs){
+  return `<div class="subs-panel">
+    <p class="hint" style="margin:0 0 8px">Subcategorias de <b>${escapeHtml(c.nome)}</b> são opcionais: um lançamento pode ter só a categoria.</p>
+    ${subs.map(x=>`
+      <div class="sub-row">
+        <span class="cat-nome">${escapeHtml(x.nome)}</span>
+        <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(x.nome)}" onclick="abrirFormRenomearSub('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
+        <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(x.nome)}" onclick="excluirSubcategoria('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+      </div>`).join('')}
+    <div class="sub-add">
+      <div class="field" style="flex:1;margin:0"><input type="text" id="subNome_${c.id}" maxlength="40" autocomplete="off" placeholder="Nova subcategoria (ex.: iFood)" aria-label="Nova subcategoria de ${escapeHtml(c.nome)}" onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarSubcategoria('${c.id}')}"></div>
+      <button type="button" class="btn btn-sm btn-primary" onclick="adicionarSubcategoria('${c.id}')">+ Adicionar</button>
+    </div>
+  </div>`;
+}
+function alternarSubsCategoria(id){
+  if(catSubAbertas.has(id)) catSubAbertas.delete(id); else catSubAbertas.add(id);
+  filtrarCategoriasConfig(catBusca);
+  if(catSubAbertas.has(id)){ const i=document.getElementById('subNome_'+id); if(i && !matchMedia('(pointer:coarse)').matches) i.focus(); }
+}
+function adicionarSubcategoria(catId){
+  const c=categoriaById(catId), inp=document.getElementById('subNome_'+catId); if(!c||!inp) return;
+  const r=validarTexto(inp.value,{rotulo:'Nome',max:40});
+  const checks=[[inp,r]];
+  if(!r.erro && nomeDuplicado(subcategoriasDe(catId),r.valor,null)) checks.push([inp,{erro:'Nome: já existe essa subcategoria em '+c.nome+'.'}]);
+  if(mostrarErros(inp.closest('.subs-panel'),checks)) return;
+  if(!state.subcategorias) state.subcategorias=[];
+  state.subcategorias.push(tocar({id:uuid(),categoriaId:catId,nome:r.valor}));
+  catSubAbertas.add(catId);
+  salvarEstado(); renderConfig(); toast('Subcategoria adicionada.');
+  const novo=document.getElementById('subNome_'+catId); if(novo && !matchMedia('(pointer:coarse)').matches) novo.focus(); // dá para digitar várias em seguida
+}
+function abrirFormRenomearSub(id){
+  const x=subcategoriaById(id); if(!x) return;
+  document.getElementById('modalCard').innerHTML=`
+    <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
+    <h2>Renomear subcategoria</h2>
+    <form id="formRenomearSub" novalidate>
+      <div class="field"><label>Nome</label><input required name="nome" maxlength="40" autocomplete="off" value="${escapeHtml(x.nome)}"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>`;
+  document.getElementById('formRenomearSub').addEventListener('submit',e=>{
+    e.preventDefault();
+    const f=e.target, r=validarTexto(f.nome.value,{rotulo:'Nome',max:40});
+    const checks=[['nome',r]];
+    if(!r.erro && nomeDuplicado(subcategoriasDe(x.categoriaId),r.valor,x.id)) checks.push(['nome',{erro:'Nome: já existe essa subcategoria nesta categoria.'}]);
+    if(mostrarErros(f,checks)) return;
+    x.nome=r.valor; tocar(x); salvarEstado(); fecharModal(); renderTudo(); toast('Subcategoria renomeada.');
+  });
+  abrirModal();
+}
+// Opcional por natureza: os lançamentos continuam na categoria, só perdem a subcategoria (e isso sincroniza).
+function excluirSubcategoria(id){
+  const x=subcategoriaById(id); if(!x) return;
+  const usos=usosDe('subcategoria',id);
+  if(!confirm(usos.length? `Excluir "${x.nome}"? ${usos.join(' e ')} continuam na categoria, só perdem a subcategoria.` : `Excluir a subcategoria "${x.nome}"?`)) return;
+  state.transacoes.forEach(t=>{ if(t.subcategoriaId===id){ t.subcategoriaId=null; tocar(t); } });
+  (state.recorrencias||[]).forEach(r=>{ if(r.subcategoriaId===id){ r.subcategoriaId=null; tocar(r); } });
+  excluirRegistro('subcategorias', id); salvarEstado(); renderConfig(); toast('Subcategoria excluída.');
 }
 function htmlOrcamentosConfig(){
   const lista=state.categorias.filter(c=>c.tipo==='despesa' && (!orcSoComLimite || c.orcamentoMensal>0));
@@ -3129,7 +3278,10 @@ function abrirFormRenomearCategoria(id){
 }
 function excluirCategoria(id){
   const usos=usosDe('categoria',id); if(usos.length){ alert('Essa categoria ainda está em uso por: '+usos.join(', ')+'. Edite ou exclua antes.'); return; }
-  if(!confirm('Excluir esta categoria?')) return;
+  const subs=subcategoriasDe(id);
+  if(!confirm(subs.length? `Excluir esta categoria e as ${subs.length} subcategoria${subs.length===1?'':'s'} dela?` : 'Excluir esta categoria?')) return;
+  subs.forEach(x=>excluirRegistro('subcategorias', x.id));
+  catSubAbertas.delete(id);
   excluirRegistro('categorias', id); salvarEstado(); renderConfig(); toast('Categoria excluída.');
 }
 function definirOrcamento(categoriaId,input){
@@ -3183,7 +3335,7 @@ async function fazerBackup(){
   toast('Backup baixado — mova para a pasta backups.');
 }
 /* ---- Restaurar backup: valida, mostra o resumo e JUNTA com o que já existe (nunca apaga) ---- */
-const CHAVES_PERFIL=['version','contas','cartoes','categorias','transacoes','financiamentos','investimentos','recorrencias','config','_tombstones','empresaNome'];
+const CHAVES_PERFIL=['version','contas','cartoes','categorias','subcategorias','transacoes','financiamentos','investimentos','recorrencias','config','_tombstones','empresaNome'];
 const BACKUP_MAX_BYTES=8*1024*1024;
 // Aceita só objeto com listas de registros que tenham id; descarta chaves desconhecidas (mesma lista das regras do Firestore).
 function sanearPerfilBackup(p){
@@ -3271,7 +3423,7 @@ function confirmarRestauracao(){
   salvarEstado(); // sincroniza o perfil ativo
   if(window.fbUid && estados.pj){ // o outro perfil também sobe pra nuvem
     const outro=perfilAtivo==='pj'?'pessoal':'pj';
-    try{ window.fbSetDoc(window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,outro)),JSON.parse(JSON.stringify({...estados[outro],config:{...estados[outro].config,pinHash:null}}))).catch(()=>{}); }catch(e){}
+    try{ window.fbSetDoc(window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,outro)),paraNuvem(estados[outro])).catch(()=>{}); }catch(e){}
   }
   fecharModal(); renderTudo(); toast('Backup restaurado.');
 }
@@ -3696,7 +3848,7 @@ async function enviarPerfilNuvem(perfil){
   }
   try{
     const ref=window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,perfil));
-    await window.fbSetDoc(ref, JSON.parse(JSON.stringify({...alvo, config:{...alvo.config, pinHash:null}}))); // JSON limpa `undefined` (Firestore rejeita)
+    await window.fbSetDoc(ref, paraNuvem(alvo));
     st.ultimoEnvio=new Date(); st.ultimoErro=null; st.nuvemExiste=true; st.nuvemResumo=resumoPerfil(alvo);
     return true;
   }catch(e){

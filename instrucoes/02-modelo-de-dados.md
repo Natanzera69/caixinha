@@ -62,3 +62,8 @@ Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...
 - `saldoConta(id)`, `saldoTotalContas()`, `faturaAtualCartao(id)`, `divendaTotalCartao(id)`, `totalDividaCartoes()`, `totalInvestimentos()`, `patrimonioLiquido()` = contas + investimentos − dívida em cartões
 - `gastosPorBancoDoMes(doMes)` — soma as despesas do mês por conta/banco: despesas diretas (`t.contaId`) + despesas em cartão de crédito atribuídas via `cartaoById(t.cartaoId).contaId` (débito já cai direto em `contaId`, não precisa desse passo extra). Cartões emprestados (`titular` set) não têm `contaId`, então nunca entram nessa lista — o gasto neles some em "você deve" em vez de em algum banco.
 - `vocDeveNoCartao(id)` — só faz sentido pra cartão emprestado: soma de todas as despesas nele (qualquer método) menos `pagamentosFeitos`. `divendaTotalCartao(id)` chama essa função automaticamente quando o cartão tem `titular`.
+
+## Subcategorias (2026-10-11)
+- `subcategorias: [{id, categoriaId, nome, updatedAt}]` por perfil; sincroniza como as demais listas (merge por id + `updatedAt`, lápides em `_tombstones.subcategorias`).
+- `transacoes[].subcategoriaId` e `recorrencias[].subcategoriaId`: opcionais (`null`/ausente = sem subcategoria). Vale só se a sub existe **e** pertence à `categoriaId` do registro (`subcategoriaValida`).
+- Chave nova exige `'subcategorias'` no `hasOnly` de `firestore.rules`; `paraNuvem()` omite a lista quando vazia.

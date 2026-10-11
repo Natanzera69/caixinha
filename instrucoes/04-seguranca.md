@@ -9,7 +9,7 @@
 Regras em [`../firestore.rules`](../firestore.rules) (fonte da verdade; para valer, colar no console e Publicar).
 - `convites/{email}` — lista de e-mails liberados (minúsculos). Só o admin escreve/lista; cada pessoa só lê o próprio.
 - `pedidos/{uid}` — "Pedir acesso" (só e-mail + data). Só o admin lê/apaga.
-- `users/...` — só o dono, com **e-mail verificado** e e-mail na lista de convites. Campos permitidos limitados (`hasOnly`).
+- `users/...` — só o dono, com **e-mail verificado** e e-mail na lista de convites. Campos permitidos limitados (`hasOnly`, inclui `subcategorias` desde 2026-10-11 — **republicar as regras** ao atualizar o app).
 - Admin = UID `NhPFnx6kkrcYhmveMiyodO9fApW2` (Natan). No app aparece Config → **Convites** só para ele.
 - Remover o convite corta o acesso na hora; os dados continuam no Firestore até serem apagados no console.
 

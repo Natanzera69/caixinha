@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-11 (2) — Subcategorias opcionais e X dos modais centralizado
+
+- **Subcategorias** (opcionais): cada categoria pode ter subcategorias (ex.: Alimentação › iFood, Besteira da namorada, Almoço do serviço). Nenhum lançamento é obrigado a ter uma; sem escolher, fica só na categoria.
+  - Config → Categorias: botão "N subs" / "+ sub" em cada categoria abre a lista com adicionar, renomear e excluir (a busca também acha pelo nome da subcategoria).
+  - Lançamento e fixo: campo "Subcategoria (opcional)" abaixo da categoria (só aparece se a categoria tem subs; trocar de categoria zera). Fixos geram lançamentos já com a subcategoria.
+  - Lançamentos: aparece "Categoria › Sub" na linha e há filtro por subcategoria quando a categoria filtrada tem subs. Maiores gastos também mostram.
+  - Gráficos: nova visão **Subcategoria** (aparece depois da 1ª criada), com filtro por categoria; o que não tem sub entra com o nome da categoria e o total continua batendo.
+  - Excluir subcategoria em uso: os lançamentos ficam na categoria e só perdem a subcategoria. Excluir categoria leva as subs junto (pede confirmação).
+  - Orçamento continua por categoria.
+- **Regras do Firestore**: `subcategorias` entrou na lista de campos permitidos de `users/{docId}` — **republicar `firestore.rules` no console**. Enquanto ninguém criar subcategoria, a lista vazia nem é enviada, então quem não usa o recurso não depende da regra nova (`paraNuvem`).
+- **X dos modais**: o ícone ficava deslocado por causa da margem de ícone de texto; agora o botão é flex e o ícone tem 14 px centralizado (conferido: desvio 0,00 px).
+- Testes: 26 casos (1 novo). Cache do service worker v8.
+
 ## 2026-10-11 — Validação de campos, parcelas já pagas, gráficos e Config em sanfona
 
 **Validação (todos os formulários e assistentes)**

@@ -17,8 +17,9 @@ function extrair(nome) {
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
-  'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes'];
-const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
+  'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
+  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem'];
+const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
 ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
@@ -270,5 +271,43 @@ t('Gráficos: série mensal soma receitas e despesas de cada mês (do mais antig
   eq(s.map(x => x.curto), ['ago', 'set', 'out']);
   assert.strictEqual(run('serieMensal(12,2026,0)').length, 12);                                                              // atravessa o ano
   assert.strictEqual(run('serieMensal(12,2026,0)')[0].ym, '2025-02');
+});
+t('Subcategorias: opcionais, validadas contra a categoria e sem quebrar a regra antiga do Firestore', () => {
+  ctx.state = Object.assign(novo(), {
+    categorias: [{ id: 'm', nome: 'Alimentação', cor: '#16842f' }, { id: 'l', nome: 'Lazer', cor: '#3f8ae0' }],
+    subcategorias: [{ id: 's1', categoriaId: 'm', nome: 'iFood' }, { id: 's2', categoriaId: 'm', nome: 'Almoço do serviço' }, { id: 's3', categoriaId: 'l', nome: 'Cinema' }]
+  });
+  eq(run("subcategoriasDe('m').map(x=>x.nome)"), ['Almoço do serviço', 'iFood']);                                   // ordem alfabética
+  assert.strictEqual(run("subcategoriaValida('m','s1')").nome, 'iFood');
+  assert.strictEqual(run("subcategoriaValida('l','s1')"), null);                                                    // sub de outra categoria não vale
+  assert.strictEqual(run("subcategoriaValida('m','sumiu')"), null); assert.strictEqual(run("subcategoriaValida('m',null)"), null);
+  // gráfico: fatias "Categoria › Sub"; o que não tem sub entra com o nome da categoria; total preservado; filtro por categoria
+  const T = (v, c, sub) => ({ tipo: 'despesa', valor: v, categoriaId: c, subcategoriaId: sub || null, metodoPagamento: 'pix', data: '2026-10-05' });
+  ctx.M = [T(100, 'm', 's1'), T(40, 'm', 's1'), T(60, 'm', 's2'), T(30, 'm'), T(20, 'l', 's3'), T(10, 'm', 's3')];       // último: sub de outra categoria → só Alimentação
+  const todas = run("distribuicaoDoMes(M,'subcategoria','despesa')");
+  eq(todas.map(x => [x.nome, x.valor]), [['Alimentação › iFood', 140], ['Alimentação › Almoço do serviço', 60], ['Alimentação', 40], ['Lazer › Cinema', 20]]);
+  assert.strictEqual(todas.reduce((a, x) => a + x.valor, 0), 260);
+  eq(run("distribuicaoDoMes(M,'subcategoria','despesa','m')").map(x => x.nome), ['Alimentação › iFood', 'Alimentação › Almoço do serviço', 'Alimentação']);
+  eq(run("distribuicaoDoMes(M,'categoria','despesa')").map(x => [x.nome, x.valor]), [['Alimentação', 240], ['Lazer', 20]]);   // a visão por categoria não muda
+  // usosDe
+  ctx.state.transacoes = [{ id: 't1', subcategoriaId: 's1' }, { id: 't2', subcategoriaId: 's1' }, { id: 't3' }];
+  ctx.state.recorrencias = [{ id: 'r1', subcategoriaId: 's1' }];
+  eq(run("usosDe('subcategoria','s1')"), ['2 lançamentos', '1 fixo']); eq(run("usosDe('subcategoria','s2')"), []);
+  // nuvem: lista vazia nem é enviada (regra antiga continua aceitando); com itens é enviada
+  const vazio = novo(); vazio.subcategorias = []; ctx.V = vazio;
+  assert.ok(!('subcategorias' in run('paraNuvem(V)'))); assert.strictEqual(run('paraNuvem(V)').config.pinHash, null);
+  assert.strictEqual(run('paraNuvem(state)').subcategorias.length, 3);
+  // merge entre aparelhos: união por id, exclusão mais recente vence
+  const a = novo(), b = novo();
+  a.subcategorias = [{ id: 's1', categoriaId: 'm', nome: 'iFood', updatedAt: '2026-10-01T00:00:00Z' }];
+  b.subcategorias = [{ id: 's1', categoriaId: 'm', nome: 'iFood!', updatedAt: '2026-10-02T00:00:00Z' }, { id: 's9', categoriaId: 'm', nome: 'Padaria', updatedAt: '2026-10-02T00:00:00Z' }];
+  b._tombstones = { subcategorias: [{ id: 's7', updatedAt: '2026-10-03T00:00:00Z' }] };
+  a.subcategorias.push({ id: 's7', categoriaId: 'm', nome: 'Velha', updatedAt: '2026-10-01T00:00:00Z' });
+  ctx.A = a; ctx.B = b; run('mesclarEstadoEm(A,B)');
+  eq(a.subcategorias.map(x => x.id).sort(), ['s1', 's9']); assert.strictEqual(a.subcategorias.find(x => x.id === 's1').nome, 'iFood!');
+  // backup: aceita a lista nova, backup antigo sem ela vira lista vazia
+  ctx.BK = { formatoBackup: 2, pessoal: { contas: [], transacoes: [], subcategorias: [{ id: 'x', categoriaId: 'm', nome: 'ok' }, { nome: 'sem id' }, 5] } };
+  eq(run('lerObjetoBackup(BK).pessoal.subcategorias.map(x=>x.id)'), ['x']);
+  eq(run('lerObjetoBackup({contas:[],transacoes:[]}).pessoal.subcategorias'), []);
 });
 console.log(`\n${ok} testes passaram`);
