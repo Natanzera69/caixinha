@@ -1,10 +1,10 @@
 // Gera o pacote para o Claude Design: um mockup ESTÁTICO com as telas reais do app (HTML renderizado com os dados de seed.js),
 // o CSS real do site e as pastas de ícones. Não precisa de navegador: roda o script do app num sandbox com um "document" de mentira.
-// Uso (raiz do projeto):  node instrucoes/apuracao/gerar-mockup-design.js [pasta-de-saida]
-// Saída padrão: para-design/retoques/  (pasta ignorada pelo git)
+// Uso (raiz do projeto):  node ferramentas/gerar-mockup-design.js [pasta-de-saida]
+// Saída padrão: design/pacotes/retoques/  (pasta ignorada pelo git)
 const fs = require('fs'), path = require('path'), vm = require('vm');
-const raiz = path.resolve(__dirname, '..', '..');
-const saida = path.resolve(process.argv[2] || path.join(raiz, 'para-design', 'retoques'));
+const raiz = path.resolve(__dirname, '..');
+const saida = path.resolve(process.argv[2] || path.join(raiz, 'design', 'pacotes', 'retoques'));
 const html = fs.readFileSync(path.join(raiz, 'Planilha Financeiro.html'), 'utf8');
 const script = html.match(/<script>\n([\s\S]*?)<\/script>/)[1];
 const estilo = html.match(/<style>\n([\s\S]*?)<\/style>/)[1];

@@ -31,7 +31,7 @@ Só entra quem o admin liberar (Config → Convites). Detalhes, regras e checkli
 
 ## Ícones das categorias
 
-Escolhidos numa tabela de emojis com busca (Config → Categorias). A tabela (`assets/emojis-pt.js`) é gerada com `node instrucoes/apuracao/gerar-emojis.js` a partir de dados do Unicode (emoji-test) e do CLDR (nomes em português), © Unicode, Inc., sob a Unicode License v3.
+Escolhidos numa tabela de emojis com busca (Config → Categorias). A tabela (`assets/emojis-pt.js`) é gerada com `node ferramentas/gerar-emojis.js` a partir de dados do Unicode (emoji-test) e do CLDR (nomes em português), © Unicode, Inc., sob a Unicode License v3.
 
 ## Backup e restauração
 
@@ -41,12 +41,15 @@ Config → Backup: **Fazer backup** salva um .json com os dois perfis; **Restaur
 
 ```
 Economia/
-  Planilha Financeiro.html   <- o app em si
+  Planilha Financeiro.html   <- o app em si (fica na raiz: a URL do site e o service worker dependem disso)
   manifest.json, sw.js       <- suporte a PWA (instalar como app no Android)
-  assets/                    <- logo, ícones 8-bit (assets/icons), moeda girando e ícones do app (PNG 192/512)
-  icones/                    <- só os originais enviados pelo usuário (Icone.jpg, Logo.png)
+  firestore.rules            <- regras do banco (colar no console do Firebase e Publicar)
+  assets/                    <- logo, ícones 8-bit (assets/icons), moeda girando, ícones do app e emojis-pt.js
+  documentacao/              <- estas notas, mantidas pelo Claude entre sessões (changelog, checklist, pendências)
+  ferramentas/               <- serve.js (preview local), seed.js (dados falsos), teste-logica.js, gerar-emojis.js, gerar-mockup-design.js
+  design/originais/          <- só as artes originais enviadas pelo usuário (Icone.jpg, Logo.png)
+  design/pacotes/            <- pacotes gerados para o Claude Design (fora do git; `node ferramentas/gerar-mockup-design.js`)
   backups/                   <- snapshots .json gerados pelo botão "Fazer backup" (fora do git)
-  instrucoes/                <- esta pasta, mantida pelo Claude entre sessões
 ```
 
 Também é um repositório git, publicado em `github.com/Natanzera69/caixinha` e hospedado via GitHub Pages — qualquer alteração pedida ao Claude já sai publicada no site também (não é preciso repetir configuração nenhuma).

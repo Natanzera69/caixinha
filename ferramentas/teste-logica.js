@@ -1,8 +1,8 @@
 // Testes das regras de dados do Caixinha, sem navegador e sem Firebase.
-// Uso (raiz do projeto):  TZ=America/Sao_Paulo node instrucoes/apuracao/teste-logica.js
+// Uso (raiz do projeto):  TZ=America/Sao_Paulo node ferramentas/teste-logica.js
 // Extrai as funções do HTML pelo nome e roda em um sandbox com stubs.
 const fs = require('fs'), vm = require('vm'), assert = require('assert');
-const html = fs.readFileSync(require('path').resolve(__dirname, '../../Planilha Financeiro.html'), 'utf8');
+const html = fs.readFileSync(require('path').resolve(__dirname, '../Planilha Financeiro.html'), 'utf8');
 const script = html.match(/<script>\n([\s\S]*?)<\/script>/)[1];
 
 function extrair(nome) {
@@ -115,7 +115,7 @@ t('convite: e-mail vira chave minúscula sem espaços; ícone e cor são escapad
   assert.strictEqual(run("corSegura('red;background:url(x)')"), '#16842f');
 });
 t('tabela de emojis: grupos cheios, sem duplicados, sem tom de pele/bandeira de país, busca em português', () => {
-  const src = fs.readFileSync(require('path').resolve(__dirname, '../../assets/emojis-pt.js'), 'utf8');
+  const src = fs.readFileSync(require('path').resolve(__dirname, '../assets/emojis-pt.js'), 'utf8');
   const d = JSON.parse(src.slice(src.indexOf('{'), src.lastIndexOf('}') + 1)).grupos;
   assert.strictEqual(d[0].id, 'financas'); assert.ok(d.length >= 9);
   d.forEach(g => assert.ok(g.e.length > 20, g.id));

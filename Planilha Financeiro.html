@@ -445,6 +445,97 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .graf-cat select{padding:9px 12px;}
 @media(pointer:coarse){.subs-btn{min-height:44px;padding:0 14px;}}
 
+/* ==========================================================
+   Caixinha · retoques: listas (select) + animação de desbloqueio
+   Cole DEPOIS do CSS atual. Caminhos relativos à pasta assets/.
+   ========================================================== */
+
+/* ---------- 1. Select fechado (todos os navegadores) ---------- */
+html select:not([multiple]){
+  appearance:none;-webkit-appearance:none;
+  background-image:url(assets/icons/chevron.svg);background-repeat:no-repeat;background-position:right 12px center;background-size:12px;
+  padding-right:36px;color:var(--text);font:inherit;font-weight:600;cursor:pointer;
+  transition:border-color .12s,box-shadow .12s,transform .08s;
+}
+html.dark select:not([multiple]){background-image:url(assets/icons/chevron-dark.svg);}
+html select:not([multiple]):hover{border-color:var(--text-faint);}
+html select:not([multiple]):focus,html select:not([multiple]):focus-visible{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+@media(pointer:coarse){html select:not([multiple]){min-height:44px;}}
+
+/* ---------- 2. Lista aberta, no visual do Caixinha ----------
+   Chrome/Edge/Android 135+ (appearance:base-select). Safari/Firefox ignoram este bloco
+   e abrem a lista nativa (no iPhone é a roleta do sistema, que já é o melhor no toque). */
+@supports (appearance:base-select){
+  html select:not([multiple]){appearance:base-select;}
+  html select:not([multiple]):open{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
+  html select:not([multiple])::picker-icon{content:none;display:none;width:0;margin:0;}
+  html select:not([multiple]){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  html select:not([multiple]) > button{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  select::picker(select){
+    appearance:base-select;
+    background:var(--surface);color:var(--text);
+    border:2px solid var(--line);border-radius:14px;box-shadow:var(--shadow-pop);
+    padding:6px;margin:8px 0;
+    max-height:min(340px,60vh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+    opacity:0;translate:0 -6px;
+    transition:opacity .15s steps(3),translate .15s steps(3),overlay .15s allow-discrete,display .15s allow-discrete;
+  }
+  select:open::picker(select){opacity:1;translate:0 0;}
+  @starting-style{select:open::picker(select){opacity:0;translate:0 -6px;}}
+
+  select option{
+    display:flex;align-items:center;gap:10px;
+    min-height:42px;padding:9px 12px;border-radius:10px;
+    font:600 .95rem var(--font-body);color:var(--text);background:transparent;cursor:pointer;
+  }
+  select option:hover,select option:focus-visible{background:var(--surface-2);outline:none;}
+  select option:checked{background:var(--primary-soft);font-weight:800;}
+  select option::checkmark{
+    content:"";order:1;margin-left:auto;flex:none;width:12px;height:12px;background:var(--primary);
+    -webkit-mask:url(assets/icons/check.svg) center/contain no-repeat;mask:url(assets/icons/check.svg) center/contain no-repeat;
+  }
+  select option:disabled{opacity:.45;cursor:default;}
+  /* grupos (Contas / Cartões, Despesas / Receitas): rótulo em pixel */
+  select optgroup{
+    font:600 .74rem var(--font-pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+    padding:10px 8px 4px;
+  }
+  select optgroup + optgroup{border-top:1.5px dashed var(--border);margin-top:6px;}
+  select optgroup option{text-transform:none;letter-spacing:0;}
+  @media(pointer:coarse){select option{min-height:44px;}}
+}
+
+/* ---------- 3. Data / mês: ícone 8-bit no lugar do nativo ---------- */
+input[type=date]::-webkit-calendar-picker-indicator,input[type=month]::-webkit-calendar-picker-indicator{
+  background:url(assets/icons/calendar-ind.svg) center/14px no-repeat;width:16px;height:16px;cursor:pointer;opacity:1;color:transparent;
+}
+html.dark input[type=date]::-webkit-calendar-picker-indicator,html.dark input[type=month]::-webkit-calendar-picker-indicator{background-image:url(assets/icons/calendar-ind-dark.svg);}
+
+/* ---------- 4. Desbloqueio: PIN fica verde → cadeado abre → íris 8-bit revela o app ----------
+   JS mínimo: ao acertar o PIN, mostre o #app por baixo, adicione .unlocking no #lockScreen
+   e .app-enter no #app; no 'animationend' do #lockScreen (animationName 'cx-iris'), rode o
+   código que já esconde a tela e remova as classes. Duração total ≈ 1,15s. */
+#lockScreen.unlocking{pointer-events:none;animation:cx-iris .6s steps(12) .55s forwards;}
+@keyframes cx-iris{from{clip-path:circle(75% at 50% 50%);}to{clip-path:circle(0% at 50% 50%);}}
+#lockScreen.unlocking .pin-boxes>span{border-color:var(--primary);background:var(--primary-soft);animation:cx-hop .24s steps(3) both;}
+#lockScreen.unlocking .pin-boxes>span:nth-child(2){animation-delay:.05s;}
+#lockScreen.unlocking .pin-boxes>span:nth-child(3){animation-delay:.1s;}
+#lockScreen.unlocking .pin-boxes>span:nth-child(4){animation-delay:.15s;}
+#lockScreen.unlocking .pin-boxes>span:nth-child(n+5){animation-delay:.2s;}
+#lockScreen.unlocking .pin-boxes .px-dot{--c:var(--primary);}
+#lockScreen.unlocking .lock-card .emoji{background:var(--primary);animation:cx-hop .3s steps(3) .18s both;}
+#lockScreen.unlocking .lock-card .emoji .px-ico{--i:url(assets/icons/lock-open.svg) !important;color:#fff;}
+#lockScreen.unlocking .lock-card{animation:cx-card-out .28s cubic-bezier(.5,0,.75,0) .42s forwards;}
+@keyframes cx-hop{50%{transform:translateY(-6px);}}
+@keyframes cx-card-out{to{transform:scale(.9);opacity:0;}}
+#app.app-enter{animation:cx-app-in .6s cubic-bezier(.2,.8,.2,1) .55s both;}
+@keyframes cx-app-in{from{transform:scale(.97);}to{transform:none;}}
+@media(prefers-reduced-motion:reduce){
+  #lockScreen.unlocking{animation:cx-fade .2s forwards;}
+  #lockScreen.unlocking *,#app.app-enter{animation:none !important;}
+  @keyframes cx-fade{to{opacity:0;}}
+}
+
 </style>
 </head>
 <body>
@@ -833,12 +924,23 @@ async function tentarDesbloquear(){
   const hash=await hashTexto(input.value);
   if(hash===pinDoAparelho()){
     pinErros=0;
-    document.getElementById('lockScreen').classList.add('hidden');
+    const lock=document.getElementById('lockScreen'), app=document.getElementById('app');
     input.value=''; desenharPinBoxes();
     document.getElementById('lockError').textContent='';
-    if(!window.fbUid){ mostrarLogin(); return; } // PIN não substitui o login: sem sessão não abre o app
-    document.getElementById('app').classList.remove('hidden');
-    possivelmenteAbrirWizard();
+    if(!window.fbUid){ lock.classList.add('hidden'); mostrarLogin(); return; } // PIN não substitui o login: sem sessão não abre o app
+    app.classList.remove('hidden'); // o app fica visível POR BAIXO do lock enquanto a animação roda
+    lock.classList.add('unlocking'); app.classList.add('app-enter');
+    let acabou=false;
+    const fim=()=>{ // idempotente: animationend e o timer de segurança podem chamar os dois
+      if(acabou) return; acabou=true;
+      lock.classList.remove('unlocking'); app.classList.remove('app-enter');
+      lock.classList.add('hidden');
+      possivelmenteAbrirWizard();
+    };
+    lock.addEventListener('animationend',function h(e){
+      if(e.target===lock && (e.animationName==='cx-iris'||e.animationName==='cx-fade')){ lock.removeEventListener('animationend',h); fim(); }
+    });
+    setTimeout(fim,1600);
   }else{
     input.value=''; desenharPinBoxes();
     if(++pinErros>=5){ // errou demais: exige e-mail e senha (como app de banco)
@@ -3532,7 +3634,7 @@ async function instalarApp(){
 }
 
 /* ================= Seletor de ícones (emojis) =================
-   Dados em assets/emojis-pt.js (gerado por instrucoes/apuracao/gerar-emojis.js), carregados só quando o seletor abre. */
+   Dados em assets/emojis-pt.js (gerado por ferramentas/gerar-emojis.js), carregados só quando o seletor abre. */
 const EMOJI_RECENTES='planilhaFinanceiro_emojisRecentes';
 let emojiCb=null, emojiPromessa=null, emojiCanvas=null;
 function carregarEmojis(){

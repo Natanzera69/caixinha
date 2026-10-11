@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-10-11 (4) — Faxina e nova organização das pastas
+
+Nomes antigos citados no histórico abaixo → onde estão hoje:
+- `instrucoes/*.md` → `documentacao/` (`Mudanças Futuras.md` virou `documentacao/pendencias.md`; `apuracao/CHECKLIST.md` virou `documentacao/checklist-apuracao.md`)
+- `instrucoes/apuracao/*.js` → `ferramentas/`
+- `icones/Icone.jpg`, `icones/Logo.png` → `design/originais/` (o `LEIA-ME.txt` antigo foi removido)
+- `para-design/` e `Redesign Caixinha minimalista/` (pacotes já usados) foram para a Lixeira; os pacotes novos saem em `design/pacotes/` (fora do git)
+- Comandos: `node ferramentas/serve.js`, `node ferramentas/teste-logica.js`, `node ferramentas/gerar-mockup-design.js`.
+
+## 2026-10-11 (3) — Retoques V2 do Claude Design: listas e desbloqueio
+
+Só aparência (pacote "Redesign Caixinha minimalistaV2"):
+- **Listas (`<select>`)**: seta 8-bit no lugar da nativa, nos dois temas; no Chrome/Edge/Android a lista aberta ganha o visual do site (borda e sombra "pixel", opção escolhida em verde com V 8-bit, rótulos de grupo em Pixelify). Safari/iOS e Firefox abrem a lista nativa. Campos de data/mês ganham o ícone de calendário 8-bit.
+- **Desbloqueio do PIN**: ao acertar, as caixinhas ficam verdes, o cadeado abre e uma "íris" revela o app (~1,15 s; com "reduzir movimento" vira um fade). O app aparece por baixo e o aviso inicial só abre depois; PIN errado e o limite de 5 erros ficam iguais. Um temporizador de segurança (1,6 s) garante que a tela nunca fica presa.
+- 6 ícones novos em `assets/icons/` (chevron, chevron-dark, check, lock-open, calendar-ind, calendar-ind-dark). Cache do service worker v9.
+
 ## 2026-10-11 (2) — Subcategorias opcionais e X dos modais centralizado
 
 - **Subcategorias** (opcionais): cada categoria pode ter subcategorias (ex.: Alimentação › iFood, Besteira da namorada, Almoço do serviço). Nenhum lançamento é obrigado a ter uma; sem escolher, fica só na categoria.

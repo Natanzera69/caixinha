@@ -4,8 +4,8 @@ Contexto: o redesign "moeda 8-bit" foi aplicado em 2026-10-06 (ver `../03-change
 **caçar erros e ajustes finos**, sem refazer o que já ficou bom. Nada abaixo foi verificado ainda, a não ser onde marcado.
 
 ## Como testar sem criar conta no Firebase
-1. `node instrucoes/apuracao/serve.js` (a partir da raiz) → http://localhost:8766/
-2. No navegador: `fetch('/instrucoes/apuracao/seed.js').then(r=>r.text()).then(eval).then(()=>__seed('dashboard'))`
+1. `node ferramentas/serve.js` (a partir da raiz) → http://localhost:8766/
+2. No navegador: `fetch('/ferramentas/seed.js').then(r=>r.text()).then(eval).then(()=>__seed('dashboard'))`
 3. Alternar tema: `document.documentElement.classList.toggle('dark')`. Mobile: viewport 375px.
 4. Login/sincronização reais só dá pra conferir no site publicado, com a conta do usuário.
 5. Console mostra erro de ServiceWorker no preview do Claude — é do ambiente, não do app.
@@ -33,7 +33,7 @@ Login, carregamento, PIN, Início, Lançamentos, Contas, Fixos, Config (topo), m
 - [ ] Botões só com ícone (editar/excluir/pagar/pausar) têm `title`, mas não `aria-label`.
 - [ ] Peso: `assets/moeda-girando.svg` ≈ 82 KB (só no loading) e Google Fonts bloqueando render; offline cai nas fontes do sistema.
 - [ ] `metodosPagamento()` ainda guarda emoji em `icone` (não é mais exibido); limpar se ninguém usar.
-- [ ] Pastas `Redesign Caixinha minimalista/` e `para-design/` ficam locais (no `.gitignore`).
+- [ ] A pasta `design/pacotes/` fica local (no `.gitignore`).
 
 ## Pendências de funcionalidade anteriores (não são do redesign)
 - [ ] Fatura por fechamento + "Pagar fatura": nunca testado de ponta a ponta na interface (só a lógica de competência).

@@ -1,5 +1,5 @@
 // Gera assets/emojis-pt.js (tabela de emojis com nomes em português) a partir de dados oficiais do Unicode e do CLDR.
-// Uso (raiz do projeto):  node instrucoes/apuracao/gerar-emojis.js
+// Uso (raiz do projeto):  node ferramentas/gerar-emojis.js
 //   (opcional) node ... <emoji-test.txt> <annotations-pt.json>   — usa arquivos já baixados em vez de baixar de novo.
 // Regras: só emojis "fully-qualified", versão <= 13.1 (desenham em Windows 10/11 e Android recente), sem tom de pele,
 // sem bandeiras de países (Windows mostra letras no lugar), sem o grupo "Component".
@@ -53,9 +53,9 @@ const curado = CURADO.map(e => todos[semVS(e)]).filter(Boolean);
 const faltaram = CURADO.filter(e => !todos[semVS(e)]);
 
 const grupos = [{ id: 'financas', nome: 'Finanças e casa', ico: '💰', e: curado }, ...ordem.map(id => porId[id]).filter(Boolean)];
-const cab = `/* Tabela de emojis com nomes em português. GERADO por instrucoes/apuracao/gerar-emojis.js — não edite à mão.
+const cab = `/* Tabela de emojis com nomes em português. GERADO por ferramentas/gerar-emojis.js — não edite à mão.
    Fontes: Unicode emoji-test.txt (emojis até a versão ${VERSAO_MAX}) e CLDR annotations pt. Copyright © Unicode, Inc. Distribuído sob a
    Unicode License v3 (https://www.unicode.org/license.txt). */\n`;
-fs.writeFileSync(path.resolve(__dirname, '../../assets/emojis-pt.js'), cab + 'window.EMOJIS=' + JSON.stringify({ grupos }) + ';\n');
+fs.writeFileSync(path.resolve(__dirname, '../assets/emojis-pt.js'), cab + 'window.EMOJIS=' + JSON.stringify({ grupos }) + ';\n');
 console.log('emojis:', total, '| sem nome pt:', semNome, '| curados:', curado.length, '| faltaram no curado:', faltaram.join(' ') || '-');
 console.log(grupos.map(g => g.id + '=' + g.e.length).join('  '));

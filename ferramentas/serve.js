@@ -1,7 +1,7 @@
 // Servidor estático mínimo pra testar o Caixinha em http://localhost:8766/ (sem criar conta no Firebase).
-// Uso: node instrucoes/apuracao/serve.js   (a partir da raiz do projeto)
+// Uso: node ferramentas/serve.js   (a partir da raiz do projeto)
 const http = require('http'), fs = require('fs'), path = require('path');
-const root = path.resolve(__dirname, '..', '..');
+const root = path.resolve(__dirname, '..');
 const types = { '.html': 'text/html; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.js': 'text/javascript', '.css': 'text/css' };
 http.createServer((q, s) => {
   let p = decodeURIComponent(q.url.split('?')[0]);
