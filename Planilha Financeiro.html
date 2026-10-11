@@ -8,7 +8,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Caixinha</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" id="metaTema" content="#16842f"><!-- atualizado por aplicarTema() (o tema do app é manual, não o do sistema) -->
+<meta name="theme-color" id="metaTema" content="#16842f"><!-- atualizado por aplicarTema() -->
+<meta name="color-scheme" id="metaEsquema" content="light dark"><!-- o app tem tema escuro próprio; aplicarTema() troca por "dark" ou "only light" para o navegador não escurecer por conta própria -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Caixinha">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -42,8 +43,8 @@
 }
 html.dark{
   color-scheme:dark;
-  --bg:#11130e; --surface:#1a1d16; --surface-2:#23271e; --border:#33392b; --line:#000000;
-  --text:#eef0e2; --text-muted:#a9ad98; --text-faint:#8f937d;
+  --bg:#11130e; --surface:#1b1f17; --surface-2:#2b3123; --border:#4d5742; --line:#000000;
+  --text:#f2f4e6; --text-muted:#c3c7b1; --text-faint:#a4a891;
   --primary:#3cbf57; --primary-deep:#1f7a33; --primary-ink:#0b1709; --primary-soft:#1b3420;
   --income:#4ade80; --income-soft:#14301c;
   --expense:#ff7466; --expense-soft:#3b1b17;
@@ -536,6 +537,19 @@ html.dark input[type=date]::-webkit-calendar-picker-indicator,html.dark input[ty
   @keyframes cx-fade{to{opacity:0;}}
 }
 
+/* ---------- Tema escuro: botões e ícones com mais destaque (detalhe claro na borda) ---------- */
+html.dark .btn,html.dark .icon-btn{border-color:#66714f;}
+html.dark .btn:not(.btn-primary):not(.btn-danger):not(.btn-ghost),html.dark .icon-btn{background:#2f3626;box-shadow:0 3px 0 #66714f;}
+html.dark .btn-ghost{color:var(--text);}
+html.dark .card,html.dark .row-card,html.dark .acc{border-color:#4d5742;}
+html.dark nav.tabs{border-color:#4d5742;}
+html.dark nav.tabs button .px-ico{color:#d4d8c2;}
+html.dark nav.tabs button.active .px-ico{color:var(--primary);}
+html.dark .seg{border-color:#566048;background:#262c1f;}
+html.dark .chip,html.dark .subs-btn{border-color:#66714f;background:#2f3626;color:#dfe3cf;}
+html.dark .chip.active,html.dark .subs-btn.on{background:var(--primary);color:var(--primary-ink);border-color:transparent;}
+html.dark .px-ico{--ico-borda:1;}
+
 </style>
 </head>
 <body>
@@ -830,12 +844,22 @@ function trocarPerfil(perfil){
   aplicarTema();
   renderTudo();
 }
-function aplicarTema(){
-  document.documentElement.classList.toggle('dark', !!state.config.temaEscuro);
-  const m=document.getElementById('metaTema'); if(m) m.content=state.config.temaEscuro?'#11130e':'#16842f'; // barra de status do celular
+// config.temaEscuro: true (escuro), false (claro) ou vazio (automático: segue o sistema deste aparelho)
+const mqEscuro=(typeof matchMedia==='function')? matchMedia('(prefers-color-scheme: dark)') : null;
+function temaEscuroAtivo(){
+  const t=state&&state.config? state.config.temaEscuro : undefined;
+  if(t===true||t===false) return t;
+  return !!(mqEscuro&&mqEscuro.matches);
 }
-function definirTema(escuro){
-  state.config.temaEscuro=escuro; state.config.temaAtualizadoEm=nowISO();
+function aplicarTema(){
+  const escuro=temaEscuroAtivo();
+  document.documentElement.classList.toggle('dark',escuro);
+  const m=document.getElementById('metaTema'); if(m) m.content=escuro?'#11130e':'#16842f'; // barra de status do celular
+  const e=document.getElementById('metaEsquema'); if(e) e.content=escuro?'dark':'only light'; // só o tema do app decide: sem escurecimento automático do navegador
+}
+if(mqEscuro && mqEscuro.addEventListener) mqEscuro.addEventListener('change',()=>{ if(state && state.config && typeof state.config.temaEscuro!=='boolean') aplicarTema(); });
+function definirTema(escuro){ // true | false | null (automático)
+  state.config.temaEscuro=(escuro===true||escuro===false)? escuro : null; state.config.temaAtualizadoEm=nowISO();
   salvarEstado(); aplicarTema(); renderConfig();
 }
 // Exclusão registra um "tombstone" (marcador de excluído) em vez de só sumir do array —
@@ -3241,8 +3265,9 @@ function renderConfig(){
   const geral=`
       <p class="hint" style="margin:10px 0 8px">Aparência</p>
       <div class="seg">
-        <button type="button" onclick="definirTema(false)" class="${!state.config.temaEscuro?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/sun.svg)"></span>Claro</button>
-        <button type="button" onclick="definirTema(true)" class="${state.config.temaEscuro?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/moon.svg)"></span>Escuro</button>
+        <button type="button" onclick="definirTema(false)" class="${state.config.temaEscuro===false?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/sun.svg)"></span>Claro</button>
+        <button type="button" onclick="definirTema(true)" class="${state.config.temaEscuro===true?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/moon.svg)"></span>Escuro</button>
+        <button type="button" onclick="definirTema(null)" class="${typeof state.config.temaEscuro!=='boolean'?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>Automático</button>
       </div>
       <p class="hint" style="margin:18px 0 0">Perfis</p>
       ${estados.pj?`
@@ -3316,7 +3341,7 @@ function renderConfig(){
       <div id="orcLista">${htmlOrcamentosConfig()}</div>`;
   const sobre=`<p class="hint" style="margin-top:10px">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>`;
   const lista=[
-    htmlSecaoConfig('geral','sun','Aparência e perfis',`${state.config.temaEscuro?'Tema escuro':'Tema claro'} · ${perfilAtivo==='pj'?escapeHtml(estados.pj?.empresaNome||'Empresa'):'Pessoal'}`,geral),
+    htmlSecaoConfig('geral','sun','Aparência e perfis',`${typeof state.config.temaEscuro!=='boolean'?'Automático ('+(temaEscuroAtivo()?'escuro':'claro')+')':state.config.temaEscuro?'Tema escuro':'Tema claro'} · ${perfilAtivo==='pj'?escapeHtml(estados.pj?.empresaNome||'Empresa'):'Pessoal'}`,geral),
     appInstalado()?'':htmlSecaoConfig('instalar','play','Instalar o app','Abrir em tela cheia, como um app',instalar),
     htmlSecaoConfig('sync','repeat','Sincronização',escapeHtml(email)||'Conta',sync),
     ehAdmin(window.fbAuth?.currentUser)?htmlSecaoConfig('convites','bank','Convites','Quem pode usar o Caixinha',convites):'',
@@ -3565,7 +3590,7 @@ function mesclarEstadoEm(alvo,incoming){
   if(cfgIn.onboardingConcluido) alvo.config.onboardingConcluido=true;
   if(!alvo.empresaNome && incoming.empresaNome) alvo.empresaNome=incoming.empresaNome;
   if(cfgIn.temaAtualizadoEm && (!alvo.config.temaAtualizadoEm || cfgIn.temaAtualizadoEm>alvo.config.temaAtualizadoEm)){
-    alvo.config.temaEscuro=!!cfgIn.temaEscuro; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
+    alvo.config.temaEscuro=cfgIn.temaEscuro===true? true : cfgIn.temaEscuro===false? false : null; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
   }
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
 }

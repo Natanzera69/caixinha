@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-11 (5) — Tema automático e botões/ícones mais visíveis no escuro
+
+- **Causa do "escuro demais" e da moeda estranha no celular**: o app estava no tema claro e o navegador do celular (modo escuro do Samsung Internet) escurecia a página por conta própria, invertendo cores e a moeda pixelada. O app não avisava o navegador de que tem tema escuro próprio.
+- **Tema automático**: Config → Aparência agora tem **Claro / Escuro / Automático**. Automático segue o modo escuro do aparelho (padrão para quem nunca escolheu); a escolha sincroniza entre aparelhos, e "Automático" vale por aparelho.
+- O app agora declara ao navegador qual tema está usando (`color-scheme`: "dark" no escuro, "only light" no claro), para ele não escurecer por cima.
+- **Tema escuro**: bordas, botões, chips, abas e ícones da barra inferior com mais contraste (borda clara de detalhe, texto e ícones mais claros).
+
 ## 2026-10-11 (4) — Faxina e nova organização das pastas
 
 Nomes antigos citados no histórico abaixo → onde estão hoje:
