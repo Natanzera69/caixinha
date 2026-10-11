@@ -9,7 +9,8 @@
 <title>Caixinha</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" id="metaTema" content="#16842f"><!-- atualizado por aplicarTema() -->
-<meta name="color-scheme" id="metaEsquema" content="light dark"><!-- o app tem tema escuro próprio; aplicarTema() troca por "dark" ou "only light" para o navegador não escurecer por conta própria -->
+<meta name="color-scheme" content="only light"><!-- o app tem tema claro/escuro PRÓPRIOS (classe .dark + CSS color-scheme): navegadores com "modo escuro em sites" não devem escurecer por cima -->
+<meta name="darkreader-lock">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Caixinha">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -49,7 +50,7 @@ html.dark{
   --income:#4ade80; --income-soft:#14301c;
   --expense:#ff7466; --expense-soft:#3b1b17;
   --warning:#f5b63b; --warning-bar:#f5b63b; --warning-soft:#392b0f;
-  --hero-bg:#f6c22c; --hero-text:#1d1f16; --hero-value:#1d1f16; --hero-muted:#5a4a14;
+  --hero-bg:#3a2f0b; --hero-text:#fff4cf; --hero-value:#f6c22c; --hero-muted:#d8c88c;
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
@@ -550,6 +551,10 @@ html.dark .chip,html.dark .subs-btn{border-color:#66714f;background:#2f3626;colo
 html.dark .chip.active,html.dark .subs-btn.on{background:var(--primary);color:var(--primary-ink);border-color:transparent;}
 html.dark .px-ico{--ico-borda:1;}
 
+/* ---------- Zerar tudo (perigo) ---------- */
+.acc[data-sec="zerar"] .acc-ico{background:var(--expense-soft);color:var(--expense);}
+.acc[data-sec="zerar"].open{border-color:var(--expense);}
+
 </style>
 </head>
 <body>
@@ -821,6 +826,8 @@ function normalizarEstado(alvo){
   }
   return alvo;
 }
+// Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
+const APP_VERSAO='2026-10-11 · v11';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -855,7 +862,6 @@ function aplicarTema(){
   const escuro=temaEscuroAtivo();
   document.documentElement.classList.toggle('dark',escuro);
   const m=document.getElementById('metaTema'); if(m) m.content=escuro?'#11130e':'#16842f'; // barra de status do celular
-  const e=document.getElementById('metaEsquema'); if(e) e.content=escuro?'dark':'only light'; // só o tema do app decide: sem escurecimento automático do navegador
 }
 if(mqEscuro && mqEscuro.addEventListener) mqEscuro.addEventListener('change',()=>{ if(state && state.config && typeof state.config.temaEscuro!=='boolean') aplicarTema(); });
 function definirTema(escuro){ // true | false | null (automático)
@@ -1216,6 +1222,7 @@ function wizardSalvarEmpresa(){
   if(mostrarErros(document.getElementById('modalCard'),[[inp,r]])) return;
   const nome=r.valor||'Minha Empresa';
   estados.pj=estadoInicialPJ(nome);
+  if(estados.pessoal.config && estados.pessoal.config.resetEm) estados.pj.config.resetEm=estados.pessoal.config.resetEm;
   abrirWizardPJConta();
 }
 function abrirWizardPJConta(){
@@ -3269,6 +3276,7 @@ function renderConfig(){
         <button type="button" onclick="definirTema(true)" class="${state.config.temaEscuro===true?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/moon.svg)"></span>Escuro</button>
         <button type="button" onclick="definirTema(null)" class="${typeof state.config.temaEscuro!=='boolean'?'active':''}"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>Automático</button>
       </div>
+      <p class="hint" style="margin:8px 0 0">Automático segue o modo escuro do aparelho. Se as cores ficarem estranhas no celular, desligue o "modo escuro em sites" do navegador para o Caixinha.</p>
       <p class="hint" style="margin:18px 0 0">Perfis</p>
       ${estados.pj?`
         <p class="hint">Perfil ativo: <b>${perfilAtivo==='pj'?('<span class="px-ico sm" style="--i:url(assets/icons/building.svg)"></span>'+escapeHtml(estados.pj.empresaNome||'PJ')):'<span class="px-ico sm" style="--i:url(assets/icons/home.svg)"></span>Pessoal'}</b>.</p>
@@ -3339,7 +3347,8 @@ function renderConfig(){
         <button type="button" class="chip ${orcSoComLimite?'active':''}" onclick="orcSoComLimite=true;renderConfig()">Só com limite</button>
       </div>
       <div id="orcLista">${htmlOrcamentosConfig()}</div>`;
-  const sobre=`<p class="hint" style="margin-top:10px">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>`;
+  const zerar=`<p class="hint" style="margin:10px 0 0">Apaga <b>tudo</b> desta conta, em todos os seus aparelhos: lançamentos, contas, cartões, categorias, fixos, investimentos, perfil da empresa e configurações. O seu login continua. Use para recomeçar do zero.</p><button class="btn btn-danger mt16" onclick="abrirReiniciarTudo()">Apagar tudo e recomeçar</button>`;
+  const sobre=`<p class="hint" style="margin-top:10px"><b>Versão:</b> ${escapeHtml(APP_VERSAO)}</p><button class="btn btn-sm mt8" onclick="atualizarAppAgora()">Atualizar o app agora</button><p class="hint mt16">Caixinha — seus dados ficam salvos neste aparelho e sincronizam, com a sua conta, entre os aparelhos em que você entrar (Firebase). Só quem entra com o seu e-mail e senha acessa. O backup em arquivo é uma cópia extra, independente da nuvem.</p>`;
   const lista=[
     htmlSecaoConfig('geral','sun','Aparência e perfis',`${typeof state.config.temaEscuro!=='boolean'?'Automático ('+(temaEscuroAtivo()?'escuro':'claro')+')':state.config.temaEscuro?'Tema escuro':'Tema claro'} · ${perfilAtivo==='pj'?escapeHtml(estados.pj?.empresaNome||'Empresa'):'Pessoal'}`,geral),
     appInstalado()?'':htmlSecaoConfig('instalar','play','Instalar o app','Abrir em tela cheia, como um app',instalar),
@@ -3349,7 +3358,8 @@ function renderConfig(){
     htmlSecaoConfig('seguranca','lock','Segurança',`PIN ${pinDoAparelho()?'ligado':'desligado'} · bloqueio ${bloqueioAoMinimizarAtivo()?'ao minimizar':'desligado'}`,seguranca),
     htmlSecaoConfig('categorias','pie','Categorias',`${nCat} categoria${nCat===1?'':'s'}`,categorias),
     htmlSecaoConfig('orcamentos','chart','Orçamento por categoria',nOrc?`${nOrc} com limite`:'Nenhum limite definido',orcamentos),
-    htmlSecaoConfig('sobre','dot','Sobre','Caixinha',sobre)
+    htmlSecaoConfig('zerar','trash','Zerar tudo','Apagar lançamentos e configurações',zerar),
+    htmlSecaoConfig('sobre','dot','Sobre','Caixinha · '+escapeHtml(APP_VERSAO),sobre)
   ].join('');
   el.innerHTML=`
     <div class="section-title" style="margin-top:0"><h2>Configurações</h2></div>
@@ -3507,6 +3517,10 @@ function aplicarBackupNoPerfil(alvo,bk,recuperarApagados){
       bk[k].forEach(x=>{ if(lista.some(t=>t.id===x.id)) x.updatedAt=nowISO(); });
     });
   }
+  if(alvo.config && alvo.config.resetEm){ // depois de um reset geral, o que vem do backup conta como novo (senão o corte descartaria)
+    const corte=alvo.config.resetEm, agora=nowISO();
+    CHAVES_SINCRONIZAVEIS.forEach(k=>bk[k].forEach(x=>{ if((x.updatedAt||'')<corte) x.updatedAt=agora; }));
+  }
   mesclarEstadoEm(alvo,bk);
 }
 function lerArquivoBackup(arq){
@@ -3554,8 +3568,17 @@ function confirmarRestauracao(){
   }
   fecharModal(); renderTudo(); toast('Backup restaurado.');
 }
+// Reset geral: config.resetEm marca o instante do "apagar tudo". Quem recebe um resetEm mais novo esquece o que tinha;
+// com resetEm definido, registros mais velhos que ele nunca voltam (nem de um aparelho desatualizado).
 function mesclarEstadoEm(alvo,incoming){
   if(!alvo._tombstones) alvo._tombstones={};
+  if(!alvo.config) alvo.config={pinHash:null};
+  const rIn=(incoming.config&&incoming.config.resetEm)||'', rLoc=alvo.config.resetEm||'';
+  if(rIn>rLoc){
+    CHAVES_SINCRONIZAVEIS.forEach(k=>{ alvo[k]=[]; });
+    alvo._tombstones={};
+    alvo.config={pinHash:alvo.config.pinHash||null,resetEm:rIn};
+  }
   const tumbasIncoming=incoming._tombstones||{};
 
   CHAVES_SINCRONIZAVEIS.forEach(chave=>{
@@ -3593,6 +3616,25 @@ function mesclarEstadoEm(alvo,incoming){
     alvo.config.temaEscuro=cfgIn.temaEscuro===true? true : cfgIn.temaEscuro===false? false : null; alvo.config.temaAtualizadoEm=cfgIn.temaAtualizadoEm;
   }
   // o PIN nunca viaja pelo backup nem pelo Firestore — cada aparelho mantém o seu próprio
+  const corte=alvo.config.resetEm;
+  if(corte){
+    CHAVES_SINCRONIZAVEIS.forEach(k=>{ alvo[k]=(alvo[k]||[]).filter(r=>(r.updatedAt||'')>=corte); });
+  }
+}
+// Documento do perfil PJ que virou "marcador de remoção" depois de um reset geral. Vale a menos que este aparelho
+// tenha recriado o PJ depois do reset (config.resetEm igual ou mais novo).
+function ehMarcadorPJ(dados){ return !!(dados&&dados.config&&dados.config.removerPerfil); }
+function aplicarRemocaoPJ(dados){
+  const loc=estados.pj, rIn=(dados.config&&dados.config.resetEm)||'';
+  if(loc && ((loc.config&&loc.config.resetEm)||'')>=rIn) return false; // recriado depois do reset: vale o local
+  const existia=!!loc;
+  estados.pj=null; lsDel(storageKey('pj'));
+  if(perfilAtivo==='pj'){
+    perfilAtivo='pessoal'; lsSet('planilhaFinanceiro_perfilAtivo','pessoal'); state=estados.pessoal;
+    if(existia) renderTudo();
+  }
+  if(typeof renderSeletorPerfil==='function') renderSeletorPerfil();
+  return true;
 }
 
 /* ================= Modal genérico ================= */
@@ -3911,8 +3953,11 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
   try{
     const snap=await window.fbGetDoc(ref);
     st.leituraOk=true; st.nuvemExiste=snap.exists(); st.ultimoErro=null; st.nuvemResumo=snap.exists()? resumoPerfil(snap.data()) : null;
+    const marcador = perfil==='pj' && snap.exists() && ehMarcadorPJ(snap.data());
+    if(marcador && aplicarRemocaoPJ(snap.data())){ st.nuvemResumo='perfil removido'; return iniciarEscutaPerfil(perfil,ref,st); }
     const eraNovo = perfil==='pessoal' ? estadoEraNovo : !estados.pj;
-    const acao=decidirSincronia(snap.exists(),perfilTemDados(estados[perfil]),eraNovo);
+    const nuvemTem = snap.exists() && !marcador; // marcador sem PJ local recriado = "nuvem vazia" para o PJ
+    const acao=decidirSincronia(nuvemTem,perfilTemDados(estados[perfil]),eraNovo);
     if(acao==='baixar'){
       // aparelho novo pra esse perfil (nunca teve dado local) + já existe dado na nuvem: usa a
       // nuvem direto, em vez de mesclar — evita duplicar defaults criados localmente à toa
@@ -3920,7 +3965,7 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
     }else if(acao==='mesclar'){
       mesclarEstadoEm(estados[perfil],snap.data());
     }
-    if(snap.exists()){
+    if(nuvemTem){
       if(perfil===perfilAtivo){
         state=estados[perfil];
         gerarTransacoesRecorrentesDoMes(new Date().getFullYear(), new Date().getMonth());
@@ -3935,9 +3980,13 @@ async function iniciarSincronizacaoPerfil(uid,perfil){
     avisarSync('Não consegui sincronizar agora — seus dados estão salvos neste aparelho.');
   }
 
+  iniciarEscutaPerfil(perfil,ref,st);
+}
+function iniciarEscutaPerfil(perfil,ref,st){
   if(fbUnsub[perfil]) fbUnsub[perfil]();
   fbUnsub[perfil]=window.fbOnSnapshot(ref, snap=>{
     if(!snap.exists()) return;
+    if(perfil==='pj' && ehMarcadorPJ(snap.data())){ aplicarRemocaoPJ(snap.data()); st.nuvemExiste=true; return; }
     fbAplicandoRemoto[perfil]=true;
     if(!estados[perfil]) estados[perfil]=estadoVazio(); // perfil PJ criado em outro aparelho chegando aqui pela 1ª vez
     mesclarEstadoEm(estados[perfil],snap.data());
@@ -3968,7 +4017,7 @@ function agendarEnvio(perfil,atrasoMs){
 async function enviarPerfilNuvem(perfil){
   clearTimeout(fbSaveTimeout[perfil]); fbPendente[perfil]=false;
   const st=fbStatus[perfil], alvo=estados[perfil];
-  if(!window.fbUid || !alvo) return false;
+  if(!window.fbUid || !alvo || window.__reiniciando) return false;
   if(!st.leituraOk){ // nunca escreve por cima da nuvem sem ter conseguido ler antes: tenta ler de novo
     try{ await iniciarSincronizacaoPerfil(window.fbUid,perfil); }catch(e){}
     if(!st.leituraOk) return false;
@@ -4049,6 +4098,64 @@ function fbLogout(){
     Object.assign(fbStatus[p],{leituraOk:false,nuvemExiste:null,nuvemResumo:null,ultimoEnvio:null,ultimoErro:null}); });
   window.fbUid=null; window.__loginManual=false; pararGate();
   window.fbSignOutFn?.(window.fbAuth);
+}
+/* ---- Reset geral: apaga os dados da conta em TODOS os aparelhos (o login fica) ---- */
+function abrirReiniciarTudo(){
+  document.getElementById('modalCard').innerHTML=`
+    <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
+    <h2>Apagar tudo e recomeçar</h2>
+    <p class="hint">Some <b>em todos os seus aparelhos</b>: lançamentos, contas, cartões, categorias, subcategorias, fixos, parcelamentos, financiamentos, investimentos, o perfil da empresa e as configurações.</p>
+    <p class="hint">Continuam: o seu <b>login</b> e o PIN deste aparelho. <b>Não dá para desfazer</b>; se quiser uma cópia, baixe o backup antes.</p>
+    <button type="button" class="btn mt16" onclick="fazerBackup()">Baixar backup antes</button>
+    <form id="formReset" novalidate>
+      <div class="field mt16"><label>Para confirmar, digite APAGAR</label><input name="confirma" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+      <div id="resetMsg" class="hint" role="status" style="min-height:20px"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-danger" id="btnReset" disabled>Apagar tudo</button>
+      </div>
+    </form>`;
+  const f=document.getElementById('formReset');
+  f.confirma.addEventListener('input',()=>{ document.getElementById('btnReset').disabled = f.confirma.value.trim().toUpperCase()!=='APAGAR'; });
+  f.addEventListener('submit',e=>{ e.preventDefault(); if(f.confirma.value.trim().toUpperCase()==='APAGAR') reiniciarTudo(); });
+  abrirModal();
+}
+async function reiniciarTudo(){
+  const msg=document.getElementById('resetMsg'), btn=document.getElementById('btnReset');
+  const falar=t=>{ if(msg) msg.textContent=t; };
+  if(!window.fbUid || navigator.onLine===false){ falar('Conecte-se à internet para zerar (a nuvem também é limpa). Nada foi apagado.'); return; }
+  if(btn) btn.disabled=true;
+  falar('Apagando…');
+  window.__reiniciando=true; // segura qualquer envio pendente para não regravar o que é velho
+  ['pessoal','pj'].forEach(p=>{ clearTimeout(fbSaveTimeout[p]); fbPendente[p]=false; });
+  const agora=nowISO();
+  const novo=estadoInicial(); novo.config={pinHash:null,onboardingConcluido:false,resetEm:agora};
+  const marcadorPJ=estadoVazio(); marcadorPJ.config={pinHash:null,resetEm:agora,removerPerfil:true};
+  try{
+    // nuvem primeiro: se falhar, nada muda neste aparelho
+    await window.fbSetDoc(window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pj')),paraNuvem(marcadorPJ));
+    await window.fbSetDoc(window.fbDoc(window.fbDb,'users',docIdDoPerfil(window.fbUid,'pessoal')),paraNuvem(novo));
+  }catch(e){
+    window.__reiniciando=false;
+    falar('Não consegui zerar a nuvem ('+codigoErroSync(e)+'). Nada foi apagado neste aparelho. Tente de novo.');
+    if(btn) btn.disabled=false;
+    return;
+  }
+  estados.pessoal=novo; estados.pj=null; perfilAtivo='pessoal'; state=novo; estadoEraNovo=false;
+  lsSet(storageKey('pessoal'),JSON.stringify(novo)); lsDel(storageKey('pj')); lsSet('planilhaFinanceiro_perfilAtivo','pessoal');
+  Object.assign(fbStatus.pessoal,{leituraOk:true,nuvemExiste:true,ultimoEnvio:new Date(),ultimoErro:null,nuvemResumo:resumoPerfil(novo)});
+  Object.assign(fbStatus.pj,{leituraOk:true,nuvemExiste:true,ultimoErro:null,nuvemResumo:'perfil removido'});
+  window.__reiniciando=false;
+  secaoConfigAberta=null; catBusca=''; catSubAbertas.clear();
+  aplicarTema(); renderSeletorPerfil(); switchTab('dashboard');
+  toast('Tudo zerado. Pode começar do zero.');
+  possivelmenteAbrirWizard(); // reaproveita a janela aberta: assistente inicial, como conta nova
+}
+// Limpa o cache do app e recarrega com a versão mais nova (o GitHub Pages guarda a página por alguns minutos)
+async function atualizarAppAgora(){
+  try{ const regs=(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)? await navigator.serviceWorker.getRegistrations() : []; await Promise.all(regs.map(r=>r.unregister())); }catch(e){}
+  try{ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); }catch(e){}
+  location.href=location.pathname+'?atualizado='+Date.now();
 }
 function abrirSair(){
   document.getElementById('modalCard').innerHTML=`

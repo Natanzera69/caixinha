@@ -43,3 +43,6 @@ Use `seu.email+teste1@gmail.com` (chega na sua caixa): (a) conta sem convite →
 
 ## Como conferir a sincronização
 Config → Sincronização → **Verificar agora** mostra, por perfil, o que há neste aparelho e o que há na nuvem, o último envio e o último erro. Se a nuvem estiver vazia e este aparelho tiver os dados: **Enviar deste aparelho**. Em um aparelho novo vazio: **Baixar da nuvem**. Nunca use "Sair e apagar dados" antes de confirmar que a nuvem tem o que você precisa. Dica: faça **Fazer backup** (Config → Backup) antes de mexer.
+
+## Zerar a conta (reset geral)
+Config → Zerar tudo → "Apagar tudo e recomeçar" (pede APAGAR). Faz o reset em todos os aparelhos: o aparelho que zera grava o estado novo (com `config.resetEm`) e um marcador no documento do PJ; os outros aparelhos aplicam o reset ao sincronizar. **Não adianta apagar os documentos pelo console do Firebase**: aparelhos que ainda guardam os dados os reenviam. Se for mesmo preciso limpar à mão, limpe primeiro os dados de todos os aparelhos ("Sair e apagar os dados").

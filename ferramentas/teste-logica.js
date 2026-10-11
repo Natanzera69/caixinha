@@ -18,7 +18,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
-  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem'];
+  'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -309,5 +309,47 @@ t('Subcategorias: opcionais, validadas contra a categoria e sem quebrar a regra 
   ctx.BK = { formatoBackup: 2, pessoal: { contas: [], transacoes: [], subcategorias: [{ id: 'x', categoriaId: 'm', nome: 'ok' }, { nome: 'sem id' }, 5] } };
   eq(run('lerObjetoBackup(BK).pessoal.subcategorias.map(x=>x.id)'), ['x']);
   eq(run('lerObjetoBackup({contas:[],transacoes:[]}).pessoal.subcategorias'), []);
+});
+t('Reset geral: resetEm mais novo zera o aparelho; registros velhos não voltam; novos sobrevivem', () => {
+  const reg = (id, upd) => ({ id, updatedAt: upd, valor: 1 });
+  // aparelho antigo (sem resetEm) com dados
+  const velho = novo(); velho.transacoes = [reg('t1', '2026-10-01T10:00:00.000Z'), reg('t2', '2026-10-02T10:00:00.000Z')];
+  velho.contas = [reg('c1', '2026-09-01T00:00:00.000Z')]; velho._tombstones = { transacoes: [{ id: 'x', updatedAt: '2026-10-01T00:00:00.000Z' }] };
+  velho.config = { pinHash: 'meuPin', onboardingConcluido: true, temaEscuro: true, temaAtualizadoEm: '2026-10-01T00:00:00.000Z' };
+  // nuvem depois do reset: estado novo com marcador
+  const nuvem = novo(); nuvem.contas = [reg('c9', '2026-10-11T12:00:01.000Z')]; nuvem.config = { pinHash: null, onboardingConcluido: false, resetEm: '2026-10-11T12:00:00.000Z' };
+  ctx.V = velho; ctx.N = nuvem; run('mesclarEstadoEm(V,N)');
+  eq(velho.transacoes, []); eq(velho.contas.map(x => x.id), ['c9']); assert.strictEqual(Object.values(velho._tombstones).reduce((n, l) => n + l.length, 0), 0);
+  assert.strictEqual(velho.config.resetEm, '2026-10-11T12:00:00.000Z');
+  assert.strictEqual(velho.config.pinHash, 'meuPin');                       // PIN é do aparelho
+  assert.ok(!velho.config.onboardingConcluido);                              // volta ao assistente inicial
+  // aparelho velho manda dados antigos de novo (cliente desatualizado): o corte descarta; o novo fica
+  const reenvio = novo(); reenvio.transacoes = [reg('t1', '2026-10-01T10:00:00.000Z'), reg('t7', '2026-10-11T13:00:00.000Z')];
+  ctx.RE = reenvio; run('mesclarEstadoEm(V,RE)');
+  eq(velho.transacoes.map(x => x.id), ['t7']);
+  // sem resetEm em lugar nenhum: nada muda (comportamento antigo)
+  const a = novo(), b = novo(); a.transacoes = [reg('a', '2020-01-01T00:00:00Z')]; b.transacoes = [reg('b', '2020-01-02T00:00:00Z')];
+  ctx.A = a; ctx.B = b; run('mesclarEstadoEm(A,B)'); eq(a.transacoes.map(x => x.id).sort(), ['a', 'b']);
+  // resetEm antigo vindo de aparelho que ainda não zerou não apaga quem já zerou
+  const zerado = novo(); zerado.config = { pinHash: null, resetEm: '2026-10-11T12:00:00.000Z' }; zerado.transacoes = [reg('n', '2026-10-11T12:30:00.000Z')];
+  const antigo = novo(); antigo.config = { pinHash: null, resetEm: '2026-09-01T00:00:00.000Z' };
+  ctx.Z = zerado; ctx.AN = antigo; run('mesclarEstadoEm(Z,AN)'); eq(zerado.transacoes.map(x => x.id), ['n']);
+});
+t('Reset geral: marcador do perfil PJ remove o PJ, a menos que tenha sido recriado depois', () => {
+  const marcador = { config: { removerPerfil: true, resetEm: '2026-10-11T12:00:00.000Z' } };
+  assert.strictEqual(run('ehMarcadorPJ(null)'), false); ctx.M = marcador; assert.strictEqual(run('ehMarcadorPJ(M)'), true);
+  ctx.estados.pj = Object.assign(novo(), { config: { pinHash: null } }); ctx.perfilAtivo = 'pj'; ctx.state = ctx.estados.pj; ctx.estados.pessoal = novo();
+  ctx.renderSeletorPerfil = () => {}; ctx.renderTudo = () => {};
+  run("localStorage.setItem(storageKey('pj'),'{}')");
+  assert.strictEqual(run('aplicarRemocaoPJ(M)'), true);
+  assert.strictEqual(ctx.estados.pj, null); assert.strictEqual(run('perfilAtivo'), 'pessoal'); assert.strictEqual(run("localStorage.getItem(storageKey('pj'))"), null);
+  // PJ recriado depois do reset (herda o mesmo resetEm): vale o local
+  ctx.estados.pj = Object.assign(novo(), { config: { pinHash: null, resetEm: '2026-10-11T12:00:00.000Z' } });
+  assert.strictEqual(run('aplicarRemocaoPJ(M)'), false); assert.ok(ctx.estados.pj);
+});
+t('Versão do app no HTML bate com o cache do service worker', () => {
+  const v = html.match(/const APP_VERSAO='[^']*· v(\d+)'/)[1];
+  const c = fs.readFileSync(require('path').resolve(__dirname, '../sw.js'), 'utf8').match(/caixinha-v(\d+)/)[1];
+  assert.strictEqual(v, c);
 });
 console.log(`\n${ok} testes passaram`);

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-11 (6) — Reset geral da conta e ajustes para o modo escuro do navegador
+
+- **Config → Zerar tudo → "Apagar tudo e recomeçar"**: apaga lançamentos, contas, cartões, categorias, subcategorias, fixos, parcelamentos, financiamentos, investimentos, o perfil PJ e as configurações, **em todos os aparelhos**; o login (e o PIN do aparelho) continuam. Pede para digitar APAGAR, oferece "Baixar backup antes" e só mexe no aparelho depois de conseguir zerar a nuvem.
+  - Como funciona: a nuvem recebe um estado novo com `config.resetEm` (instante do reset). Qualquer aparelho que receba um `resetEm` mais novo esquece o que tinha; registros mais velhos que o `resetEm` nunca voltam (nem de aparelho desatualizado). O PJ vira um marcador `removerPerfil`. Sem mudança nas regras do Firestore.
+  - Por que o apagar manual no console não adiantava: os aparelhos que já tinham os dados reenviavam tudo no próximo sync (a mescla junta, nunca apaga).
+  - Restaurar um backup depois de um reset carimba os registros como novos (senão o corte os descartaria).
+- **Versão do app** em Config → Sobre e botão **"Atualizar o app agora"** (limpa cache e service worker e recarrega).
+- **Modo escuro do navegador (Samsung Internet)**: o app agora declara `color-scheme: only light` (+ `darkreader-lock`) para o navegador não escurecer por cima; no tema escuro o cartão "Patrimônio" ficou com fundo escuro e valor amarelo (sobrevive melhor a inversão de cor); aviso em Config → Aparência. Se o navegador ainda inverter, desligar "modo escuro em sites" para o Caixinha.
+- Testes: 29 casos (3 novos). Cache do service worker v11.
+
 ## 2026-10-11 (5) — Tema automático e botões/ícones mais visíveis no escuro
 
 - **Causa do "escuro demais" e da moeda estranha no celular**: o app estava no tema claro e o navegador do celular (modo escuro do Samsung Internet) escurecia a página por conta própria, invertendo cores e a moeda pixelada. O app não avisava o navegador de que tem tema escuro próprio.
