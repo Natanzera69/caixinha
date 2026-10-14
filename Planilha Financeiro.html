@@ -113,8 +113,7 @@ nav.tabs button{flex:1;white-space:nowrap;border:none;background:transparent;pad
 nav.tabs button.active{background:var(--primary);color:var(--primary-ink);box-shadow:0 2px 0 var(--primary-deep);}
 
 section.tab{display:none;}
-section.tab.active{display:block;animation:fade .18s ease;}
-@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+section.tab.active{display:block;}
 
 /* ---------- Cards ---------- */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
@@ -336,7 +335,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
   .seg button:not(.active):hover{background:var(--surface);color:var(--text);}
   .row-card:hover{border-color:var(--text-faint);}
   .emoji-aba:not(.active):hover{border-color:var(--border);}
-  .swatches span:hover{transform:scale(1.12);}
+  html select option:hover{background:var(--surface-2);}
 }
 /* Lançamentos: navegação de mês e totais do filtro */
 .mes-nav{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px;}
@@ -372,7 +371,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 @container (max-width:470px){.graf-corpo{grid-template-columns:minmax(0,1fr);}}
 .graf-svg{display:block;width:100%;max-width:240px;height:auto;margin:0 auto;overflow:visible;}
 .graf-svg.wide{max-width:520px;margin:4px auto 10px;}
-.fatia{cursor:pointer;transform-origin:110px 110px;transition:opacity .15s,transform .15s;animation:graf-pop .55s cubic-bezier(.2,.8,.2,1) both;}
+.fatia{cursor:pointer;transform-origin:110px 110px;transition:opacity .15s,transform .15s;animation:graf-pop 220ms var(--ease-out) backwards;}
 @keyframes graf-pop{from{opacity:0;transform:scale(.55);}to{opacity:1;transform:none;}}
 .fatia.on{transform:scale(1.045);}
 .graf-painel[data-sel] .fatia:not(.on),.graf-painel[data-sel] .col:not(.on),.graf-painel[data-sel] .bh-row:not(.on),.graf-painel[data-sel] .leg-row:not(.on){opacity:.35;}
@@ -394,11 +393,10 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .bh-val{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .bh-val small{font-weight:700;color:var(--text-muted);margin-left:4px;}
 .bh-trilho{height:12px;border-radius:7px;background:var(--surface-2);overflow:hidden;}
-.bh-fill{height:100%;border-radius:7px;transform-origin:left;animation:graf-grow .6s cubic-bezier(.2,.8,.2,1) both;}
+.bh-fill{height:100%;border-radius:7px;transform-origin:left;animation:graf-grow 220ms var(--ease-out) backwards;}
 @keyframes graf-grow{from{transform:scaleX(0);}to{transform:none;}}
 .col{cursor:pointer;transition:opacity .15s;}
-.col .col-bar{transform-box:fill-box;transform-origin:bottom;animation:graf-up .55s cubic-bezier(.2,.8,.2,1) both;}
-.col-bar{transform-box:fill-box;transform-origin:bottom;animation:graf-up .55s cubic-bezier(.2,.8,.2,1) both;}
+.col-bar{transform-box:fill-box;transform-origin:bottom;animation:graf-up 220ms var(--ease-out) backwards;}
 @keyframes graf-up{from{transform:scaleY(0);}to{transform:none;}}
 .col.on .col-bar{filter:brightness(1.12);}
 .eixo-v{font-size:10.5px;font-weight:800;fill:var(--text);text-anchor:middle;}
@@ -407,7 +405,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .alvo{cursor:pointer;}
 .alvo.on{fill:var(--primary-soft);opacity:.55;}
 @media(hover:hover) and (pointer:fine){.alvo:hover{fill:var(--primary-soft);opacity:.55;} a:hover{color:var(--primary-deep);} .swatches span:hover{transform:scale(1.12);}}
-.linha-dr{stroke-dasharray:1;stroke-dashoffset:1;animation:graf-draw .9s ease forwards;}
+.linha-dr{stroke-dasharray:1;stroke-dashoffset:1;animation:graf-draw 400ms var(--ease-out) forwards;}
 @keyframes graf-draw{to{stroke-dashoffset:0;}}
 .graf-leg2{display:flex;gap:6px 18px;flex-wrap:wrap;font-size:.8rem;font-weight:700;color:var(--text-muted);}
 .graf-leg2 i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;}
@@ -432,7 +430,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .acc-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
 .acc-t b{font-size:1rem;font-weight:800;}
 .acc-t small{font-size:.8rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.acc-seta{font-size:1.6rem;line-height:1;color:var(--text-faint);transition:transform .2s;}
+.acc-seta{font-size:1.6rem;line-height:1;color:var(--text-faint);transition:transform var(--t-ui) var(--ease-out);}
 .acc.open .acc-seta{transform:rotate(90deg);color:var(--primary);}
 /* altura animada sem animar height: grade 0fr → 1fr; fechada fica inerte (sem foco, sem leitor de tela) */
 .acc-body{display:grid;grid-template-rows:0fr;border-top:1.5px dashed transparent;visibility:hidden;transition:grid-template-rows var(--t-ui) var(--ease-out),border-color var(--t-ui) var(--ease-out),visibility 0s linear var(--t-ui);}
@@ -442,7 +440,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .cat-grupo{border:1.5px solid var(--border);border-radius:var(--radius-sm);margin-top:10px;background:var(--surface);}
 .cat-grupo>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-weight:800;min-height:48px;}
 .cat-grupo>summary::-webkit-details-marker{display:none;}
-.cat-grupo>summary::after{content:"›";font-size:1.4rem;line-height:1;color:var(--text-faint);transition:transform .2s;margin-left:4px;}
+.cat-grupo>summary::after{content:"›";font-size:1.4rem;line-height:1;color:var(--text-faint);transition:transform var(--t-ui) var(--ease-out);margin-left:4px;}
 .cat-grupo[open]>summary::after{transform:rotate(90deg);}
 .cat-grupo>summary .qtd{margin-left:auto;font-size:.78rem;font-weight:800;color:var(--text-muted);background:var(--surface-2);border-radius:999px;padding:3px 10px;}
 .cat-grupo[open]>summary{border-bottom:1.5px dashed var(--border);}
@@ -473,7 +471,7 @@ html select:not([multiple]){
   appearance:none;-webkit-appearance:none;
   background-image:url(assets/icons/chevron.svg);background-repeat:no-repeat;background-position:right 12px center;background-size:12px;
   padding-right:36px;color:var(--text);font:inherit;font-weight:600;cursor:pointer;
-  transition:border-color .12s,box-shadow .12s,transform .08s;
+  transition:border-color .12s,box-shadow .12s;
 }
 html.dark select:not([multiple]){background-image:url(assets/icons/chevron-dark.svg);}
 html select:not([multiple]):focus,html select:not([multiple]):focus-visible{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);}
@@ -505,7 +503,7 @@ html select:not([multiple]):focus,html select:not([multiple]):focus-visible{outl
     min-height:42px;padding:9px 12px;border-radius:10px;
     font:600 .95rem var(--font-body);color:var(--text);background:transparent;cursor:pointer;
   }
-  select option:hover,select option:focus-visible{background:var(--surface-2);outline:none;}
+  select option:focus-visible{background:var(--surface-2);outline:none;}
   select option:checked{background:var(--primary-soft);font-weight:800;}
   select option::checkmark{
     content:"";order:1;margin-left:auto;flex:none;width:12px;height:12px;background:var(--primary);
@@ -528,30 +526,14 @@ input[type=date]::-webkit-calendar-picker-indicator,input[type=month]::-webkit-c
 }
 html.dark input[type=date]::-webkit-calendar-picker-indicator,html.dark input[type=month]::-webkit-calendar-picker-indicator{background-image:url(assets/icons/calendar-ind-dark.svg);}
 
-/* ---------- 4. Desbloqueio: PIN fica verde → cadeado abre → íris 8-bit revela o app ----------
-   JS mínimo: ao acertar o PIN, mostre o #app por baixo, adicione .unlocking no #lockScreen
-   e .app-enter no #app; no 'animationend' do #lockScreen (animationName 'cx-iris'), rode o
-   código que já esconde a tela e remova as classes. Duração total ≈ 1,15s. */
-#lockScreen.unlocking{pointer-events:none;animation:cx-iris .6s steps(12) .55s forwards;}
-@keyframes cx-iris{from{clip-path:circle(75% at 50% 50%);}to{clip-path:circle(0% at 50% 50%);}}
-#lockScreen.unlocking .pin-boxes>span{border-color:var(--primary);background:var(--primary-soft);animation:cx-hop .24s steps(3) both;}
-#lockScreen.unlocking .pin-boxes>span:nth-child(2){animation-delay:.05s;}
-#lockScreen.unlocking .pin-boxes>span:nth-child(3){animation-delay:.1s;}
-#lockScreen.unlocking .pin-boxes>span:nth-child(4){animation-delay:.15s;}
-#lockScreen.unlocking .pin-boxes>span:nth-child(n+5){animation-delay:.2s;}
+/* ---------- 4. Desbloqueio: PIN fica verde → cadeado abre → a tela some em 200 ms ----------
+   Acontece toda vez que o app volta do fundo, então é curto de propósito (era 1,15 s com íris). */
+#lockScreen.unlocking{pointer-events:none;animation:cx-fade 200ms var(--ease-out) forwards;}
+@keyframes cx-fade{to{opacity:0;}}
+#lockScreen.unlocking .pin-boxes>span{border-color:var(--primary);background:var(--primary-soft);}
 #lockScreen.unlocking .pin-boxes .px-dot{--c:var(--primary);}
-#lockScreen.unlocking .lock-card .emoji{background:var(--primary);animation:cx-hop .3s steps(3) .18s both;}
+#lockScreen.unlocking .lock-card .emoji{background:var(--primary);}
 #lockScreen.unlocking .lock-card .emoji .px-ico{--i:url(assets/icons/lock-open.svg) !important;color:#fff;}
-#lockScreen.unlocking .lock-card{animation:cx-card-out .28s cubic-bezier(.5,0,.75,0) .42s forwards;}
-@keyframes cx-hop{50%{transform:translateY(-6px);}}
-@keyframes cx-card-out{to{transform:scale(.9);opacity:0;}}
-#app.app-enter{animation:cx-app-in .6s cubic-bezier(.2,.8,.2,1) .55s both;}
-@keyframes cx-app-in{from{transform:scale(.97);}to{transform:none;}}
-@media(prefers-reduced-motion:reduce){
-  #lockScreen.unlocking{animation:cx-fade .2s forwards;}
-  #lockScreen.unlocking *,#app.app-enter{animation:none !important;}
-  @keyframes cx-fade{to{opacity:0;}}
-}
 
 /* ---------- Tema escuro: botões e ícones com mais destaque (detalhe claro na borda) ---------- */
 html.dark .btn,html.dark .icon-btn{border-color:var(--border-strong);}
@@ -590,24 +572,25 @@ h1,h2,h3{text-wrap:balance;} .hint,.empty-state,.card .sub{text-wrap:pretty;}
 /* apertar: resposta imediata (curta) em tudo que é botão */
 .icon-btn,.seg button,.chip,.mini,.subs-btn,.acc-head,nav.tabs button,.row-actions button:not(.btn),.emoji-btn,.emoji-aba{transition:transform var(--t-press) var(--ease-out),background-color var(--t-ui) var(--ease-out),border-color var(--t-ui) var(--ease-out),color var(--t-ui) var(--ease-out);}
 .seg button:active,.chip:active,.mini:active,.subs-btn:active,.row-actions button:not(.btn):active,.emoji-btn:active,.emoji-aba:active{transform:scale(.96);}
-nav.tabs button:active{transform:scale(.94);}
+nav.tabs button:active{transform:scale(.97);}
 .acc-head:active{background:var(--surface-2);}
 .cat-grupo>summary:active{background:var(--surface-2);}
 @media(hover:none){#lancLista .row-card:active{background:var(--surface-2);}}
 /* janelas: sobem do rodapé no celular; no PC entram de leve do centro (nunca de scale(0)) */
 @keyframes cx-backdrop-in{from{opacity:0;}}
-@keyframes cx-modal-sheet{from{opacity:0;transform:translateY(32px);}}
+@keyframes cx-modal-sheet{from{transform:translateY(100%);}}
+@keyframes cx-sheet-out{to{transform:translateY(100%);}}
 @keyframes cx-modal-box{from{opacity:0;transform:translateY(8px) scale(.97);}}
 @keyframes cx-backdrop-out{to{opacity:0;}}
 @keyframes cx-modal-out{to{opacity:0;transform:translateY(12px);}}
 #modalRoot:not(.hidden) .modal-backdrop{animation:cx-backdrop-in var(--t-ui) var(--ease-out) backwards;}
-#modalRoot:not(.hidden) .modal-card{animation:cx-modal-sheet var(--t-modal) var(--ease-out) backwards;}
-@media(min-width:640px){#modalRoot:not(.hidden) .modal-card{animation-name:cx-modal-box;}}
+#modalRoot:not(.hidden) .modal-card{animation:cx-modal-sheet var(--t-modal) cubic-bezier(.32,.72,0,1) backwards;}
+@media(min-width:640px){#modalRoot:not(.hidden) .modal-card{animation-name:cx-modal-box;animation-timing-function:var(--ease-out);}}
 #modalRoot.saindo .modal-backdrop{animation:cx-backdrop-out var(--t-exit) var(--ease-out) forwards;}
 #modalRoot.saindo .modal-card{animation:cx-modal-out var(--t-exit) var(--ease-out) forwards;}
+@media(max-width:639px){#modalRoot.saindo .modal-card{animation-name:cx-sheet-out;}}
 #modalRoot.saindo{pointer-events:none;}
 /* troca de aba: entra rápido e curto */
-section.tab.active{animation-duration:var(--t-ui);animation-timing-function:var(--ease-out);}
 @media(prefers-reduced-motion:reduce){
   #modalRoot:not(.hidden) .modal-card,#modalRoot.saindo .modal-card{animation-name:cx-backdrop-in;animation-duration:.12s;}
   #modalRoot.saindo .modal-card{animation-name:cx-backdrop-out;}
@@ -631,7 +614,6 @@ html.dark .field input,html.dark .field select,html.dark .field textarea,html.da
 .icon-btn{transition:transform var(--t-press) var(--ease-out),box-shadow var(--t-press) var(--ease-out),background-color var(--t-ui) var(--ease-out),border-color var(--t-ui) var(--ease-out);}
 @media(min-width:681px){#lancLista .row-actions{min-width:70px;justify-content:flex-end;}} /* coluna do valor não "anda" quando falta o botão Editar */
 @media(prefers-reduced-motion:reduce){
-  section.tab.active{animation-name:cx-backdrop-in;animation-duration:.12s;}
   .toast{transform:none;transition:opacity .12s;}
   .acc-seta,.cat-grupo>summary::after{transition:none;}
 }
@@ -924,7 +906,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-14 · v19';
+const APP_VERSAO='2026-10-14 · v20';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1093,19 +1075,19 @@ async function tentarDesbloquear(){
     input.value=''; desenharPinBoxes();
     document.getElementById('lockError').textContent='';
     if(!window.fbUid){ lock.classList.add('hidden'); mostrarLogin(); return; } // PIN não substitui o login: sem sessão não abre o app
-    app.classList.remove('hidden'); // o app fica visível POR BAIXO do lock enquanto a animação roda
-    lock.classList.add('unlocking'); app.classList.add('app-enter');
+    app.classList.remove('hidden'); // o app fica visível POR BAIXO do lock enquanto ele some
+    lock.classList.add('unlocking');
     let acabou=false;
     const fim=()=>{ // idempotente: animationend e o timer de segurança podem chamar os dois
       if(acabou) return; acabou=true;
-      lock.classList.remove('unlocking'); app.classList.remove('app-enter');
+      lock.classList.remove('unlocking');
       lock.classList.add('hidden');
       possivelmenteAbrirWizard();
     };
     lock.addEventListener('animationend',function h(e){
-      if(e.target===lock && (e.animationName==='cx-iris'||e.animationName==='cx-fade')){ lock.removeEventListener('animationend',h); fim(); }
+      if(e.target===lock && e.animationName==='cx-fade'){ lock.removeEventListener('animationend',h); fim(); }
     });
-    setTimeout(fim,1600);
+    setTimeout(fim,400);
   }else{
     input.value=''; desenharPinBoxes();
     if(++pinErros>=5){ // errou demais: exige e-mail e senha (como app de banco)
@@ -1499,6 +1481,10 @@ function renderAba(nome){
   else if(nome==='config') renderConfig();
   encaixarValores();
   animarEntrada(nome);
+  if(nome==='graficos' && appVisivel()){
+    const ps=document.querySelectorAll('section.tab.active .graf-painel');
+    if(ps.length){ if(jaFeito(abasAnimadas,'graf')) ps.forEach(p=>p.classList.add('sem-anim')); else if(!abasAnimadas.has('graf')) abasAnimadas.set('graf',performance.now()); }
+  }
   if(nome==='dashboard'||nome==='graficos'){ contarValores(nome+'|'+anoMesStr(mesDash.getFullYear(),mesDash.getMonth())); }
   if(nome==='dashboard') checarMesNoVerde();
 }
@@ -1590,7 +1576,7 @@ function chuvaDeMoedas(){
     dy=e.touches[0].clientY-y0;
     if(!arrastando){ if(dy<=6) return; arrastando=true; }
     e.preventDefault();
-    card.style.transition='none'; card.style.transform='translateY('+Math.max(0,dy)+'px)';
+    card.style.transition='none'; card.style.transform='translateY('+(dy<0?dy*0.2:dy)+'px)'; // para cima: fricção, não parede
   },{passive:false});
   card.addEventListener('touchend',e=>{
     if(!pode||!arrastando){ pode=false; return; }
@@ -2112,7 +2098,7 @@ function svgFatias(itens,total,rosca){
         d=`M ${fx(x1)} ${fx(y1)} A ${R} ${R} 0 ${large} 1 ${fx(x2)} ${fx(y2)} L ${fx(x3)} ${fx(y3)} A ${r} ${r} 0 ${large} 0 ${fx(x4)} ${fx(y4)} Z`;
       }else d=`M ${cx} ${cy} L ${fx(x1)} ${fx(y1)} A ${R} ${R} 0 ${large} 1 ${fx(x2)} ${fx(y2)} Z`;
     }
-    out+=`<path class="fatia" data-i="${i}" data-n="${escapeHtml(it.nome)}" data-v="${fmtMoney(it.valor)}" d="${d}" fill="${corSegura(it.cor)}" stroke="var(--surface)" stroke-width="2" style="animation-delay:${i*45}ms" data-tip="${escapeHtml(it.nome)}: ${fmtMoney(it.valor)} (${pct}%)"/>`;
+    out+=`<path class="fatia" data-i="${i}" data-n="${escapeHtml(it.nome)}" data-v="${fmtMoney(it.valor)}" d="${d}" fill="${corSegura(it.cor)}" stroke="var(--surface)" stroke-width="2" style="animation-delay:${Math.min(i,5)*30}ms" data-tip="${escapeHtml(it.nome)}: ${fmtMoney(it.valor)} (${pct}%)"/>`;
     if(frac>=0.07 && frac<0.9999){
       const am=(ang+a2)/2, rl=rosca?(R+r)/2:R*0.64;
       out+=`<text class="fatia-pct" x="${fx(cx+rl*Math.cos(am))}" y="${fx(cy+rl*Math.sin(am))}">${pct}%</text>`;
@@ -2128,9 +2114,9 @@ function svgColunasDist(itens){
   itens.forEach((it,i)=>{
     const h=Math.max(3,it.valor/max*ph), x=gw*i+(gw-bw)/2, y=base-h;
     const nm=it.nome.length>9? it.nome.slice(0,8)+'…' : it.nome;
-    out+=`<g class="col" data-i="${i}" data-tip="${escapeHtml(it.nome)}: ${fmtMoney(it.valor)}" style="animation-delay:${i*45}ms">
+    out+=`<g class="col" data-i="${i}" data-tip="${escapeHtml(it.nome)}: ${fmtMoney(it.valor)}">
       <rect x="${fx(gw*i)}" y="0" width="${fx(gw)}" height="${H}" fill="transparent"/>
-      <rect class="col-bar" x="${fx(x)}" y="${fx(y)}" width="${fx(bw)}" height="${fx(h)}" rx="6" fill="${corSegura(it.cor)}"/>
+      <rect class="col-bar" x="${fx(x)}" y="${fx(y)}" width="${fx(bw)}" height="${fx(h)}" rx="6" fill="${corSegura(it.cor)}" style="animation-delay:${Math.min(i,5)*30}ms"/>
       <text class="eixo-v" x="${fx(gw*i+gw/2)}" y="${fx(y-6)}">${fmtCurto(it.valor)}</text>
       <text class="eixo-l" x="${fx(gw*i+gw/2)}" y="${base+16}">${escapeHtml(nm)}</text>
     </g>`;
@@ -2144,7 +2130,7 @@ function htmlBarrasH(itens,total){
     const pct=Math.round(it.valor/total*100), w=Math.max(2,it.valor/max*100);
     return `<div class="bh-row" data-i="${i}" tabindex="0" role="button" data-tip="${escapeHtml(it.nome)}: ${fmtMoney(it.valor)} (${pct}%)">
       <div class="bh-top"><span class="bh-nome">${it.icone?iconeSeguro(it.icone)+' ':''}${escapeHtml(it.nome)}</span><span class="bh-val">${fmtMoney(it.valor)} <small>${pct}%</small></span></div>
-      <div class="bh-trilho"><div class="bh-fill" style="width:${w}%;background:${corSegura(it.cor)};animation-delay:${i*50}ms"></div></div>
+      <div class="bh-trilho"><div class="bh-fill" style="width:${w}%;background:${corSegura(it.cor)};animation-delay:${Math.min(i,5)*30}ms"></div></div>
     </div>`;}).join('')}</div>`;
 }
 function htmlLegenda(itens,total){
@@ -2180,8 +2166,8 @@ function svgEvolucao(serie,tipo){
     const bw=Math.min(22,gw*0.36);
     serie.forEach((s,i)=>{
       const hr=s.receitas>0?Math.max(2,s.receitas/teto*ph):0, hd=s.despesas>0?Math.max(2,s.despesas/teto*ph):0;
-      corpo+=`<rect class="col-bar" x="${fx(cx(i)-bw-1)}" y="${fx(base-hr)}" width="${fx(bw)}" height="${fx(hr)}" rx="4" fill="var(--income)" style="animation-delay:${i*40}ms"/>`;
-      corpo+=`<rect class="col-bar" x="${fx(cx(i)+1)}" y="${fx(base-hd)}" width="${fx(bw)}" height="${fx(hd)}" rx="4" fill="var(--expense)" style="animation-delay:${i*40+20}ms"/>`;
+      corpo+=`<rect class="col-bar" x="${fx(cx(i)-bw-1)}" y="${fx(base-hr)}" width="${fx(bw)}" height="${fx(hr)}" rx="4" fill="var(--income)" style="animation-delay:${Math.min(i,5)*25}ms"/>`;
+      corpo+=`<rect class="col-bar" x="${fx(cx(i)+1)}" y="${fx(base-hd)}" width="${fx(bw)}" height="${fx(hd)}" rx="4" fill="var(--expense)" style="animation-delay:${Math.min(i,5)*25+15}ms"/>`;
     });
   }
   let alvos='', rotulos='';

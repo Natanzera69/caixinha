@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-14 (3) — Revisão das animações (v20)
+
+Revisão com a checklist do review-animations; tudo aplicado numa leva.
+
+- **Desbloqueio com PIN: de 1,15 s para 200 ms** (fade). Acontece toda vez que o app volta do fundo; a íris longa atrapalhava lançar.
+- **Janela no celular** entra e sai pela borda de baixo (curva de gaveta); depois de arrastar para fechar, ela continua descendo (antes voltava para cima enquanto sumia). Arrasto para cima tem fricção.
+- **Gráficos**: 220 ms (linha 400 ms), curva do sistema, escalonamento ≤ 30 ms, e só animam na primeira pintura da sessão. Corrigido o realce da fatia, que ficava preso pelo `forwards`.
+- Ajustes: `:active` da barra de abas .94 → .97, setas de sanfona com os tokens, hover da lista de seleção só com mouse, CSS morto removido.
+
 ## 2026-10-14 (2) — Animações leves (v19)
 
 Feito com find-animation-opportunities (filtro), animate/apple-design (implementação) e a checklist do review-animations. Regra: o caminho de lançar uma despesa não ganha nenhum milissegundo; nada espera animação; desligado com "reduzir movimento".
