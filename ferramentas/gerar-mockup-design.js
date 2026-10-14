@@ -122,7 +122,7 @@ section.tab{animation:none !important;}
 const tema = `<script>/* só do mockup: alterna claro/escuro */
 document.getElementById('tema').onclick=function(){document.documentElement.classList.toggle('dark');};</script>`;
 // seções fechadas da Config vêm com o corpo montado (escondido): tira para o mockup ficar leve e sem confusão
-const semCorposFechados = h => h.replace(/(<div class="acc-body"[^>]*\bhidden>)[\s\S]*?(<\/div>\s*<\/section>)/g, '$1$2');
+const semCorposFechados = h => h.replace(/(<div class="acc-body"[^>]*\binert>)[\s\S]*?(<\/div>\s*<\/section>)/g, '$1$2');
 const secoes = telas.map((t, i) => `
 <section class="mock-sec" id="tela-${i + 1}">
   <h2>${i + 1}. ${t.titulo}</h2>${t.nota ? `<p class="nota">${t.nota}</p>` : ''}
