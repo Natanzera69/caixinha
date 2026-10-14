@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-10-14 (2) — Animações leves (v19)
+
+Feito com find-animation-opportunities (filtro), animate/apple-design (implementação) e a checklist do review-animations. Regra: o caminho de lançar uma despesa não ganha nenhum milissegundo; nada espera animação; desligado com "reduzir movimento".
+
+- **Entrada suave** de cartões e linhas (180 ms, 6 px, no máx. 35 ms entre irmãos) só na **primeira visita de cada aba** por sessão; nada em re-render por edição.
+- **Contador** nos totais do Início/Gráficos (280 ms) só na primeira vez de cada mês; o valor final sempre está no DOM e chega mesmo com a aba em segundo plano.
+- **Toast** de confirmação ganha o ✓ 8-bit com "pop" (200 ms); a janela continua fechando na hora.
+- **Arrastar para fechar** a janela no celular (só toque, só com o conteúdo no topo; fecha por distância > 110 px ou velocidade; volta com 220 ms se curto). X e Esc continuam.
+- **Sombra** na barra de abas do PC quando a página rola.
+- **Moedinhas** (10 moedas, 900 ms, em degraus) só em dois momentos: **fatura paga por inteiro** e **mês anterior fechado no verde** (receitas ≥ despesas e nenhum orçamento estourado; uma vez por período e por aparelho).
+- Ajustes de "o que NÃO animar": troca de aba virou só fade de 100 ms (navegação frequente) e os gráficos deixaram de re-animar a cada troca de lista.
+- Testes: 37 casos (regra do mês no verde). Cache do service worker v19.
+
 ## 2026-10-14 — Retrofit estético (pixel art mantido): movimento, toque, números e acabamento
 
 Feito com as skills impeccable (auditoria/polimento), emil-design-eng (movimento) e redesign-existing-projects, verificado com Playwright em 1280/768/375 px, claro e escuro. Só aparência: nenhuma função de dados mudou.

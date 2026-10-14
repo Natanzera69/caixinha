@@ -1,6 +1,6 @@
 # Design — Caixinha
 
-> Registro do sistema visual **entregue** (Planilha Financeiro.html, versão 2026-10-14 · v18). Fonte da verdade: os tokens em `:root` e `html.dark` do `<style>` principal.
+> Registro do sistema visual **entregue** (Planilha Financeiro.html, versão 2026-10-14 · v19). Fonte da verdade: os tokens em `:root` e `html.dark` do `<style>` principal.
 
 ## Mundo
 App de tarefa (Operate). **Pixel art de papel e moeda**: papel creme, verde de cédula, ouro da moeda, ícones 8-bit, sombras em "degrau" (blocos sem desfoque), bordas grossas. Personalidade nos detalhes (moeda, ícones, movimento curto), não em ornamento.
@@ -32,7 +32,7 @@ Títulos e marca: **Pixelify Sans** (sem ligaduras: o "fi" desenhava errado). Te
 - **Estado vazio** (`.empty-state`): quadro pontilhado que preenche o cartão e traz a ação seguinte.
 
 ## Movimento
-`--ease-out: cubic-bezier(.23,1,.32,1)`, `--ease-in-out: cubic-bezier(.77,0,.175,1)`, `--ease-pixel: steps(3)` só para momentos de pixel art (moeda girando, desbloqueio em íris). Durações: apertar 120 ms, interface 200 ms, janela 260 ms, saída 150 ms. Nada em ação repetida ou por teclado; hover só com `(hover:hover) and (pointer:fine)`; `prefers-reduced-motion` troca deslocamento por fade curto.
+`--ease-out: cubic-bezier(.23,1,.32,1)`, `--ease-in-out: cubic-bezier(.77,0,.175,1)`, `--ease-pixel: steps(3)` só para momentos de pixel art (moeda girando, desbloqueio em íris). Durações: apertar 120 ms, interface 200 ms, janela 260 ms, saída 150 ms. Momentos leves: entrada de cartões na 1ª visita da aba (180 ms), contador de totais na 1ª vez do mês (280 ms), ✓ no toast, arrastar para fechar a janela no celular, chuva de moedinhas só em fatura quitada e mês no verde. Nada em ação repetida ou por teclado; hover só com `(hover:hover) and (pointer:fine)`; `prefers-reduced-motion` troca deslocamento por fade curto.
 
 ## Regras duras
 - Contraste AA nos dois temas; foco visível (`:focus-visible` 3 px); alvo de toque 44 px.

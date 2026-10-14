@@ -19,7 +19,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
   'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo',
-  'hashPin', 'pinConfere', 'enviarPinDaConta', 'aplicarPinDaConta'];
+  'hashPin', 'pinConfere', 'enviarPinDaConta', 'aplicarPinDaConta', 'mesNoVerde'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -469,5 +469,16 @@ t('PIN da conta: vale em todos os aparelhos, converge pelo carimbo e some junto 
 t('Backup nunca leva o PIN da conta', () => {
   ctx.BKP = { formatoBackup: 2, pessoal: { contas: [], transacoes: [], config: { pinConta: { hash: 'x', em: 'y' }, temaEscuro: true } } };
   assert.ok(!('pinConta' in run('lerObjetoBackup(BKP).pessoal.config')));
+});
+t('Mês no verde: receitas cobrem despesas e nenhum orçamento estourou', () => {
+  const cats = [{ id: 'm', orcamentoMensal: 500 }, { id: 'l' }];
+  const T = (tipo, v, c) => ({ tipo, valor: v, categoriaId: c });
+  const v = (lista, c) => { ctx.ML = lista; ctx.MC = c || cats; return run('mesNoVerde(ML,MC)'); };
+  assert.strictEqual(v([T('receita', 3000, 'x'), T('despesa', 450, 'm'), T('despesa', 100, 'l')]), true);
+  assert.strictEqual(v([T('receita', 3000, 'x'), T('despesa', 501, 'm')]), false);          // orçamento de Mercado estourou
+  assert.strictEqual(v([T('receita', 100, 'x'), T('despesa', 200, 'l')]), false);           // gastou mais do que entrou
+  assert.strictEqual(v([T('receita', 100, 'x'), T('despesa', 100, 'l')]), true);            // empate conta como verde
+  assert.strictEqual(v([]), false);                                                          // mês vazio não comemora
+  assert.strictEqual(v([T('transferencia', 999, null)]), false);                             // só transferência = sem movimento
 });
 console.log(`\n${ok} testes passaram`);

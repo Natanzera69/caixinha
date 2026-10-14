@@ -636,6 +636,22 @@ html.dark .field input,html.dark .field select,html.dark .field textarea,html.da
   .acc-seta,.cat-grupo>summary::after{transition:none;}
 }
 
+/* ---------- Animações leves ---------- */
+section.tab.active{animation:cx-fade-rapido 100ms var(--ease-out);} /* trocar de aba é navegação frequente: só opacidade, 100 ms */
+@keyframes cx-fade-rapido{from{opacity:0;}}
+.entra{animation:cx-entra 180ms var(--ease-out) backwards;animation-delay:var(--d,0ms);}
+@keyframes cx-entra{from{opacity:0;transform:translateY(6px);}}
+.graf-painel.sem-anim .fatia,.graf-painel.sem-anim .col-bar,.graf-painel.sem-anim .bh-fill{animation:none;}
+.graf-painel.sem-anim .linha-dr{animation:none;stroke-dashoffset:0;}
+.toast.ok::before{background:var(--coin);-webkit-mask:url(assets/icons/check.svg) center/contain no-repeat;mask:url(assets/icons/check.svg) center/contain no-repeat;animation:cx-pop 200ms var(--ease-out) both;}
+@keyframes cx-pop{0%{transform:scale(.5);}60%{transform:scale(1.2);}100%{transform:scale(1);}}
+@media(min-width:681px){nav.tabs{transition:box-shadow var(--t-ui) var(--ease-out);} body.rolou nav.tabs{box-shadow:0 3px 0 var(--border),0 12px 18px -12px rgba(29,31,22,.35);}}
+html.dark body.rolou nav.tabs{box-shadow:0 3px 0 var(--border),0 12px 18px -12px rgba(0,0,0,.7);}
+.moedas{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:var(--z-toast);}
+.moedas img{position:absolute;top:-44px;width:26px;height:auto;image-rendering:pixelated;animation:cx-moeda 900ms steps(10) forwards;}
+@keyframes cx-moeda{0%{opacity:1;transform:translate(0,0);}85%{opacity:1;}100%{opacity:0;transform:translate(var(--dx),108vh);}}
+@media(prefers-reduced-motion:reduce){.entra{animation:none;} .moedas{display:none;} .toast.ok::before{animation:none;}}
+
 </style>
 </head>
 <body>
@@ -814,7 +830,7 @@ function mostrarErros(raiz,checks){
   return !!primeiro;
 }
 function toast(msg){
-  const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
+  const el=document.createElement('div'); el.className='toast'+(/^(não|erro|falha|sem |conecte)/i.test(msg)?'':' ok'); el.textContent=msg; // ✓ só nas confirmações
   document.getElementById('toastRoot').appendChild(el);
   requestAnimationFrame(()=>el.classList.add('show'));
   setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(),250); },2400);
@@ -908,7 +924,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-14 · v18';
+const APP_VERSAO='2026-10-14 · v19';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1482,6 +1498,111 @@ function renderAba(nome){
   else if(nome==='investimentos') renderInvestimentos();
   else if(nome==='config') renderConfig();
   encaixarValores();
+  animarEntrada(nome);
+  if(nome==='dashboard'||nome==='graficos'){ contarValores(nome+'|'+anoMesStr(mesDash.getFullYear(),mesDash.getMonth())); }
+  if(nome==='dashboard') checarMesNoVerde();
+}
+/* ================= Movimento leve (nunca no caminho de lançar) =================
+   Regras: só quando é novidade (1ª visita da aba, 1º total do mês), < 350 ms, nada em re-render por edição,
+   desligado com "reduzir movimento". Os valores no DOM estão sempre corretos. */
+function reduzMovimento(){ return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+const abasAnimadas=new Map(), contadoresFeitos=new Map(); // nome → instante; um 2º render logo em seguida (sincronização) repete, para a animação não ser cortada
+const JANELA_REPETE=450;
+const jaFeito=(mapa,chave)=>mapa.has(chave) && performance.now()-mapa.get(chave)>JANELA_REPETE;
+function appVisivel(){ return !document.getElementById('app').classList.contains('hidden'); }
+function animarEntrada(nome){
+  if(reduzMovimento()||jaFeito(abasAnimadas,nome)||!appVisivel()) return; // render com o app escondido (carga/login) não gasta a "primeira vez"
+  const sec=document.getElementById('tab-'+nome); if(!sec) return;
+  const alvos=[...sec.querySelectorAll('.grid > .card, .two-col > .card, .list > .row-card')];
+  if(!alvos.length) return; if(!abasAnimadas.has(nome)) abasAnimadas.set(nome,performance.now());
+  alvos.slice(0,10).forEach((el,i)=>{
+    el.style.setProperty('--d',Math.min(i,6)*35+'ms'); el.classList.add('entra');
+    el.addEventListener('animationend',()=>{ el.classList.remove('entra'); el.style.removeProperty('--d'); },{once:true});
+  });
+}
+function contarValores(chave){
+  if(reduzMovimento()||jaFeito(contadoresFeitos,chave)||!appVisivel()) return;
+  const vals=[...document.querySelectorAll('section.tab.active .card .value')];
+  if(!vals.length) return; if(!contadoresFeitos.has(chave)) contadoresFeitos.set(chave,performance.now());
+  vals.forEach((el,i)=>{
+    if(i>=8) return;
+    const orig=el.textContent, txt=orig.replace(/\u00a0/g,' ').trim();
+    const m=/^(-?)R\$ ([\d.]+),(\d{2})$/.exec(txt); if(!m) return;
+    const alvo=(m[1]?-1:1)*(Number(m[2].replace(/\./g,''))+Number(m[3])/100);
+    if(Math.abs(alvo)<1) return;
+    const t0=performance.now(), dur=280;
+    const passo=t=>{
+      if(!el.isConnected) return;
+      const p=Math.min(1,(t-t0)/dur);
+      if(p>=1){ el.textContent=orig; return; }
+      el.textContent=fmtMoney(round2(alvo*(1-Math.pow(1-p,3))));
+      requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+    setTimeout(()=>{ if(el.isConnected) el.textContent=orig; },dur+120); // com a aba em segundo plano/economia de bateria os quadros param: o valor final sempre chega
+  });
+}
+// Regra pura: o período terminou no verde? (receitas ≥ despesas, algum movimento, nenhum orçamento estourado)
+function mesNoVerde(doMes,categorias){
+  let rec=0,des=0; const porCat={};
+  doMes.forEach(t=>{
+    if(t.tipo==='receita') rec+=t.valor;
+    else if(t.tipo==='despesa'){ des+=t.valor; porCat[t.categoriaId]=(porCat[t.categoriaId]||0)+t.valor; }
+  });
+  if(rec<=0 && des<=0) return false;
+  if(des>rec+0.004) return false;
+  return !(categorias||[]).some(c=>c.orcamentoMensal>0 && (porCat[c.id]||0)>c.orcamentoMensal+0.004);
+}
+let jaChecouVerde=false;
+function checarMesNoVerde(){
+  if(jaChecouVerde) return; jaChecouVerde=true;
+  const atual=anoMesAtualPeriodo(), chave='planilhaFinanceiro_periodoVisto_'+perfilAtivo;
+  const visto=lsGet(chave); lsSet(chave,atual);
+  if(!visto || visto===atual || reduzMovimento()) return; // 1ª vez neste aparelho ou ainda é o mesmo período
+  const [a,m]=atual.split('-').map(Number), ant=new Date(a,m-2,1);
+  if(mesNoVerde(transacoesEfetivasDoMes(ant.getFullYear(),ant.getMonth()),state.categorias)){
+    chuvaDeMoedas(); toast(rotuloMesLongo(anoMesStr(ant.getFullYear(),ant.getMonth()))+' fechou no verde.');
+  }
+}
+function chuvaDeMoedas(){
+  if(reduzMovimento()) return;
+  const raiz=document.createElement('div'); raiz.className='moedas'; raiz.setAttribute('aria-hidden','true');
+  for(let i=0;i<10;i++){
+    const m=document.createElement('img'); m.src='assets/logo-moeda.svg'; m.alt='';
+    m.style.left=(6+Math.random()*88)+'vw'; m.style.animationDelay=Math.round(Math.random()*240)+'ms';
+    m.style.setProperty('--dx',Math.round(Math.random()*80-40)+'px');
+    raiz.appendChild(m);
+  }
+  document.body.appendChild(raiz); setTimeout(()=>raiz.remove(),1500);
+}
+// Arrastar para fechar a janela (só celular, só quando o conteúdo está no topo); botão X e Esc continuam.
+(function arrastarParaFechar(){
+  const card=document.getElementById('modalCard'); if(!card) return;
+  let y0=0,t0=0,dy=0,pode=false,arrastando=false;
+  const folha=()=>matchMedia('(max-width:639px)').matches && matchMedia('(pointer:coarse)').matches;
+  card.addEventListener('touchstart',e=>{
+    arrastando=false; pode=false;
+    if(!folha()||e.touches.length!==1||e.target.closest('input,select,textarea,.emoji-grid,.swatches')) return;
+    y0=e.touches[0].clientY; t0=e.timeStamp; dy=0; pode=card.scrollTop<=0;
+  },{passive:true});
+  card.addEventListener('touchmove',e=>{
+    if(!pode) return;
+    dy=e.touches[0].clientY-y0;
+    if(!arrastando){ if(dy<=6) return; arrastando=true; }
+    e.preventDefault();
+    card.style.transition='none'; card.style.transform='translateY('+Math.max(0,dy)+'px)';
+  },{passive:false});
+  card.addEventListener('touchend',e=>{
+    if(!pode||!arrastando){ pode=false; return; }
+    pode=false; arrastando=false;
+    const v=dy/Math.max(1,e.timeStamp-t0);
+    if(dy>110 || (dy>40 && v>0.11)){ card.style.transition=''; fecharModal(); }
+    else{ card.style.transition='transform 220ms var(--ease-out)'; card.style.transform=''; setTimeout(()=>{ card.style.transition=''; },240); }
+  });
+})();
+{ // sombra da barra de abas quando a página rola
+  const marca=()=>document.body.classList.toggle('rolou',window.scrollY>6);
+  window.addEventListener('scroll',marca,{passive:true});
 }
 // Valores grandes (até R$ 999.999.999,99) encolhem só o necessário para caber no cartão, em vez de vazar para o vizinho.
 function encaixarValores(raiz){
@@ -2126,7 +2247,7 @@ function grafSet(chave,campo,valor){
   else if(campo==='meses'){ const n=Number(valor); if(n===6||n===12) est.meses=n; }
   else if(campo==='cat') est.cat = categoriaById(valor)? valor : '';
   grafSalvar();
-  if(painel){ const c=document.createElement('div'); c.innerHTML=htmlPainelGrafico(chave,dims); painel.replaceWith(c.firstElementChild); }
+  if(painel){ const c=document.createElement('div'); c.innerHTML=htmlPainelGrafico(chave,dims); c.firstElementChild.classList.add('sem-anim'); painel.replaceWith(c.firstElementChild); }
 }
 
 /* ---- interação (delegada): passar o mouse / tocar destaca fatia, barra e legenda, e mostra o valor ---- */
@@ -2932,7 +3053,9 @@ function pagarFaturaCartao(cartaoId){
     state.transacoes.push(tocar({id:uuid(),descricao:`Pagamento fatura ${c.nome}`,data:rData.valor,
       valor:rValor.valor,tipo:'transferencia',categoriaId:null,metodoPagamento:'transferencia',
       contaId:fd.get('contaId'),contaDestinoId:null,cartaoId,pagamentoFatura:true,status:'pago',notas:''}));
-    salvarEstado(); fecharModal(); renderTudo(); toast('Fatura paga.');
+    salvarEstado(); fecharModal(); renderTudo();
+    const quitou=divendaTotalCartao(cartaoId)<=0.004; // zerou a dívida do cartão: único momento "grande" do app
+    toast(quitou?'Fatura paga por inteiro.':'Fatura paga.'); if(quitou) chuvaDeMoedas();
   });
   abrirModal();
 }
@@ -3892,6 +4015,7 @@ function abrirModal(){
   const raizAbrir=document.getElementById('modalRoot');
   if(raizAbrir.classList.contains('hidden') || raizAbrir.classList.contains('saindo')) focoAntesDoModal=document.activeElement; // não perde o botão que abriu a janela
   raizAbrir.classList.remove('hidden','saindo');
+  { const cm=document.getElementById('modalCard'); cm.style.transform=''; cm.style.transition=''; }
   document.getElementById('modalCard').focus({preventScroll:true}); // foco no diálogo (sem abrir o teclado do celular)
   // uma entrada no histórico por janela: o botão Voltar do celular fecha a janela em vez de sair do app
   if(!modalNoHistorico && !voltandoDoModal){ try{ history.pushState({cx:'modal'},''); modalNoHistorico=true; }catch(e){} }
