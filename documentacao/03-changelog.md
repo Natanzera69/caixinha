@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-14 (4) — Indicador deslizante da barra de abas (v21)
+
+Ao trocar de aba, o bloco verde (PC) ou a pílula do ícone (celular) desliza até a aba nova: 200 ms, só `transform`, `--ease-out`. Sem JS ou com "reduzir movimento" a troca é instantânea. A 1ª posição, o redimensionamento e a barra reaparecendo (login/PIN) entram sem animar.
+
 ## 2026-10-14 (3) — Revisão das animações (v20)
 
 Revisão com a checklist do review-animations; tudo aplicado numa leva.

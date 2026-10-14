@@ -634,6 +634,17 @@ html.dark body.rolou nav.tabs{box-shadow:0 3px 0 var(--border),0 12px 18px -12px
 @keyframes cx-moeda{0%{opacity:1;transform:translate(0,0);}85%{opacity:1;}100%{opacity:0;transform:translate(var(--dx),108vh);}}
 @media(prefers-reduced-motion:reduce){.entra{animation:none;} .moedas{display:none;} .toast.ok::before{animation:none;}}
 
+/* ---------- Indicador deslizante da barra de abas ---------- */
+nav.tabs button{position:relative;z-index:1;}
+.nav-ind{position:absolute;left:0;top:0;z-index:0;pointer-events:none;opacity:0;background:var(--primary);border-radius:11px;box-shadow:0 2px 0 var(--primary-deep);transition:transform var(--t-ui) var(--ease-out);}
+.nav-ind.pronto{opacity:1;}
+nav.tabs.com-ind button.active{background:transparent;box-shadow:none;} /* sem JS, o botão ativo continua pintado por ele mesmo */
+@media(max-width:680px){
+  .nav-ind{background:var(--primary-soft);border-radius:9px;box-shadow:none;}
+  nav.tabs.com-ind button.active .ico{background:transparent;}
+}
+@media(prefers-reduced-motion:reduce){.nav-ind{transition:none;}}
+
 </style>
 </head>
 <body>
@@ -692,6 +703,7 @@ html.dark body.rolou nav.tabs{box-shadow:0 3px 0 var(--border),0 12px 18px -12px
   </div>
 
   <nav class="tabs">
+    <span class="nav-ind" aria-hidden="true"></span>
     <button data-tab="dashboard" onclick="switchTab('dashboard')"><span class="ico"><span class="px-ico" style="--i:url(assets/icons/home.svg)"></span></span>Início</button>
     <button data-tab="lancamentos" onclick="switchTab('lancamentos')"><span class="ico"><span class="px-ico" style="--i:url(assets/icons/receipt.svg)"></span></span>Lançamentos</button>
     <button data-tab="graficos" onclick="switchTab('graficos')"><span class="ico"><span class="px-ico" style="--i:url(assets/icons/pie.svg)"></span></span><span class="lbl-long">Gráficos</span><span class="lbl-short">Gráf.</span></button>
@@ -906,7 +918,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-14 · v20';
+const APP_VERSAO='2026-10-14 · v21';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1469,7 +1481,26 @@ function switchTab(nome){
   abaAtual=nome;
   document.querySelectorAll('nav.tabs button').forEach(b=>{ const on=b.dataset.tab===nome; b.classList.toggle('active',on); if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('active',s.id==='tab-'+nome));
+  moverIndicadorNav(true);
   renderAba(nome);
+}
+// Indicador da barra de abas: só transform anima (200 ms, --ease-out); tamanho e 1ª posição entram sem transição.
+function moverIndicadorNav(animar){
+  const nav=document.querySelector('nav.tabs'), ind=nav&&nav.querySelector('.nav-ind'), b=nav&&nav.querySelector('button.active');
+  if(!ind||!b) return;
+  const alvo=matchMedia('(max-width:680px)').matches?(b.querySelector('.ico')||b):b;
+  const n=nav.getBoundingClientRect(), r=alvo.getBoundingClientRect();
+  if(!r.width){ ind.classList.remove('pronto'); return; } // barra escondida: reposiciona quando aparecer
+  const direto=!animar||!ind.classList.contains('pronto');
+  if(direto) ind.style.transition='none';
+  ind.style.width=r.width+'px'; ind.style.height=r.height+'px';
+  ind.style.transform='translate('+(r.left-n.left-nav.clientLeft+nav.scrollLeft)+'px,'+(r.top-n.top-nav.clientTop+nav.scrollTop)+'px)';
+  nav.classList.add('com-ind');
+  if(direto){ void ind.offsetWidth; ind.style.transition=''; ind.classList.add('pronto'); }
+}
+if(window.ResizeObserver){ // barra aparece (login/PIN), janela muda, fonte chega: reposiciona sem animar
+  const nav=document.querySelector('nav.tabs'); const ro=new ResizeObserver(()=>moverIndicadorNav(false));
+  ro.observe(nav); nav.querySelectorAll('button').forEach(b=>ro.observe(b));
 }
 function renderAba(nome){
   if(nome==='dashboard') renderDashboard();
