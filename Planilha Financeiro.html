@@ -28,7 +28,7 @@
 :root{
   color-scheme:light;
   --bg:#f6f3ea; --surface:#fffdf7; --surface-2:#f1ede1; --border:#e3dcc9; --line:#1d1f16;
-  --text:#1d1f16; --text-muted:#5e604f; --text-faint:#6f7060;
+  --text:#1d1f16; --text-muted:#5e604f; --text-faint:#666857;
   --primary:#16842f; --primary-deep:#0e5c20; --primary-ink:#ffffff; --primary-soft:#e2f2da;
   --coin:#f6c22c; --coin-deep:#b97f08;
   --income:#117a37; --income-soft:#e1f3e3;
@@ -68,7 +68,7 @@ input::placeholder,textarea::placeholder{color:var(--text-faint);opacity:1;}
 button{cursor:pointer;}
 h1,h2,h3,p{margin:0;}
 .hidden{display:none !important;}
-a{color:var(--primary);} a:hover{color:var(--primary-deep);}
+a{color:var(--primary);}
 :focus-visible{outline:3px solid var(--primary);outline-offset:2px;}
 
 /* ---------- Fullscreen ---------- */
@@ -90,7 +90,7 @@ a{color:var(--primary);} a:hover{color:var(--primary-deep);}
 #lockError{color:var(--expense);font-weight:600;font-size:.85rem;min-height:18px;margin-bottom:10px;}
 
 /* ---------- Botões ---------- */
-.btn{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;font-weight:700;background:var(--surface-2);color:var(--text);box-shadow:0 3px 0 var(--border);transition:transform .06s,box-shadow .06s;}
+.btn{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:11px 16px;font-weight:700;background:var(--surface-2);color:var(--text);box-shadow:0 3px 0 var(--border);transition:transform var(--t-press) var(--ease-out),box-shadow var(--t-press) var(--ease-out),border-color var(--t-ui) var(--ease-out);}
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--border);}
 .btn-primary{background:var(--primary);color:var(--primary-ink);border-color:transparent;box-shadow:0 3px 0 var(--primary-deep);font-weight:800;}
 .btn-primary:active{box-shadow:0 1px 0 var(--primary-deep);}
@@ -121,14 +121,14 @@ section.tab.active{display:block;animation:fade .18s ease;}
 .card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);container-type:inline-size;}
 .card h3{display:flex;align-items:center;gap:7px;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:700;margin-bottom:10px;}
 .card h3::before{content:"";width:12px;height:12px;flex:none;background:url(assets/icons/dot-shade.svg) center/100% no-repeat;background-color:var(--c,var(--coin));-webkit-mask:url(assets/icons/dot.svg) center/contain no-repeat;mask:url(assets/icons/dot.svg) center/contain no-repeat;}
-.card .value{font-family:var(--font-body);font-size:1.6rem;font-size:clamp(1rem,12cqi,1.6rem);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.card .value{font-family:var(--font-body);font-size:1.6rem;font-size:clamp(1rem,12cqi,1.6rem);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .card .sub{font-size:.8rem;color:var(--text-muted);margin-top:4px;line-height:1.35;}
 .value.income{color:var(--income);}
 .value.expense{color:var(--expense);}
 /* novo: primeiro card do Início */
 .card.hero{position:relative;overflow:hidden;background:var(--hero-bg);color:var(--hero-text);border:2px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 0 var(--line);min-height:150px;}
 .card.hero h3{color:var(--hero-muted);} .card.hero h3::before{background-color:var(--hero-value);}
-.card.hero .value{font-size:3rem;font-size:clamp(1.4rem,10cqi,3rem);line-height:1;color:var(--hero-value);margin-top:22px;}
+.card.hero .value{font-size:3rem;font-size:clamp(1.4rem,10cqi,3rem);line-height:1;color:var(--hero-value);margin-top:22px;white-space:nowrap;}
 .card.hero .sub{color:var(--hero-muted);max-width:260px;}
 /* ≥1000 px: hero 2×2 ao lado de 4 colunas; abaixo disso (tablet retrato e celular): hero em linha cheia + cards em 2 colunas */
 @media(min-width:1000px){.grid:has(> .card.hero){grid-template-columns:repeat(4,minmax(0,1fr));} .card.hero{grid-column:span 2;grid-row:span 2;}}
@@ -209,7 +209,7 @@ section.tab.active{display:block;animation:fade .18s ease;}
 
 /* ---------- Toast ---------- */
 #toastRoot{position:fixed;left:0;right:0;bottom:calc(96px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:8px;z-index:var(--z-toast);pointer-events:none;}
-.toast{display:flex;align-items:center;gap:10px;background:#1d1f16;color:#fffdf7;border:2px solid var(--coin);padding:10px 16px 10px 12px;border-radius:12px;font-size:.88rem;font-weight:700;box-shadow:0 4px 0 #000;opacity:0;transform:translateY(6px);transition:all .2s;}
+.toast{display:flex;align-items:center;gap:10px;background:#1d1f16;color:#fffdf7;border:2px solid var(--coin);padding:10px 16px 10px 12px;border-radius:12px;font-size:.88rem;font-weight:700;box-shadow:0 4px 0 #000;opacity:0;transform:translateY(6px);transition:opacity var(--t-ui) var(--ease-out),transform var(--t-ui) var(--ease-out);}
 .toast::before{content:"";width:12px;height:12px;flex:none;background:url(assets/icons/dot-shade.svg) center/100% no-repeat;background-color:var(--coin);-webkit-mask:url(assets/icons/dot.svg) center/contain no-repeat;mask:url(assets/icons/dot.svg) center/contain no-repeat;}
 .toast.show{opacity:1;transform:none;}
 
@@ -248,7 +248,8 @@ table.simple th{text-align:left;color:var(--text-muted);font-size:.7rem;letter-s
 table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;}
 .color-dot{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:6px;border:2px solid var(--surface);box-shadow:0 0 0 1.5px var(--border);}
 .swatches{display:flex;flex-wrap:wrap;gap:8px;}
-.swatches span{width:28px;height:28px;border-radius:8px;cursor:pointer;border:2px solid transparent;}
+.swatches span{position:relative;width:28px;height:28px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:transform var(--t-press) var(--ease-out);}
+.swatches span::after{content:"";position:absolute;inset:-8px;} /* área de toque maior que o quadradinho */
 .swatches span.sel{border-color:var(--text);box-shadow:0 2px 0 var(--text);}
 
 /* Valores em dinheiro usam Figtree 800 (o "5" da Pixelify parece "S"). Pixelify só em títulos. */
@@ -404,7 +405,8 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .eixo-l{font-size:10px;font-weight:700;fill:var(--text-muted);text-anchor:middle;}
 .eixo-y{font-size:9px;font-weight:700;fill:var(--text-faint);}
 .alvo{cursor:pointer;}
-.alvo:hover,.alvo.on{fill:var(--primary-soft);opacity:.55;}
+.alvo.on{fill:var(--primary-soft);opacity:.55;}
+@media(hover:hover) and (pointer:fine){.alvo:hover{fill:var(--primary-soft);opacity:.55;} a:hover{color:var(--primary-deep);} .swatches span:hover{transform:scale(1.12);}}
 .linha-dr{stroke-dasharray:1;stroke-dashoffset:1;animation:graf-draw .9s ease forwards;}
 @keyframes graf-draw{to{stroke-dashoffset:0;}}
 .graf-leg2{display:flex;gap:6px 18px;flex-wrap:wrap;font-size:.8rem;font-weight:700;color:var(--text-muted);}
@@ -412,7 +414,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .graf-tip{position:fixed;z-index:var(--z-toast);pointer-events:none;background:var(--text);color:var(--bg);padding:7px 11px;border-radius:9px;font-size:.8rem;font-weight:700;line-height:1.35;max-width:min(300px,86vw);opacity:0;transition:opacity .1s;box-shadow:0 4px 14px rgba(0,0,0,.25);}
 .graf-tip.show{opacity:1;}
 .kpis{grid-template-columns:repeat(3,minmax(0,1fr));}
-.kpis .card .value{font-size:1.45rem;font-weight:800;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;}
+.kpis .card .value{font-size:1.45rem;font-weight:800;font-variant-numeric:tabular-nums;}
 .kpis .card .sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 @media(max-width:680px){.kpis{grid-template-columns:1fr 1fr;} .graf-head h3{flex-basis:100%;}}
 @media (prefers-reduced-motion:reduce){.fatia,.bh-fill,.col-bar,.linha-dr{animation:none !important;} .linha-dr{stroke-dashoffset:0;}}
@@ -449,7 +451,7 @@ button,.btn,.icon-btn,.seg button,nav.tabs button,.row-actions button{touch-acti
 .cat-nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;}
 .mini{width:38px;height:38px;border-radius:10px;background:none;border:none;color:var(--text-faint);display:flex;align-items:center;justify-content:center;flex:none;}
 .nova-cat{margin-top:16px;padding-top:14px;border-top:1.5px dashed var(--border);}
-@media(pointer:coarse){.mini{width:44px;height:44px;} .chip{min-height:40px;}}
+@media(pointer:coarse){.mini{width:44px;height:44px;} .chip{min-height:44px;}}
 
 /* ---------- Subcategorias ---------- */
 .cat-item{border-radius:10px;}
@@ -598,8 +600,8 @@ nav.tabs button:active{transform:scale(.94);}
 @keyframes cx-modal-box{from{opacity:0;transform:translateY(8px) scale(.97);}}
 @keyframes cx-backdrop-out{to{opacity:0;}}
 @keyframes cx-modal-out{to{opacity:0;transform:translateY(12px);}}
-#modalRoot:not(.hidden) .modal-backdrop{animation:cx-backdrop-in var(--t-ui) var(--ease-out) both;}
-#modalRoot:not(.hidden) .modal-card{animation:cx-modal-sheet var(--t-modal) var(--ease-out) both;}
+#modalRoot:not(.hidden) .modal-backdrop{animation:cx-backdrop-in var(--t-ui) var(--ease-out) backwards;}
+#modalRoot:not(.hidden) .modal-card{animation:cx-modal-sheet var(--t-modal) var(--ease-out) backwards;}
 @media(min-width:640px){#modalRoot:not(.hidden) .modal-card{animation-name:cx-modal-box;}}
 #modalRoot.saindo .modal-backdrop{animation:cx-backdrop-out var(--t-exit) var(--ease-out) forwards;}
 #modalRoot.saindo .modal-card{animation:cx-modal-out var(--t-exit) var(--ease-out) forwards;}
@@ -613,7 +615,26 @@ section.tab.active{animation-duration:var(--t-ui);animation-timing-function:var(
   .seg button:active,.chip:active,.mini:active,nav.tabs button:active{transform:none;}
 }
 /* nomes de categoria/subcategoria quebram em duas linhas no celular em vez de virar "Alimenta…" */
-@media(max-width:480px){.cat-nome{white-space:normal;overflow-wrap:anywhere;line-height:1.2;}}
+@media(max-width:480px){.cat-nome{white-space:normal;overflow-wrap:break-word;line-height:1.2;}}
+/* nome + selo "N subs": lado a lado quando cabe; o selo desce para baixo do nome quando a linha é estreita */
+.cat-info{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;}
+.cat-info .cat-nome{flex:1 1 120px;min-width:0;}
+
+/* ---------- Retrofit 2: ajustes da revisão final ---------- */
+h1,h2,h3,.brand-lockup span,.modal-card h2,.lock-card h2{font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0;} /* Pixelify desenhava "fi" errado (ConAgurações) */
+#modalCard:focus{outline:none;}
+.acc{scroll-margin-bottom:96px;}
+.acc-pad{padding-top:6px;}
+html:not(.dark) .subs-btn.on,html:not(.dark) .acc.open .acc-ico{color:var(--primary-deep);}
+html.dark .field input,html.dark .field select,html.dark .field textarea,html.dark .toolbar input,html.dark .toolbar select,html.dark #lockInput,html.dark .emoji-picker input,html.dark .input-sm{border-color:var(--border-strong);}
+.btn-ghost:active,.btn-danger:active{box-shadow:none;}
+.icon-btn{transition:transform var(--t-press) var(--ease-out),box-shadow var(--t-press) var(--ease-out),background-color var(--t-ui) var(--ease-out),border-color var(--t-ui) var(--ease-out);}
+@media(min-width:681px){#lancLista .row-actions{min-width:70px;justify-content:flex-end;}} /* coluna do valor não "anda" quando falta o botão Editar */
+@media(prefers-reduced-motion:reduce){
+  section.tab.active{animation-name:cx-backdrop-in;animation-duration:.12s;}
+  .toast{transform:none;transition:opacity .12s;}
+  .acc-seta,.cat-grupo>summary::after{transition:none;}
+}
 
 </style>
 </head>
@@ -789,7 +810,7 @@ function mostrarErros(raiz,checks){
     el.setAttribute('aria-invalid','true');
     if(!primeiro) primeiro=el;
   });
-  if(primeiro){ primeiro.focus(); if(primeiro.scrollIntoView) primeiro.scrollIntoView({block:'center',behavior:'smooth'}); }
+  if(primeiro){ primeiro.focus(); if(primeiro.scrollIntoView) primeiro.scrollIntoView({block:'center',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); }
   return !!primeiro;
 }
 function toast(msg){
@@ -887,7 +908,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-14 · v17';
+const APP_VERSAO='2026-10-14 · v18';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1471,6 +1492,7 @@ function encaixarValores(raiz){
   });
 }
 { let tmr; window.addEventListener('resize',()=>{ clearTimeout(tmr); tmr=setTimeout(()=>encaixarValores(),120); }); }
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>encaixarValores()); // Figtree chega depois da 1ª pintura
 function renderTudo(){ renderAba(abaAtual); renderSeletorPerfil(); }
 function renderSeletorPerfil(){
   const el=document.getElementById('seletorPerfil');
@@ -3330,7 +3352,7 @@ function alternarSecaoConfig(id){
     s.querySelector('.acc-body').inert=!on;
   });
   const s=document.querySelector(`#tab-config .acc[data-sec="${id}"]`);
-  if(secaoConfigAberta===id && s) s.scrollIntoView({block:'nearest',behavior:'smooth'});
+  if(secaoConfigAberta===id && s) setTimeout(()=>s.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}),210);
 }
 function htmlCategoriasConfig(){
   const q=semAcento(catBusca.trim());
@@ -3346,8 +3368,8 @@ function htmlCategoriasConfig(){
       <div class="cat-item">
       <div class="cat-row">
         <button type="button" class="icon-input" title="Trocar ícone" aria-label="Trocar ícone de ${escapeHtml(c.nome)}" onclick="abrirSeletorIcone(e=>definirIconeCategoria('${c.id}',e))">${iconeSeguro(c.icone)}</button>
-        <span class="cat-nome">${escapeHtml(c.nome)}</span>
-        <button type="button" class="subs-btn" aria-label="Subcategorias de ${escapeHtml(c.nome)}" onclick="irParaSubs('${c.id}')">${subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '+ sub'}</button>
+        <div class="cat-info"><span class="cat-nome">${escapeHtml(c.nome)}</span>
+        <button type="button" class="subs-btn" aria-label="Subcategorias de ${escapeHtml(c.nome)}" onclick="irParaSubs('${c.id}')">${subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '+ sub'}</button></div>
         <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(c.nome)}" onclick="abrirFormRenomearCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
         <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(c.nome)}" onclick="excluirCategoria('${c.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
       </div>
@@ -3577,7 +3599,7 @@ function renderConfig(){
     htmlSecaoConfig('subs','bill','Subcategorias',nSub? `${nSub} subcategoria${nSub===1?'':'s'}` : 'Detalhe uma categoria (opcional)',htmlSubcategoriasConfig()),
     htmlSecaoConfig('orcamentos','chart','Orçamento por categoria',nOrc?`${nOrc} com limite`:'Nenhum limite definido',orcamentos),
     htmlSecaoConfig('zerar','trash','Zerar tudo','Apagar lançamentos e configurações',zerar),
-    htmlSecaoConfig('sobre','dot','Sobre','Caixinha · '+escapeHtml(APP_VERSAO),sobre)
+    htmlSecaoConfig('sobre','info','Sobre','Caixinha · '+escapeHtml(APP_VERSAO),sobre)
   ].join('');
   el.innerHTML=`
     <div class="section-title" style="margin-top:0"><h2>Configurações</h2></div>
@@ -3867,8 +3889,9 @@ let modalNoHistorico=false, voltandoDoModal=false;
 let modalSaiuTimer=null;
 function abrirModal(){
   if(modalSaiuTimer){ clearTimeout(modalSaiuTimer); modalSaiuTimer=null; } // reabriu durante a saída: cancela
-  focoAntesDoModal=document.activeElement;
-  document.getElementById('modalRoot').classList.remove('hidden','saindo');
+  const raizAbrir=document.getElementById('modalRoot');
+  if(raizAbrir.classList.contains('hidden') || raizAbrir.classList.contains('saindo')) focoAntesDoModal=document.activeElement; // não perde o botão que abriu a janela
+  raizAbrir.classList.remove('hidden','saindo');
   document.getElementById('modalCard').focus({preventScroll:true}); // foco no diálogo (sem abrir o teclado do celular)
   // uma entrada no histórico por janela: o botão Voltar do celular fecha a janela em vez de sair do app
   if(!modalNoHistorico && !voltandoDoModal){ try{ history.pushState({cx:'modal'},''); modalNoHistorico=true; }catch(e){} }
@@ -3892,7 +3915,8 @@ function fecharModal(deVoltar){
   if(window.recarregarAoFechar) location.reload(); // atualização do app que chegou com o modal aberto
 }
 document.addEventListener('keydown',e=>{
-  if(document.getElementById('modalRoot').classList.contains('hidden')) return;
+  const raizM=document.getElementById('modalRoot');
+  if(raizM.classList.contains('hidden') || raizM.classList.contains('saindo')) return;
   if(e.key==='Escape'){ fecharModal(); return; }
   if(e.key==='Tab'){ // foco preso no diálogo: Tab no último volta ao primeiro (e Shift+Tab ao contrário)
     const f=[...document.getElementById('modalCard').querySelectorAll('button,a[href],input:not([type=hidden]),select,textarea,[tabindex]:not([tabindex="-1"])')].filter(x=>!x.disabled&&x.offsetParent!==null);

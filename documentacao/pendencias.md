@@ -9,6 +9,7 @@ Atualizado em 2026-10-11. O que já foi feito está no [changelog](03-changelog.
 - **Subcategorias**: criar uma e conferir em Config → Sincronização que não deu erro (depende das regras publicadas).
 - **PIN**: conferir no celular e no PC que o Google e o Samsung Pass não oferecem mais salvar senha ao digitar o PIN (o login continua oferecendo).
 - **Virada do mês**: definir o dia em Config e conferir Início, Gráficos e Lançamentos (cartão de crédito e fixos não devem mudar de mês).
+- **Retrofit visual**: abrir no celular real (Samsung Internet e iPhone) e conferir janelas, sanfona de Config, categorias e valores grandes; comparar com `design/pacotes/retrofit/antes` (gerar de novo com `ferramentas/capturar-telas.js`).
 - **Reset geral**: usar "Apagar tudo e recomeçar" em um aparelho e conferir que os outros zeram sozinhos ao abrir (e que o PJ some).
 - **Tema**: no Samsung Internet com modo escuro ligado, o app deve abrir no tema escuro próprio (Config → Aparência → Automático) sem cores invertidas e com a moeda nítida.
 - **Retoques V2**: setas das listas no Chrome/Android e a animação de desbloqueio no celular.

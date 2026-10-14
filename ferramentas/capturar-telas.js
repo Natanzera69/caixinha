@@ -2,7 +2,7 @@
 // Uso: no MCP do Playwright, "browser_run_code_unsafe" com filename "ferramentas/capturar-telas.js" (servidor: node ferramentas/serve.js).
 // Troque DEST entre "antes" e "depois". Devolve a lista de arquivos e erros de console.
 async (page) => {
-  const DEST = 'design/pacotes/retrofit/antes';
+  const DEST = 'design/pacotes/retrofit/depois';
   const tamanhos = [[1280, 800, 'desktop'], [768, 1024, 'tablet'], [375, 812, 'celular']];
   const abas = ['dashboard', 'lancamentos', 'graficos', 'contas', 'parcelamentos', 'investimentos'];
   const erros = [];

@@ -43,6 +43,7 @@ Config → Backup: **Fazer backup** salva um .json com os dois perfis; **Restaur
 Economia/
   Planilha Financeiro.html   <- o app em si (fica na raiz: a URL do site e o service worker dependem disso)
   manifest.json, sw.js       <- suporte a PWA (instalar como app no Android)
+  PRODUCT.md, DESIGN.md      <- produto e sistema visual (impeccable); DESIGN.md é o registro do que foi entregue
   firestore.rules            <- regras do banco (colar no console do Firebase e Publicar)
   assets/                    <- logo, ícones 8-bit (assets/icons), moeda girando, ícones do app e emojis-pt.js
   documentacao/              <- estas notas, mantidas pelo Claude entre sessões (changelog, checklist, pendências)

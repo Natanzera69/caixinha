@@ -23,7 +23,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
-ctx.window = ctx; ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
+ctx.window = ctx; ctx.matchMedia = () => ({ matches: false }); ctx.TextEncoder = TextEncoder; ctx.estados = { pessoal: null, pj: null }; ctx.salvarPerfilLocal = () => {};
 vm.createContext(ctx);
 const consts = script.match(/const SEG=\{[^\n]*\};/)[0] + '\n' + script.match(/const SESSAO_DIAS=\d+;/)[0] + '\n' + script.match(/const VALOR_MAX=[^\n]*\n/)[0] + script.match(/const TEXTO_PROIBIDO=[^\n]*\n/)[0] + script.match(/const PALETA=[^\n]*\n/)[0] + script.match(/const GRAF_OUTROS_COR=[^\n]*\n/)[0] + script.match(/const MESES_CURTOS=[^\n]*\n/)[0] +
   script.match(/const lsGet=[^\n]*\nconst lsSet=[^\n]*\nconst lsDel=[^\n]*\n/)[0];

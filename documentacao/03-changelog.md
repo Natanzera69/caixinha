@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-14 — Retrofit estético (pixel art mantido): movimento, toque, números e acabamento
+
+Feito com as skills impeccable (auditoria/polimento), emil-design-eng (movimento) e redesign-existing-projects, verificado com Playwright em 1280/768/375 px, claro e escuro. Só aparência: nenhuma função de dados mudou.
+
+- **Tokens** (`:root`/`html.dark`): curvas e durações de movimento, escala de camadas (z-index), cores de borda/superfície do escuro no lugar de hex soltos.
+- **Janelas**: entram (sheet no celular, caixa no PC) e saem com animação curta; reabrir durante a saída é seguro; foco e teclado preservados; movimento reduzido vira fade.
+- **Sanfona da Config**: altura animada (sem animar height) e conteúdo fechado inerte (sem foco, sem leitor de tela).
+- **Toque**: hover só com mouse fino (acabou o "hover preso"), feedback de aperto em todos os controles, destaque de toque do navegador desligado, seleção/callout de botões desligados.
+- **Números**: sempre `tabular-nums`; valores gigantes (até R$ 999.999.999,99) encolhem só o necessário para caber no cartão, em vez de vazar.
+- **Tipografia**: ligaduras desligadas nos títulos pixel (o "fi" de "Configurações" saía errado); `text-wrap` balanceado.
+- **Categorias no celular**: nomes não quebram mais no meio da palavra ("Alimenta-ção"): o selo "N subs" desce para baixo do nome quando falta espaço.
+- **Contraste/acessibilidade**: texto fraco do claro e selo ativo corrigidos para AA; bordas de campos no escuro com 3:1; alvos de toque de 44 px (chips, cores); área de toque maior nos quadradinhos de cor; coluna do valor em Lançamentos não "anda".
+- **Estados vazios** de gráfico e de lançamentos ganham o botão "+ Novo lançamento"; ícone "Sobre" refeito (info 8-bit).
+- **Documentação do sistema**: `PRODUCT.md` e `DESIGN.md` na raiz. Ferramentas novas: `capturar-telas.js` (antes × depois), `sonda-alinhamento.js` com checagem de hover solto e de foco.
+- Detector do impeccable (linha de base): 3 avisos intencionais do mundo pixel art (papel creme, grade pixelada do login, barras de progresso em blocos), mantidos por decisão de identidade.
+- Testes: 36 casos. Cache do service worker v18.
+
 ## 2026-10-11 (11) — Espaçamento dos botões do login
 
 - "Criar conta nova" e "Esqueci a senha" estavam colados; botões empilhados nas telas de login, PIN e espera agora têm 12 px de espaço entre todos. Cache v16.

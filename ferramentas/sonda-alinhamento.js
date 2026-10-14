@@ -49,6 +49,24 @@
     return ach;
   };
 
+  // :hover fora de @media (hover:hover) vira "hover preso" no toque; só deveriam sobrar regras de SVG/links.
+  window.__sondaHover = function () {
+    const soltas = [];
+    for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) if (r.selectorText && /:hover/.test(r.selectorText)) soltas.push(r.selectorText.slice(0, 60)); } catch (e) {} }
+    return soltas;
+  };
+  // Controles que o teclado alcança mas que não mostram foco (outline/box-shadow nulos no :focus-visible).
+  window.__sondaFoco = function () {
+    const sem = [];
+    document.querySelectorAll('section.tab.active button, section.tab.active a[href], section.tab.active select, section.tab.active input').forEach(e => {
+      const r = e.getBoundingClientRect(); if (r.width === 0) return;
+      e.focus({ preventScroll: true });
+      const cs = getComputedStyle(e), tem = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || (cs.boxShadow !== 'none') || e.matches(':focus-visible');
+      if (!e.matches(':focus-visible') && !tem) sem.push(nome(e));
+      e.blur();
+    });
+    return sem;
+  };
   window.__varrer = function (tam) {
     const todos = [];
     for (const tema of [false, true]) {
