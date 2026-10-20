@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-10-20 (3) — Botão "Mês atual" sem mexer no layout e sombra do patrimônio (v24)
+
+- O botão "Voltar para o mês atual" (Início, Gráficos e Lançamentos) deixou de ser uma linha extra: fica na linha do mês, ao lado da seta, então os cartões não sobem nem descem. Aparece e some com "pop" (240 ms entrada com leve overshoot, 150 ms saída, só transform/opacity; sem movimento com "reduzir movimento"). No celular vira só o ícone.
+- Cartão "Patrimônio líquido": borda e sombra iguais às dos outros cartões (cor `--border`), em vez de preto.
+
 ## 2026-10-20 (2) — Modo de edição em Categorias e Subcategorias (v23)
 
 Em Config → Categorias e Subcategorias, o botão "Modo de edição" troca os botões de cada linha por caixinhas de marcar, com "Selecionar tudo" (parcial quando só algumas estão marcadas) e "Excluir (N)". Uma confirmação única; excluir categoria leva as subcategorias dela; excluir subcategoria só tira a subcategoria dos lançamentos. Categorias em uso ficam travadas ("em uso"), como na exclusão individual. Com busca ativa, "Selecionar tudo" vale só para o que está na tela.

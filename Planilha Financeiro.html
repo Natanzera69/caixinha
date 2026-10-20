@@ -125,7 +125,7 @@ section.tab.active{display:block;}
 .value.income{color:var(--income);}
 .value.expense{color:var(--expense);}
 /* novo: primeiro card do Início */
-.card.hero{position:relative;overflow:hidden;background:var(--hero-bg);color:var(--hero-text);border:2px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 0 var(--line);min-height:150px;}
+.card.hero{position:relative;overflow:hidden;background:var(--hero-bg);color:var(--hero-text);border:1.5px solid var(--border);border-radius:18px;padding:22px;box-shadow:0 3px 0 var(--border);min-height:150px;}
 .card.hero h3{color:var(--hero-muted);} .card.hero h3::before{background-color:var(--hero-value);}
 .card.hero .value{font-size:3rem;font-size:clamp(1.4rem,10cqi,3rem);line-height:1;color:var(--hero-value);margin-top:22px;white-space:nowrap;}
 .card.hero .sub{color:var(--hero-muted);max-width:260px;}
@@ -697,6 +697,23 @@ button.cal-tit{cursor:pointer;}
 .sel-info{flex:none;font-size:.74rem;font-weight:700;color:var(--text-muted);}
 @media(hover:hover) and (pointer:fine){.sel-row:not(.travada):hover{background:var(--surface-2);}}
 
+/* ---------- Botão "Mês atual": mora na linha do mês (ao lado da seta), sem mexer na altura ---------- */
+.section-title.com-mes-btn,.mes-nav.com-mes-btn{position:relative;}
+.btn-mes-atual{position:absolute;right:52px;top:50%;margin-top:-19px;height:38px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1.5px solid var(--border);border-radius:11px;background:var(--surface-2);color:var(--text);font-weight:800;font-size:.8rem;box-shadow:0 3px 0 var(--border);white-space:nowrap;
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateX(8px) scale(.85);transform-origin:100% 50%;
+  transition:transform 150ms var(--ease-out),opacity 120ms var(--ease-out),visibility 0s linear 150ms;}
+.btn-mes-atual.on{opacity:1;visibility:visible;pointer-events:auto;transform:none;
+  transition:transform 240ms cubic-bezier(.34,1.3,.64,1),opacity 140ms var(--ease-out),visibility 0s;}
+.btn-mes-atual.on:active{transform:translateY(2px) scale(.97);box-shadow:0 1px 0 var(--border);transition-duration:var(--t-press);}
+.btn-mes-atual .px-ico{color:var(--primary);}
+@media(hover:hover) and (pointer:fine){.btn-mes-atual.on:hover{border-color:var(--text-faint);}}
+@media(max-width:559px){
+  .btn-mes-atual{right:48px;width:38px;padding:0;justify-content:center;}
+  .btn-mes-atual .lbl{display:none;}
+  .com-mes-btn h2{font-size:1.1rem;}
+}
+@media(prefers-reduced-motion:reduce){.btn-mes-atual,.btn-mes-atual.on{transform:none;transition:opacity 120ms linear,visibility 0s;}}
+
 </style>
 </head>
 <body>
@@ -970,7 +987,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-20 · v23';
+const APP_VERSAO='2026-10-20 · v24';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1650,6 +1667,17 @@ document.addEventListener('keydown',e=>{
 },true);
 window.addEventListener('resize',()=>calFechar());
 window.addEventListener('scroll',e=>{ if(calEl && performance.now()-calAbertoEm>250 && !calEl.contains(e.target)) calPosicionar(); },true); // acompanha o campo ao rolar a janela
+/* Botão "Mês atual": a tela é refeita a cada troca de mês, então ele nasce no estado anterior e vira para o novo
+   logo depois (microtask, antes da pintura) — assim a transição de pop in/out acontece de verdade. */
+const mesBtnAntes={};
+function htmlBotaoMesAtual(aba,fora,acao){
+  const antes=!!mesBtnAntes[aba]; mesBtnAntes[aba]=fora;
+  queueMicrotask(ajustarBotoesMes);
+  return `<button type="button" class="btn-mes-atual${antes?' on':''}" data-alvo="${fora?1:0}" ${antes?'':'inert'} onclick="${acao}" title="Voltar para o mês atual" aria-label="Voltar para o mês atual"><span class="px-ico sm" style="--i:url(assets/icons/calendar.svg)"></span><span class="lbl">Mês atual</span></button>`;
+}
+function ajustarBotoesMes(){
+  document.querySelectorAll('.btn-mes-atual').forEach(b=>{ void b.offsetWidth; const on=b.dataset.alvo==='1'; b.classList.toggle('on',on); b.inert=!on; });
+}
 function renderAba(nome){
   if(nome==='dashboard') renderDashboard();
   else if(nome==='lancamentos') renderLancamentos();
@@ -2073,13 +2101,13 @@ function renderDashboard(){
   }
 
   el.innerHTML=`
-    <div class="section-title" style="margin-top:0">
+    <div class="section-title com-mes-btn" style="margin-top:0">
       <button class="icon-btn" onclick="mudarMesDash(-1)" title="Mês anterior">‹</button>
       <h2>${nomeMes}</h2>
+      ${htmlBotaoMesAtual('dash',!ehMesAtual,'irParaMesAtual()')}
       <button class="icon-btn" onclick="mudarMesDash(1)" title="Próximo mês">›</button>
     </div>
     ${dicaPeriodo(ano,mesIdx)}
-    ${!ehMesAtual?`<div style="text-align:center;margin:-8px 0 14px"><button class="btn btn-ghost btn-sm" onclick="irParaMesAtual()">Voltar para o mês atual</button></div>`:''}
 
     <div class="grid">
       <div class="card hero"><h3>Patrimônio líquido</h3><div class="value">${fmtMoney(patrimonioLiquido())}</div><div class="sub">contas + investimentos − dívida em cartões</div><img class="hero-coin" src="assets/logo-moeda.svg" alt=""></div>
@@ -2503,13 +2531,13 @@ function renderGraficos(){
   const top=doMes.filter(t=>t.tipo==='despesa').slice().sort((a,b)=>b.valor-a.valor).slice(0,5);
   const kpi=(rot,valor,sub,cls)=>`<div class="card"><h3>${rot}</h3><div class="value ${cls||''}">${valor}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`;
   el.innerHTML=`
-    <div class="section-title" style="margin-top:0">
+    <div class="section-title com-mes-btn" style="margin-top:0">
       <button class="icon-btn" onclick="mudarMesDash(-1)" title="Mês anterior">‹</button>
       <h2>${nomeMes}</h2>
+      ${htmlBotaoMesAtual('dash',!ehMesAtual,'irParaMesAtual()')}
       <button class="icon-btn" onclick="mudarMesDash(1)" title="Próximo mês">›</button>
     </div>
     ${dicaPeriodo(ano,mesIdx)}
-    ${!ehMesAtual?`<div style="text-align:center;margin:-8px 0 14px"><button class="btn btn-ghost btn-sm" onclick="irParaMesAtual()">Voltar para o mês atual</button></div>`:''}
     <div class="grid kpis">
       ${kpi('Receitas',fmtMoney(k.receitas),'','income')}
       ${kpi('Despesas',fmtMoney(k.despesas),'','expense')}
@@ -2601,11 +2629,12 @@ function renderLancamentos(){
   const catOpt=['despesa','receita'].map(tp=>`<optgroup label="${tp==='despesa'?'Despesas':'Receitas'}">${state.categorias.filter(c=>c.tipo===tp).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</optgroup>`).join('');
   el.innerHTML=`
     <div class="section-title"><h2>Lançamentos</h2><button class="btn btn-primary btn-sm" onclick="abrirFormTransacao()">+ Novo</button></div>
-    ${filtroLanc.periodo==='mes'?`<div class="mes-nav">
+    ${filtroLanc.periodo==='mes'?`<div class="mes-nav com-mes-btn">
       <button class="icon-btn" onclick="mudarMesLanc(-1)" title="Mês anterior">‹</button>
       <h2>${rotuloMesLongo(filtroLanc.mes)}</h2>
+      ${htmlBotaoMesAtual('lanc',filtroLanc.mes!==mesAtual,'filtroLanc.mes=anoMesAtualPeriodo();filtroLanc.limite=LANC_PAGINA;renderLancamentos()')}
       <button class="icon-btn" onclick="mudarMesLanc(1)" title="Próximo mês">›</button>
-    </div>${dicaPeriodo(+filtroLanc.mes.slice(0,4),+filtroLanc.mes.slice(5,7)-1)}${filtroLanc.mes!==mesAtual?'<div style="text-align:center;margin:-4px 0 12px"><button class="btn btn-ghost btn-sm" onclick="filtroLanc.mes=anoMesAtualPeriodo();filtroLanc.limite=LANC_PAGINA;renderLancamentos()">Voltar para o mês atual</button></div>':''}`:''}
+    </div>${dicaPeriodo(+filtroLanc.mes.slice(0,4),+filtroLanc.mes.slice(5,7)-1)}`:''}
     <div class="toolbar">
       <input type="text" class="search" id="lancQ" maxlength="60" placeholder="Buscar descrição..." aria-label="Buscar lançamento pela descrição" value="${escapeHtml(filtroLanc.q)}">
       <select id="lancPeriodo" aria-label="Período">
