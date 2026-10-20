@@ -82,7 +82,8 @@ a{color:var(--primary);}
 .spinner{width:22px;height:22px;border:4px solid rgba(255,255,255,.25);border-top-color:var(--coin);border-right-color:var(--coin);border-radius:3px;animation:spin 1s steps(8) infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .lock-card{position:relative;background:var(--surface);border:2px solid #1d1f16;border-radius:22px;padding:28px 24px 24px;width:100%;max-width:340px;text-align:center;box-shadow:0 6px 0 #1d1f16;}
-.lock-card .emoji{width:64px;height:64px;margin:0 auto;border-radius:16px;background:var(--coin);border:2px solid #1d1f16;box-shadow:0 3px 0 #1d1f16;display:flex;align-items:center;justify-content:center;font-size:30px;}
+.lock-card .emoji{position:relative;width:64px;height:64px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:30px;color:#1d1f16;--emoji-bg:var(--coin);}
+.lock-card .emoji>.emoji-bg{position:absolute;left:0;top:0;width:64px;height:67px;} .lock-card .emoji>.px-ico{position:relative;}
 .lock-card h2{margin:16px 0 4px;font-family:var(--font-pixel);font-weight:600;font-size:1.5rem;}
 .lock-card p{color:var(--text-muted);font-size:.9rem;line-height:1.45;margin-bottom:20px;}
 #lockInput{width:100%;text-align:center;letter-spacing:14px;font-weight:800;font-size:1.6rem;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-2);margin-bottom:12px;}
@@ -276,6 +277,7 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 
 /* Ícones 8-bit do sistema (assets/icons/*.svg, grade 12×12). Uso: <span class="px-ico" style="--i:url(assets/icons/lock.svg)"></span> */
 .px-ico{display:inline-block;flex:none;width:24px;height:24px;background-color:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat;}
+.px-ico.ok{background:none;-webkit-mask:none;mask:none;} .px-ico>svg{display:block;width:100%;height:100%;fill:currentColor;}
 .px-ico.sm{width:12px;height:12px;vertical-align:-1px;margin-right:5px}.px-ico.lg{width:36px;height:36px}
 
 /* Marcador de tópico: bolinha 8-bit. Troque a cor por --c */
@@ -532,8 +534,7 @@ html.dark input[type=date]::-webkit-calendar-picker-indicator,html.dark input[ty
 @keyframes cx-fade{to{opacity:0;}}
 #lockScreen.unlocking .pin-boxes>span{border-color:var(--primary);background:var(--primary-soft);}
 #lockScreen.unlocking .pin-boxes .px-dot{--c:var(--primary);}
-#lockScreen.unlocking .lock-card .emoji{background:var(--primary);}
-#lockScreen.unlocking .lock-card .emoji .px-ico{--i:url(assets/icons/lock-open.svg) !important;color:#fff;}
+#lockScreen.unlocking .lock-card .emoji{--emoji-bg:var(--primary);color:#fff;}
 
 /* ---------- Tema escuro: botões e ícones com mais destaque (detalhe claro na borda) ---------- */
 html.dark .btn,html.dark .icon-btn{border-color:var(--border-strong);}
@@ -754,7 +755,7 @@ button.cal-tit{cursor:pointer;}
 
 <div id="lockScreen" class="hidden">
   <div class="lock-card">
-    <div class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/lock.svg)"></span></div>
+    <div class="emoji"><svg class="emoji-bg" viewBox="0 0 64 67" aria-hidden="true"><rect width="64" height="67" rx="16" fill="#1d1f16"/><rect x="2" y="2" width="60" height="60" rx="14" style="fill:var(--emoji-bg)"/></svg><span class="px-ico lg" style="--i:url(assets/icons/lock.svg)"></span></div>
     <h2>Caixinha trancada</h2>
     <p>Digite seu PIN para continuar</p>
     <div class="pin-boxes" id="pinBoxes" aria-hidden="true"></div>
@@ -987,7 +988,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-20 · v25';
+const APP_VERSAO='2026-10-20 · v26';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1158,6 +1159,7 @@ async function tentarDesbloquear(){
     if(!window.fbUid){ lock.classList.add('hidden'); mostrarLogin(); return; } // PIN não substitui o login: sem sessão não abre o app
     app.classList.remove('hidden'); // o app fica visível POR BAIXO do lock enquanto ele some
     lock.classList.add('unlocking');
+    { const p=lock.querySelector('.lock-card .emoji .px-ico path'); if(p) p.setAttribute('d',ICONES_PX['lock-open']); } // cadeado abre
     let acabou=false;
     const fim=()=>{ // idempotente: animationend e o timer de segurança podem chamar os dois
       if(acabou) return; acabou=true;
@@ -1678,6 +1680,19 @@ function htmlBotaoMesAtual(aba,fora,acao){
 function ajustarBotoesMes(){
   document.querySelectorAll('.btn-mes-atual').forEach(b=>{ void b.offsetWidth; const on=b.dataset.alvo==='1'; b.classList.toggle('on',on); b.inert=!on; });
 }
+/*PXICONES:INICIO (gerado por ferramentas/gerar-icones-inline.js; não editar à mão)*/
+const ICONES_PX={"alert":"M5 0h2v1h-2zM4 1h4v1h-4zM4 2h4v1h-4zM3 3h2v1h-2zM7 3h2v1h-2zM3 4h2v1h-2zM7 4h2v1h-2zM2 5h3v1h-3zM7 5h3v1h-3zM2 6h3v1h-3zM7 6h3v1h-3zM1 7h10v1h-10zM1 8h4v1h-4zM7 8h4v1h-4zM0 9h12v1h-12zM0 10h12v1h-12z","bank":"M5 0h2v1h-2zM3 1h6v1h-6zM1 2h10v1h-10zM0 3h12v1h-12zM1 5h2v1h-2zM5 5h2v1h-2zM9 5h2v1h-2zM1 6h2v1h-2zM5 6h2v1h-2zM9 6h2v1h-2zM1 7h2v1h-2zM5 7h2v1h-2zM9 7h2v1h-2zM1 8h2v1h-2zM5 8h2v1h-2zM9 8h2v1h-2zM1 10h10v1h-10zM0 11h12v1h-12z","bill":"M0 2h12v1h-12zM0 3h1v1h-1zM11 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM5 4h2v1h-2zM9 4h1v1h-1zM11 4h1v1h-1zM0 5h1v1h-1zM4 5h1v1h-1zM7 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM4 6h1v1h-1zM7 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM2 7h1v1h-1zM5 7h2v1h-2zM9 7h1v1h-1zM11 7h1v1h-1zM0 8h1v1h-1zM11 8h1v1h-1zM0 9h12v1h-12z","building":"M1 0h6v1h-6zM1 1h1v1h-1zM6 1h1v1h-1zM1 2h1v1h-1zM3 2h2v1h-2zM6 2h5v1h-5zM1 3h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM3 4h2v1h-2zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM6 5h1v1h-1zM10 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM6 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM3 8h2v1h-2zM6 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM3 9h2v1h-2zM6 9h1v1h-1zM10 9h1v1h-1zM0 10h12v1h-12z","calendar":"M3 0h1v1h-1zM8 0h1v1h-1zM1 1h10v1h-10zM1 2h10v1h-10zM1 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM3 5h2v1h-2zM7 5h2v1h-2zM10 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM7 6h2v1h-2zM10 6h1v1h-1zM1 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM3 8h2v1h-2zM10 8h1v1h-1zM1 9h1v1h-1zM3 9h2v1h-2zM10 9h1v1h-1zM1 10h1v1h-1zM10 10h1v1h-1zM1 11h10v1h-10z","card":"M0 1h12v1h-12zM0 2h1v1h-1zM11 2h1v1h-1zM0 3h12v1h-12zM0 4h12v1h-12zM0 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM11 6h1v1h-1zM0 7h1v1h-1zM2 7h3v1h-3zM8 7h2v1h-2zM11 7h1v1h-1zM0 8h1v1h-1zM11 8h1v1h-1zM0 9h12v1h-12z","chart":"M9 0h2v1h-2zM9 1h2v1h-2zM9 2h2v1h-2zM6 3h2v1h-2zM9 3h2v1h-2zM6 4h2v1h-2zM9 4h2v1h-2zM6 5h2v1h-2zM9 5h2v1h-2zM3 6h2v1h-2zM6 6h2v1h-2zM9 6h2v1h-2zM3 7h2v1h-2zM6 7h2v1h-2zM9 7h2v1h-2zM0 8h2v1h-2zM3 8h2v1h-2zM6 8h2v1h-2zM9 8h2v1h-2zM0 9h2v1h-2zM3 9h2v1h-2zM6 9h2v1h-2zM9 9h2v1h-2zM0 10h2v1h-2zM3 10h2v1h-2zM6 10h2v1h-2zM9 10h2v1h-2zM0 11h11v1h-11z","close":"M1 1h2v1h-2zM9 1h2v1h-2zM1 2h3v1h-3zM8 2h3v1h-3zM2 3h3v1h-3zM7 3h3v1h-3zM3 4h6v1h-6zM4 5h4v1h-4zM4 6h4v1h-4zM3 7h6v1h-6zM2 8h3v1h-3zM7 8h3v1h-3zM1 9h3v1h-3zM8 9h3v1h-3zM1 10h2v1h-2zM9 10h2v1h-2z","edit":"M8 0h2v1h-2zM7 1h4v1h-4zM6 2h6v1h-6zM5 3h6v1h-6zM4 4h6v1h-6zM3 5h6v1h-6zM2 6h6v1h-6zM1 7h6v1h-6zM1 8h5v1h-5zM1 9h4v1h-4zM1 10h2v1h-2z","gear":"M5 0h2v1h-2zM2 1h1v1h-1zM4 1h4v1h-4zM9 1h1v1h-1zM1 2h10v1h-10zM2 3h3v1h-3zM7 3h3v1h-3zM1 4h3v1h-3zM8 4h3v1h-3zM0 5h4v1h-4zM8 5h4v1h-4zM0 6h4v1h-4zM8 6h4v1h-4zM1 7h3v1h-3zM8 7h3v1h-3zM2 8h3v1h-3zM7 8h3v1h-3zM1 9h10v1h-10zM2 10h1v1h-1zM4 10h4v1h-4zM9 10h1v1h-1zM5 11h2v1h-2z","home":"M5 0h2v1h-2zM4 1h4v1h-4zM3 2h6v1h-6zM2 3h8v1h-8zM1 4h10v1h-10zM0 5h12v1h-12zM1 6h10v1h-10zM1 7h4v1h-4zM7 7h4v1h-4zM1 8h4v1h-4zM7 8h4v1h-4zM1 9h4v1h-4zM7 9h4v1h-4zM1 10h4v1h-4zM7 10h4v1h-4z","info":"M5 0h1v1h-1zM6 0h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM5 1h1v1h-1zM6 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM2 2h1v1h-1zM9 2h1v1h-1zM1 3h1v1h-1zM5 3h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM10 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM1 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM10 8h1v1h-1zM2 9h1v1h-1zM9 9h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1z","lock-open":"M4 0h4v1h-4zM3 1h2v1h-2zM7 1h2v1h-2zM2 2h2v1h-2zM8 2h2v1h-2zM2 3h1v1h-1zM2 4h1v1h-1zM1 5h10v1h-10zM1 6h10v1h-10zM1 7h4v1h-4zM7 7h4v1h-4zM1 8h4v1h-4zM7 8h4v1h-4zM1 9h5v1h-5zM7 9h4v1h-4zM1 10h10v1h-10zM1 11h10v1h-10z","lock":"M4 0h4v1h-4zM3 1h2v1h-2zM7 1h2v1h-2zM2 2h2v1h-2zM8 2h2v1h-2zM2 3h1v1h-1zM9 3h1v1h-1zM2 4h1v1h-1zM9 4h1v1h-1zM1 5h10v1h-10zM1 6h10v1h-10zM1 7h4v1h-4zM7 7h4v1h-4zM1 8h4v1h-4zM7 8h4v1h-4zM1 9h5v1h-5zM7 9h4v1h-4zM1 10h10v1h-10zM1 11h10v1h-10z","moon":"M4 0h4v1h-4zM2 1h4v1h-4zM1 2h4v1h-4zM1 3h3v1h-3zM0 4h4v1h-4zM0 5h4v1h-4zM0 6h4v1h-4zM0 7h4v1h-4zM11 7h1v1h-1zM1 8h4v1h-4zM10 8h2v1h-2zM2 9h9v1h-9zM3 10h7v1h-7zM4 11h4v1h-4z","pause":"M3 2h2v8h-2zM7 2h2v8h-2z","pie":"M4 1h1v1h-1zM5 1h1v1h-1zM7 1h1v1h-1zM8 1h1v1h-1zM9 1h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM1 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM5 3h1v1h-1zM7 3h1v1h-1zM8 3h1v1h-1zM9 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM0 5h1v1h-1zM1 5h1v1h-1zM2 5h1v1h-1zM3 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM9 6h1v1h-1zM10 6h1v1h-1zM0 7h1v1h-1zM1 7h1v1h-1zM2 7h1v1h-1zM3 7h1v1h-1zM4 7h1v1h-1zM5 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM9 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM9 8h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM3 9h1v1h-1zM4 9h1v1h-1zM5 9h1v1h-1zM6 9h1v1h-1zM7 9h1v1h-1zM8 9h1v1h-1zM9 9h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1z","play":"M3 2h2v8h-2zM5 3h2v6h-2zM7 4h2v4h-2zM9 5h1v2h-1z","receipt":"M1 0h10v1h-10zM1 1h1v1h-1zM10 1h1v1h-1zM1 2h1v1h-1zM3 2h6v1h-6zM10 2h1v1h-1zM1 3h1v1h-1zM10 3h1v1h-1zM1 4h1v1h-1zM3 4h4v1h-4zM10 4h1v1h-1zM1 5h1v1h-1zM10 5h1v1h-1zM1 6h1v1h-1zM3 6h6v1h-6zM10 6h1v1h-1zM1 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM3 8h3v1h-3zM10 8h1v1h-1zM1 9h1v1h-1zM10 9h1v1h-1zM1 10h10v1h-10zM1 11h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM9 11h1v1h-1z","repeat":"M7 0h1v1h-1zM1 1h9v1h-9zM1 2h1v1h-1zM7 2h1v1h-1zM1 3h1v1h-1zM1 4h1v1h-1zM10 7h1v1h-1zM10 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM2 10h9v1h-9zM4 11h1v1h-1z","sun":"M5 0h2v1h-2zM1 1h2v1h-2zM9 1h2v1h-2zM1 2h1v1h-1zM4 2h4v1h-4zM10 2h1v1h-1zM3 3h6v1h-6zM2 4h8v1h-8zM0 5h1v1h-1zM2 5h8v1h-8zM11 5h1v1h-1zM0 6h1v1h-1zM2 6h8v1h-8zM11 6h1v1h-1zM2 7h8v1h-8zM3 8h6v1h-6zM1 9h1v1h-1zM4 9h4v1h-4zM10 9h1v1h-1zM1 10h2v1h-2zM9 10h2v1h-2zM5 11h2v1h-2z","trash":"M4 0h4v1h-4zM0 1h12v1h-12zM1 3h10v1h-10zM1 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM10 4h1v1h-1zM1 5h1v1h-1zM4 5h1v1h-1zM7 5h1v1h-1zM10 5h1v1h-1zM1 6h1v1h-1zM4 6h1v1h-1zM7 6h1v1h-1zM10 6h1v1h-1zM1 7h1v1h-1zM4 7h1v1h-1zM7 7h1v1h-1zM10 7h1v1h-1zM1 8h1v1h-1zM4 8h1v1h-1zM7 8h1v1h-1zM10 8h1v1h-1zM1 9h1v1h-1zM4 9h1v1h-1zM7 9h1v1h-1zM10 9h1v1h-1zM1 10h10v1h-10z"};
+/* Ícones 8-bit como SVG inline (path, fill=currentColor): o Samsung Internet com modo escuro escurece máscara+background-color. */
+function subirIcone(el){
+  if(el.classList.contains('ok')) return;
+  const m=/icons\/([\w-]+)\.svg/.exec(el.style.getPropertyValue('--i')||''), d=m&&ICONES_PX[m[1]];
+  if(!d) return; // sem mapa: continua o ícone por máscara (CSS)
+  el.innerHTML='<svg viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true"><path d="'+d+'"/></svg>';
+  el.classList.add('ok');
+}
+document.querySelectorAll('.px-ico').forEach(subirIcone);
+new MutationObserver(ms=>{ for(const r of ms) for(const n of r.addedNodes){ if(n.nodeType!==1) continue; if(n.classList.contains('px-ico')) subirIcone(n); n.querySelectorAll('.px-ico:not(.ok)').forEach(subirIcone); } }).observe(document.documentElement,{childList:true,subtree:true});
+/*PXICONES:FIM*/
 function renderAba(nome){
   if(nome==='dashboard') renderDashboard();
   else if(nome==='lancamentos') renderLancamentos();

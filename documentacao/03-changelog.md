@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-20 (5) — Ícones e cadeado resistentes ao modo escuro do Samsung (v26)
+
+Teste no Samsung Internet (modo escuro ligado): ícones feitos com máscara + `background-color` ficam quase pretos, e a caixa dourada do cadeado vira marrom. SVG inline com `<path fill=currentColor>` ficou claro e visível, e fundo desenhado com `<rect>` em SVG inline ficou dourado. Agora os ícones 8-bit (`.px-ico`) viram SVG inline em tempo de execução (mapa embutido, gerado por `ferramentas/gerar-icones-inline.js`) e a caixa do cadeado é um SVG inline. Se o mapa não tiver o ícone, vale a máscara antiga.
+
 ## 2026-10-20 (4) — Moedas em PNG (v25)
 
 Teste no Samsung Internet (modo escuro ligado): imagens SVG têm o contorno escuro clareado para cinza; PNG mantém o contorno preto. As moedas (topo, login, cartão Patrimônio, moedinhas e tela de carregamento) agora são `assets/logo-moeda.png` (600×690, contorno `#000`) e `assets/moeda-girando.png` (sprite 12 quadros, 4320×414). Os SVG ficam só para o favicon.
