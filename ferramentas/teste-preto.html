@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teste: contorno preto da moeda</title>
+<meta name="color-scheme" content="only light">
+<meta name="darkreader-lock">
+<style>
+  :root{color-scheme:light;}
+  body{margin:0;font:16px/1.4 system-ui,sans-serif;background:#f6f3ea;color:#1d1f16;}
+  header{padding:16px;}
+  h1{font-size:1.1rem;margin:0 0 6px;}
+  p{margin:4px 0;}
+  .faixa{padding:14px 12px 18px;}
+  .faixa.escura{background:#1b1f17;color:#f2f4e6;}
+  .faixa h2{font-size:.95rem;margin:0 0 10px;}
+  .grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:12px;}
+  .v{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:.78rem;}
+  .v b{font-size:1.4rem;line-height:1;}
+  .caixa{width:100px;height:115px;display:flex;align-items:center;justify-content:center;}
+  .caixa img,.caixa canvas{width:100px;height:115px;display:block;image-rendering:pixelated;}
+  .bg{width:100px;height:115px;background-size:100px 115px;background-repeat:no-repeat;image-rendering:pixelated;}
+  .mascara{position:relative;width:100px;height:115px;}
+  .mascara i{position:absolute;inset:0;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;image-rendering:pixelated;}
+  .mascara .miolo{background:#f6c22c;-webkit-mask-image:url(teste-preto/coin-path.svg);mask-image:url(teste-preto/coin-path.svg);}
+  .mascara .borda{background:#000;-webkit-mask-image:url(teste-preto/contorno-mascara.svg);mask-image:url(teste-preto/contorno-mascara.svg);}
+  .suporte{background:#fffdf7;padding:6px;border-radius:12px;}
+  .amostra{width:100px;height:40px;border-radius:8px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Teste: o contorno da moeda continua PRETO?</h1>
+  <p>Abra esta página no Samsung Internet com o <b>modo escuro ligado</b> e depois com ele desligado.</p>
+  <p>Diga quais letras mostram o contorno <b>preto de verdade</b> (nas faixas clara e escura) ou mande um print.</p>
+</header>
+
+<section class="faixa">
+  <h2>Faixa clara</h2>
+  <div class="grade" id="claro"></div>
+</section>
+<section class="faixa escura">
+  <h2>Faixa escura (como o app)</h2>
+  <div class="grade" id="escuro"></div>
+</section>
+
+<script>
+const V = [
+  ['A', 'SVG atual (img)', () => '<img src="../assets/logo-moeda.svg" alt="">'],
+  ['B', 'PNG (img)', () => '<img src="teste-preto/coin.png" alt="">'],
+  ['C', 'PNG com preto #000', () => '<img src="teste-preto/coin-preto.png" alt="">'],
+  ['D', 'SVG com path', () => '<img src="teste-preto/coin-path.svg" alt="">'],
+  ['E', 'canvas', () => '<canvas width="20" height="23" data-canvas></canvas>'],
+  ['F', 'máscara CSS (borda #000)', () => '<div class="mascara"><i class="miolo"></i><i class="borda"></i></div>'],
+  ['G', 'PNG sobre fundo sólido', () => '<div class="suporte"><img src="teste-preto/coin.png" alt="" style="width:88px;height:101px"></div>'],
+  ['H', 'SVG atual como background', () => '<div class="bg" style="background-image:url(../assets/logo-moeda.svg)"></div>'],
+  ['I', 'PNG como background', () => '<div class="bg" style="background-image:url(teste-preto/coin.png)"></div>'],
+  ['J', 'bloco CSS #000000', () => '<div class="amostra" style="background:#000"></div>'],
+  ['K', 'bloco CSS #1d1f16', () => '<div class="amostra" style="background:#1d1f16"></div>']
+];
+for (const id of ['claro', 'escuro']) {
+  document.getElementById(id).innerHTML = V.map(([l, n, f]) =>
+    '<div class="v"><b>' + l + '</b><div class="caixa">' + f() + '</div><span>' + n + '</span></div>').join('');
+}
+// E: desenha o SVG num canvas, sem suavizar (pixel por pixel)
+const img = new Image();
+img.onload = () => document.querySelectorAll('canvas[data-canvas]').forEach(c => {
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  c.width = 200; c.height = 230; x.drawImage(img, 0, 0, 200, 230);
+});
+img.src = '../assets/logo-moeda.svg';
+</script>
+</body>
+</html>
