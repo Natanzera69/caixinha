@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-20 — Calendário do Caixinha (v22)
+
+Todos os campos de data e de mês (lançamento, pagamento de fatura, início de fixo) abrem um calendário próprio, no visual do app (papel creme, borda grossa, sombra em degrau, dia selecionado em verde, hoje com contorno dourado), em vez do seletor nativo do navegador, que não aceita estilo. O valor continua indo no próprio campo (AAAA-MM-DD / AAAA-MM), então os formulários não mudaram. Mês e ano pelo título, "Hoje", setas do teclado, Esc fecha só o calendário, respeita mínimo/máximo e "reduzir movimento".
+
 ## 2026-10-14 (4) — Indicador deslizante da barra de abas (v21)
 
 Ao trocar de aba, o bloco verde (PC) ou a pílula do ícone (celular) desliza até a aba nova: 200 ms, só `transform`, `--ease-out`. Sem JS ou com "reduzir movimento" a troca é instantânea. A 1ª posição, o redimensionamento e a barra reaparecendo (login/PIN) entram sem animar.

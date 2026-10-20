@@ -645,6 +645,43 @@ nav.tabs.com-ind button.active{background:transparent;box-shadow:none;} /* sem J
 }
 @media(prefers-reduced-motion:reduce){.nav-ind{transition:none;}}
 
+/* ---------- Calendário próprio (data e mês) ---------- */
+input[type=date][readonly],input[type=month][readonly]{cursor:pointer;}
+.cal{--cal-h:268px;position:fixed;z-index:calc(var(--z-modal) + 20);width:min(320px,calc(100vw - 24px));background:var(--surface);color:var(--text);border:2px solid var(--line);border-radius:14px;box-shadow:var(--shadow-pop);padding:10px;transform-origin:top left;animation:cx-cal-in var(--t-ui) var(--ease-out) backwards;}
+.cal.cima{transform-origin:bottom left;animation-name:cx-cal-in-cima;}
+@keyframes cx-cal-in{from{opacity:0;transform:translateY(-4px) scale(.97);}}
+@keyframes cx-cal-in-cima{from{opacity:0;transform:translateY(4px) scale(.97);}}
+@media(pointer:coarse){.cal{--cal-h:292px;}}
+.cal-topo{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
+.cal-tit{font-family:var(--font-pixel);font-size:1.05rem;font-weight:600;letter-spacing:.01em;padding:8px 10px;border:none;border-radius:10px;background:transparent;color:var(--text);flex:1;text-align:center;}
+button.cal-tit{cursor:pointer;}
+.cal-nav{flex:none;width:40px;height:40px;border:1.5px solid var(--border);border-radius:11px;background:var(--surface-2);color:var(--text);box-shadow:0 2px 0 var(--border);font-size:1.3rem;line-height:1;transition:transform var(--t-press) var(--ease-out),box-shadow var(--t-press) var(--ease-out);}
+@media(pointer:coarse){.cal-nav{width:44px;height:44px;}}
+.cal-nav:active{transform:translateY(2px);box-shadow:none;}
+.cal-corpo{min-height:var(--cal-h);}
+.cal-sem,.cal-dias{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-sem{margin-bottom:2px;}
+.cal-sem span{text-align:center;font-size:.68rem;font-weight:800;letter-spacing:.07em;color:var(--text-muted);padding:4px 0;}
+.cal-dias{gap:2px;}
+.cal-d,.cal-m{border:1.5px solid transparent;border-radius:10px;background:transparent;color:var(--text);font:700 .92rem var(--font-body);font-variant-numeric:tabular-nums;transition:transform var(--t-press) var(--ease-out),background-color var(--t-ui) var(--ease-out);}
+.cal-d{height:40px;}
+@media(pointer:coarse){.cal-d{height:44px;}}
+.cal-d.fora{color:var(--text-faint);font-weight:600;}
+.cal-d.hoje,.cal-m.hoje{border-color:var(--coin);}
+.cal-d.sel,.cal-m.sel{background:var(--primary);color:var(--primary-ink);box-shadow:0 2px 0 var(--primary-deep);}
+.cal-d:active,.cal-m:active{transform:scale(.96);}
+.cal-d:disabled,.cal-m:disabled,.cal-hoje:disabled{opacity:.35;pointer-events:none;}
+.cal-meses{display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:6px;}
+.cal-m{border-color:var(--border);border-radius:12px;background:var(--surface-2);font-size:.95rem;}
+.cal-m.sel{border-color:transparent;}
+.cal-pe{display:flex;justify-content:flex-end;margin-top:8px;}
+.cal-hoje{padding:8px 14px;}
+@media(hover:hover) and (pointer:fine){
+  .cal-d:not(.sel):not(:disabled):hover,.cal-m:not(.sel):not(:disabled):hover{background:var(--surface-2);}
+  .cal-nav:hover{border-color:var(--text-faint);}
+}
+@media(prefers-reduced-motion:reduce){.cal{animation:none;} .cal-d:active,.cal-m:active{transform:none;}}
+
 </style>
 </head>
 <body>
@@ -918,7 +955,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-14 · v21';
+const APP_VERSAO='2026-10-20 · v22';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1502,6 +1539,102 @@ if(window.ResizeObserver){ // barra aparece (login/PIN), janela muda, fonte cheg
   const nav=document.querySelector('nav.tabs'); const ro=new ResizeObserver(()=>moverIndicadorNav(false));
   ro.observe(nav); nav.querySelectorAll('button').forEach(b=>ro.observe(b));
 }
+/* ================= Calendário próprio (campos de data e de mês) =================
+   O seletor nativo não aceita estilo; os campos viram "somente leitura" e abrem este painel, que escreve o valor
+   (AAAA-MM-DD ou AAAA-MM) no próprio <input> e dispara input/change, então nenhum formulário muda. */
+const CAL_SEL='input[type=date],input[type=month]';
+const MESES_CAL=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let calEl=null, calInput=null, calSt=null, calAbertoEm=0, calEngole=0;
+function calFechar(devolveFoco){
+  if(!calEl) return;
+  const i=calInput; calEl.remove(); calEl=null; calInput=null;
+  if(devolveFoco && i && document.contains(i)) i.focus({preventScroll:true});
+}
+function calDentro(v,modoMes){
+  const i=calInput, min=i.min||'', max=i.max||'', c=modoMes?7:10;
+  return (!min||v>=min.slice(0,c)) && (!max||v<=max.slice(0,c));
+}
+function calDesenhar(refocar){
+  const s=calSt, mesIn=calInput.type==='month', sel=calInput.value||'', hoje=todayStr();
+  let h;
+  if(s.vista==='meses'){
+    h=`<div class="cal-topo"><button type="button" class="cal-nav" data-a="ano-" aria-label="Ano anterior">‹</button>`
+     +`<b class="cal-tit">${s.ano}</b><button type="button" class="cal-nav" data-a="ano+" aria-label="Próximo ano">›</button></div>`
+     +`<div class="cal-corpo cal-meses">`+MESES_CAL.map((n,k)=>{
+        const v=s.ano+'-'+pad2(k+1);
+        return `<button type="button" class="cal-m${v===sel.slice(0,7)?' sel':''}${v===hoje.slice(0,7)?' hoje':''}" data-m="${k}"${calDentro(v,true)?'':' disabled'}>${n.slice(0,3)}</button>`;
+      }).join('')+`</div>`;
+  }else{
+    const ini=new Date(s.ano,s.mes,1), dias=[];
+    for(let k=0;k<42;k++){
+      const d=new Date(s.ano,s.mes,1-ini.getDay()+k), iso=isoLocal(d);
+      dias.push(`<button type="button" class="cal-d${d.getMonth()!==s.mes?' fora':''}${iso===sel?' sel':''}${iso===hoje?' hoje':''}" data-d="${iso}" tabindex="${iso===s.foco?0:-1}" aria-label="${d.getDate()} de ${MESES_CAL[d.getMonth()]} de ${d.getFullYear()}"${calDentro(iso,false)?'':' disabled'}>${d.getDate()}</button>`);
+    }
+    h=`<div class="cal-topo"><button type="button" class="cal-nav" data-a="mes-" aria-label="Mês anterior">‹</button>`
+     +`<button type="button" class="cal-tit" data-a="vista" aria-label="Escolher mês e ano">${MESES_CAL[s.mes]} ${s.ano}</button>`
+     +`<button type="button" class="cal-nav" data-a="mes+" aria-label="Próximo mês">›</button></div>`
+     +`<div class="cal-corpo"><div class="cal-sem">${['D','S','T','Q','Q','S','S'].map(x=>`<span>${x}</span>`).join('')}</div><div class="cal-dias">${dias.join('')}</div></div>`
+     +`<div class="cal-pe"><button type="button" class="btn btn-ghost cal-hoje" data-a="hoje"${calDentro(hoje,false)?'':' disabled'}>Hoje</button></div>`;
+  }
+  calEl.innerHTML=h;
+  if(refocar){ const f=calEl.querySelector('.cal-d[tabindex="0"]')||calEl.querySelector('.cal-m.sel')||calEl.querySelector('.cal-m:not(:disabled)'); if(f) f.focus({preventScroll:true}); }
+}
+function calPosicionar(){
+  const r=calInput.getBoundingClientRect(), W=calEl.offsetWidth, H=calEl.offsetHeight, vw=innerWidth, vh=innerHeight;
+  let top=r.bottom+8, cima=false;
+  if(top+H>vh-12){ if(r.top-H-8>=12){ top=r.top-H-8; cima=true; } else top=Math.max(12,vh-H-12); }
+  calEl.style.left=Math.max(12,Math.min(r.left,vw-W-12))+'px'; calEl.style.top=top+'px';
+  calEl.classList.toggle('cima',cima);
+}
+function calEscolher(v){
+  const i=calInput; i.value=v;
+  i.dispatchEvent(new Event('input',{bubbles:true})); i.dispatchEvent(new Event('change',{bubbles:true}));
+  calFechar(true);
+}
+function calAbrir(i){
+  if(calEl && calInput===i){ calFechar(true); return; }
+  calFechar();
+  const modoMes=i.type==='month', [a,m,d]=(i.value||(modoMes?todayStr().slice(0,7):todayStr())).split('-').map(Number);
+  calSt={ano:a,mes:m-1,vista:modoMes?'meses':'dias',foco:modoMes?null:isoLocal(new Date(a,m-1,d||1))};
+  calInput=i; calEl=document.createElement('div'); calEl.className='cal'; calEl.setAttribute('role','dialog'); calEl.setAttribute('aria-label',modoMes?'Escolher mês':'Escolher data');
+  document.body.appendChild(calEl); calAbertoEm=performance.now();
+  calDesenhar(true); calPosicionar();
+  calEl.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b||b.disabled) return;
+    const s=calSt, ac=b.dataset.a;
+    if(b.dataset.d){ calEscolher(b.dataset.d); return; }
+    if(b.dataset.m){ const v=s.ano+'-'+pad2(Number(b.dataset.m)+1); if(modoMes) calEscolher(v); else{ s.mes=Number(b.dataset.m); s.vista='dias'; s.foco=isoLocal(new Date(s.ano,s.mes,1)); calDesenhar(true); } return; }
+    if(ac==='hoje'){ calEscolher(todayStr()); return; }
+    if(ac==='vista') s.vista='meses';
+    else if(ac==='ano-') s.ano--; else if(ac==='ano+') s.ano++;
+    else if(ac==='mes-'||ac==='mes+'){ const d2=new Date(s.ano,s.mes+(ac==='mes+'?1:-1),1); s.ano=d2.getFullYear(); s.mes=d2.getMonth(); }
+    if(!s.foco || ac==='mes-'||ac==='mes+') s.foco=isoLocal(new Date(s.ano,s.mes,1));
+    calDesenhar(false);
+  });
+  calEl.addEventListener('keydown',e=>{ // setas andam pelos dias
+    const t=e.target; if(!t.dataset||!t.dataset.d) return;
+    const passo={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7}[e.key]; if(!passo) return;
+    e.preventDefault();
+    const [y,mo,dd]=t.dataset.d.split('-').map(Number), n=new Date(y,mo-1,dd+passo);
+    calSt.foco=isoLocal(n); calSt.ano=n.getFullYear(); calSt.mes=n.getMonth(); calDesenhar(true);
+  });
+}
+document.addEventListener('pointerdown',e=>{
+  const t=e.target, ehCampo=t.matches&&t.matches(CAL_SEL);
+  if(ehCampo) t.readOnly=true;
+  if(calEl && !calEl.contains(t) && !ehCampo){ calFechar(); calEngole=performance.now(); } // o 1º toque fora só fecha o calendário
+},true);
+document.addEventListener('click',e=>{
+  if(calEngole && performance.now()-calEngole<600 && !(e.target.matches&&e.target.matches(CAL_SEL))){ calEngole=0; e.stopPropagation(); e.preventDefault(); return; }
+  const i=e.target.closest&&e.target.closest(CAL_SEL); if(i){ e.preventDefault(); calAbrir(i); }
+},true);
+document.addEventListener('focusin',e=>{ if(e.target.matches&&e.target.matches(CAL_SEL)) e.target.readOnly=true; });
+document.addEventListener('keydown',e=>{
+  if(calEl && e.key==='Escape'){ e.stopImmediatePropagation(); e.preventDefault(); calFechar(true); return; }
+  const i=e.target; if(i.matches&&i.matches(CAL_SEL)&&(e.key==='Enter'||e.key===' '||e.key==='ArrowDown')){ e.preventDefault(); calAbrir(i); }
+},true);
+window.addEventListener('resize',()=>calFechar());
+window.addEventListener('scroll',e=>{ if(calEl && performance.now()-calAbertoEm>250 && !calEl.contains(e.target)) calPosicionar(); },true); // acompanha o campo ao rolar a janela
 function renderAba(nome){
   if(nome==='dashboard') renderDashboard();
   else if(nome==='lancamentos') renderLancamentos();
@@ -4042,6 +4175,7 @@ window.addEventListener('popstate',()=>{
   if(modalNoHistorico && !document.getElementById('modalRoot').classList.contains('hidden')) fecharModal(true);
 });
 function fecharModal(deVoltar){
+  calFechar();
   if(modalNoHistorico){
     modalNoHistorico=false;
     if(deVoltar!==true && history.state && history.state.cx==='modal'){ voltandoDoModal=true; try{ history.back(); }catch(e){ voltandoDoModal=false; } }
