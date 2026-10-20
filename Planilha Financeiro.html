@@ -270,7 +270,7 @@ table.simple td{padding:10px 8px;border-bottom:1px solid var(--border);font-vari
 .pin-boxes>span{flex:1 1 0;max-width:46px;min-width:24px;height:54px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:center;}
 .pin-boxes>span.filled{border-color:var(--primary);background:var(--primary-soft);}
 /* ---------- Loading: moeda girando (12 quadros) ---------- */
-.loading-logo{flex:none;width:120px;height:138px;background:url(assets/moeda-girando.svg) no-repeat 0 0/1440px 138px;image-rendering:pixelated;animation:cx-coin 1.2s steps(12) infinite;}
+.loading-logo{flex:none;width:120px;height:138px;background:url(assets/moeda-girando.png) no-repeat 0 0/1440px 138px;image-rendering:pixelated;animation:cx-coin 1.2s steps(12) infinite;}
 @keyframes cx-coin{to{background-position:-1440px 0}}
 @media (prefers-reduced-motion:reduce){.loading-logo{animation:none}}
 
@@ -727,7 +727,7 @@ button.cal-tit{cursor:pointer;}
 
 <div id="loginScreen" class="hidden">
   <div class="lock-card" style="padding-top:58px">
-    <img class="login-coin" src="assets/logo-moeda.svg" alt="">
+    <img class="login-coin" src="assets/logo-moeda.png" alt="">
     <h2>Oi de novo!</h2>
     <p>Entre com seu e-mail pra sincronizar suas moedinhas entre aparelhos.</p>
     <div class="field" style="text-align:left"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="username"></div>
@@ -742,7 +742,7 @@ button.cal-tit{cursor:pointer;}
 
 <div id="gateScreen" class="hidden">
   <div class="lock-card" style="padding-top:58px">
-    <img class="login-coin" src="assets/logo-moeda.svg" alt="">
+    <img class="login-coin" src="assets/logo-moeda.png" alt="">
     <h2 id="gateTitulo"></h2>
     <p id="gateTexto"></p>
     <div id="gateMsg" style="color:var(--text-muted); font-size:.85rem; min-height:18px; margin-bottom:8px"></div>
@@ -767,7 +767,7 @@ button.cal-tit{cursor:pointer;}
 
 <div id="app" class="hidden">
   <div class="topbar">
-    <div class="brand"><div class="brand-lockup"><img src="assets/logo-moeda.svg" alt=""><span>caixinha</span></div></div>
+    <div class="brand"><div class="brand-lockup"><img src="assets/logo-moeda.png" alt=""><span>caixinha</span></div></div>
     <div id="seletorPerfil"></div>
   </div>
 
@@ -987,7 +987,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-20 · v24';
+const APP_VERSAO='2026-10-20 · v25';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1761,7 +1761,7 @@ function chuvaDeMoedas(){
   if(reduzMovimento()) return;
   const raiz=document.createElement('div'); raiz.className='moedas'; raiz.setAttribute('aria-hidden','true');
   for(let i=0;i<10;i++){
-    const m=document.createElement('img'); m.src='assets/logo-moeda.svg'; m.alt='';
+    const m=document.createElement('img'); m.src='assets/logo-moeda.png'; m.alt='';
     m.style.left=(6+Math.random()*88)+'vw'; m.style.animationDelay=Math.round(Math.random()*240)+'ms';
     m.style.setProperty('--dx',Math.round(Math.random()*80-40)+'px');
     raiz.appendChild(m);
@@ -2110,7 +2110,7 @@ function renderDashboard(){
     ${dicaPeriodo(ano,mesIdx)}
 
     <div class="grid">
-      <div class="card hero"><h3>Patrimônio líquido</h3><div class="value">${fmtMoney(patrimonioLiquido())}</div><div class="sub">contas + investimentos − dívida em cartões</div><img class="hero-coin" src="assets/logo-moeda.svg" alt=""></div>
+      <div class="card hero"><h3>Patrimônio líquido</h3><div class="value">${fmtMoney(patrimonioLiquido())}</div><div class="sub">contas + investimentos − dívida em cartões</div><img class="hero-coin" src="assets/logo-moeda.png" alt=""></div>
       <div class="card"><h3>Saldo em contas</h3><div class="value">${fmtMoney(saldoTotalContas())}</div><div class="sub">${state.contas.length} conta(s)</div></div>
       <div class="card"><h3 style="--c:var(--income)">Receitas do mês</h3><div class="value income">${fmtMoney(receitas)}</div></div>
       <div class="card"><h3 style="--c:var(--expense)">Despesas do mês</h3><div class="value expense">${fmtMoney(despesas)}</div></div>

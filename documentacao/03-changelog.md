@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-20 (4) — Moedas em PNG (v25)
+
+Teste no Samsung Internet (modo escuro ligado): imagens SVG têm o contorno escuro clareado para cinza; PNG mantém o contorno preto. As moedas (topo, login, cartão Patrimônio, moedinhas e tela de carregamento) agora são `assets/logo-moeda.png` (600×690, contorno `#000`) e `assets/moeda-girando.png` (sprite 12 quadros, 4320×414). Os SVG ficam só para o favicon.
+
 ## 2026-10-20 (3) — Botão "Mês atual" sem mexer no layout e sombra do patrimônio (v24)
 
 - O botão "Voltar para o mês atual" (Início, Gráficos e Lançamentos) deixou de ser uma linha extra: fica na linha do mês, ao lado da seta, então os cartões não sobem nem descem. Aparece e some com "pop" (240 ms entrada com leve overshoot, 150 ms saída, só transform/opacity; sem movimento com "reduzir movimento"). No celular vira só o ícone.
