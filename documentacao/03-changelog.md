@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-20 (2) — Modo de edição em Categorias e Subcategorias (v23)
+
+Em Config → Categorias e Subcategorias, o botão "Modo de edição" troca os botões de cada linha por caixinhas de marcar, com "Selecionar tudo" (parcial quando só algumas estão marcadas) e "Excluir (N)". Uma confirmação única; excluir categoria leva as subcategorias dela; excluir subcategoria só tira a subcategoria dos lançamentos. Categorias em uso ficam travadas ("em uso"), como na exclusão individual. Com busca ativa, "Selecionar tudo" vale só para o que está na tela.
+
 ## 2026-10-20 — Calendário do Caixinha (v22)
 
 Todos os campos de data e de mês (lançamento, pagamento de fatura, início de fixo) abrem um calendário próprio, no visual do app (papel creme, borda grossa, sombra em degrau, dia selecionado em verde, hoje com contorno dourado), em vez do seletor nativo do navegador, que não aceita estilo. O valor continua indo no próprio campo (AAAA-MM-DD / AAAA-MM), então os formulários não mudaram. Mês e ano pelo título, "Hoje", setas do teclado, Esc fecha só o calendário, respeita mínimo/máximo e "reduzir movimento".

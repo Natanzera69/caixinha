@@ -682,6 +682,21 @@ button.cal-tit{cursor:pointer;}
 }
 @media(prefers-reduced-motion:reduce){.cal{animation:none;} .cal-d:active,.cal-m:active{transform:none;}}
 
+/* ---------- Modo de edição de categorias e subcategorias ---------- */
+.edit-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:12px 0 0;}
+.edit-bar.on{padding:8px 10px;border:1.5px dashed var(--border-strong);border-radius:12px;background:var(--surface-2);}
+.chk-tudo{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:700;font-size:.9rem;cursor:pointer;margin-right:auto;}
+.chk{appearance:none;-webkit-appearance:none;flex:none;width:22px;height:22px;margin:0;border:2px solid var(--border-strong);border-radius:6px;background:var(--surface);display:grid;place-items:center;cursor:pointer;transition:background-color var(--t-press) var(--ease-out),border-color var(--t-press) var(--ease-out);}
+.chk::after{content:"";width:12px;height:12px;background:var(--primary-ink);-webkit-mask:url(assets/icons/check.svg) center/contain no-repeat;mask:url(assets/icons/check.svg) center/contain no-repeat;opacity:0;}
+.chk:checked,.chk[data-parcial]{background:var(--primary);border-color:var(--primary-deep);}
+.chk:checked::after{opacity:1;}
+.chk[data-parcial]:not(:checked)::after{width:10px;height:3px;border-radius:1px;-webkit-mask:none;mask:none;opacity:1;}
+.chk:disabled{opacity:.4;cursor:not-allowed;}
+.sel-row{cursor:pointer;min-height:48px;}
+.sel-row.travada{cursor:not-allowed;opacity:.75;}
+.sel-info{flex:none;font-size:.74rem;font-weight:700;color:var(--text-muted);}
+@media(hover:hover) and (pointer:fine){.sel-row:not(.travada):hover{background:var(--surface-2);}}
+
 </style>
 </head>
 <body>
@@ -955,7 +970,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-20 · v22';
+const APP_VERSAO='2026-10-20 · v23';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -3627,16 +3642,87 @@ function alternarSecaoConfig(id){
   const s=document.querySelector(`#tab-config .acc[data-sec="${id}"]`);
   if(secaoConfigAberta===id && s) setTimeout(()=>s.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}),210);
 }
+/* ---- Modo de edição: marcar várias categorias/subcategorias e excluir de uma vez ---- */
+let catEdicao=false, subEdicao=false;
+const selCat=new Set(), selSub=new Set();
+const edSel=k=>k==='cat'?selCat:selSub;
+function htmlBarraEdicao(k,nSel,nTot){
+  const on=k==='cat'?catEdicao:subEdicao;
+  if(!on) return `<div class="edit-bar"><button type="button" class="btn btn-ghost btn-sm" onclick="alternarEdicao('${k}')">Modo de edição</button></div>`;
+  return `<div class="edit-bar on"><button type="button" class="btn btn-ghost btn-sm" onclick="alternarEdicao('${k}')">Concluir</button>
+    <label class="chk-tudo"><input type="checkbox" class="chk" id="selTudo-${k}" ${nTot&&nSel===nTot?'checked':''} ${nSel&&nSel<nTot?'data-parcial':''} ${nTot?'':'disabled'} onchange="selecionarTudo('${k}',this.checked)"> Selecionar tudo</label>
+    <button type="button" class="btn btn-danger btn-sm" id="btnExcl-${k}" ${nSel?'':'disabled'} onclick="excluirSelecionados('${k}')">Excluir${nSel?' ('+nSel+')':''}</button></div>`;
+}
+function htmlCheckSel(k,id,desab){
+  return `<input type="checkbox" class="chk" data-sel="${k}" data-id="${id}" ${edSel(k).has(id)&&!desab?'checked':''} ${desab?'disabled':''} onchange="marcarSel('${k}','${id}',this.checked)">`;
+}
+// O que está marcado NA TELA é o que será excluído (itens escondidos pela busca não entram).
+function marcadosNaTela(k){ return [...document.querySelectorAll(`input.chk[data-sel="${k}"]:not(:disabled)`)]; }
+function atualizarBarraEdicao(k){
+  const cbs=marcadosNaTela(k), n=cbs.filter(c=>c.checked).length;
+  const t=document.getElementById('selTudo-'+k), b=document.getElementById('btnExcl-'+k);
+  if(t){ t.checked=cbs.length>0&&n===cbs.length; t.toggleAttribute('data-parcial',n>0&&n<cbs.length); t.disabled=!cbs.length; }
+  if(b){ b.disabled=!n; b.textContent='Excluir'+(n?' ('+n+')':''); }
+}
+function marcarSel(k,id,on){ if(on) edSel(k).add(id); else edSel(k).delete(id); atualizarBarraEdicao(k); }
+function selecionarTudo(k,on){
+  marcadosNaTela(k).forEach(c=>{ c.checked=on; if(on) edSel(k).add(c.dataset.id); else edSel(k).delete(c.dataset.id); });
+  atualizarBarraEdicao(k);
+}
+function alternarEdicao(k){
+  if(k==='cat'){ catEdicao=!catEdicao; selCat.clear(); filtrarCategoriasConfig(catBusca); }
+  else{ subEdicao=!subEdicao; selSub.clear(); renderConfig(); }
+}
+function excluirSelecionados(k){
+  const ids=marcadosNaTela(k).filter(c=>c.checked).map(c=>c.dataset.id);
+  if(!ids.length) return;
+  if(k==='cat'){
+    const nSubs=ids.reduce((s,id)=>s+subcategoriasDe(id).length,0);
+    if(!confirm(`Excluir ${ids.length} categoria${ids.length===1?'':'s'}${nSubs?` e ${nSubs} subcategoria${nSubs===1?'':'s'} delas`:''}? Não dá para desfazer.`)) return;
+    ids.forEach(id=>{ subcategoriasDe(id).forEach(x=>excluirRegistro('subcategorias',x.id)); catSubAbertas.delete(id); excluirRegistro('categorias',id); });
+    selCat.clear(); salvarEstado(); renderConfig(); toast(ids.length===1?'Categoria excluída.':ids.length+' categorias excluídas.');
+  }else{
+    if(!confirm(`Excluir ${ids.length} subcategoria${ids.length===1?'':'s'}? Os lançamentos continuam na categoria, só perdem a subcategoria.`)) return;
+    const set=new Set(ids);
+    state.transacoes.forEach(t=>{ if(set.has(t.subcategoriaId)){ t.subcategoriaId=null; tocar(t); } });
+    (state.recorrencias||[]).forEach(r=>{ if(set.has(r.subcategoriaId)){ r.subcategoriaId=null; tocar(r); } });
+    ids.forEach(id=>excluirRegistro('subcategorias',id));
+    selSub.clear(); salvarEstado(); renderConfig(); toast(ids.length===1?'Subcategoria excluída.':ids.length+' subcategorias excluídas.');
+  }
+}
+function htmlLinhaSub(x){
+  if(subEdicao) return `<label class="sub-row sel-row">${htmlCheckSel('sub',x.id,false)}<span class="cat-nome">${escapeHtml(x.nome)}</span></label>`;
+  return `
+        <div class="sub-row">
+          <span class="cat-nome">${escapeHtml(x.nome)}</span>
+          <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(x.nome)}" onclick="abrirFormRenomearSub('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
+          <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(x.nome)}" onclick="excluirSubcategoria('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+        </div>`;
+}
 function htmlCategoriasConfig(){
   const q=semAcento(catBusca.trim());
   const grupos=[['despesa','Despesas'],['receita','Receitas']];
+  let nTot=0, nSel=0;
   const html=grupos.map(([tipo,rot])=>{
     const todas=state.categorias.filter(c=>c.tipo===tipo);
     const subDaBusca=c=>subcategoriasDe(c.id).some(x=>semAcento(x.nome).includes(q));
     const lista=q? todas.filter(c=>semAcento(c.nome).includes(q)||subDaBusca(c)) : todas;
-    const aberto=q? lista.length>0 : catAbertos[tipo];
+    const aberto=(q? lista.length>0 : catAbertos[tipo]) || catEdicao;
     const linhas=lista.map(c=>{
       const subs=subcategoriasDe(c.id);
+      if(catEdicao){
+        const uso=usosDe('categoria',c.id).length>0; // em uso não pode excluir: fica travada
+        if(!uso){ nTot++; if(selCat.has(c.id)) nSel++; }
+        return `
+      <div class="cat-item">
+      <label class="cat-row sel-row${uso?' travada':''}">
+        ${htmlCheckSel('cat',c.id,uso)}
+        <span class="row-icon" style="width:40px;height:40px;flex:none">${iconeSeguro(c.icone)}</span>
+        <span class="cat-nome">${escapeHtml(c.nome)}</span>
+        <small class="sel-info">${uso?'em uso':(subs.length? subs.length+' sub'+(subs.length===1?'':'s') : '')}</small>
+      </label>
+      </div>`;
+      }
       return `
       <div class="cat-item">
       <div class="cat-row">
@@ -3652,7 +3738,7 @@ function htmlCategoriasConfig(){
       <div class="cat-lista">${linhas||'<p class="hint" style="margin:8px">Nenhuma categoria encontrada.</p>'}</div>
     </details>`;
   }).join('');
-  return html;
+  return htmlBarraEdicao('cat',nSel,nTot)+html;
 }
 function filtrarCategoriasConfig(v){
   catBusca=String(v||'').slice(0,40);
@@ -3700,14 +3786,9 @@ function htmlSubcategoriasConfig(){
   const comSubs=cats.filter(c=>subcategoriasDe(c.id).length);
   const grupos=comSubs.map(c=>{
     const subs=subcategoriasDe(c.id);
-    return `<details class="cat-grupo" ${catSubAbertas.has(c.id)?'open':''} ontoggle="this.open?catSubAbertas.add('${c.id}'):catSubAbertas.delete('${c.id}')">
+    return `<details class="cat-grupo" ${catSubAbertas.has(c.id)||subEdicao?'open':''} ontoggle="this.open?catSubAbertas.add('${c.id}'):catSubAbertas.delete('${c.id}')">
       <summary><span>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</span><span class="qtd">${subs.length}</span></summary>
-      <div class="cat-lista">${subs.map(x=>`
-        <div class="sub-row">
-          <span class="cat-nome">${escapeHtml(x.nome)}</span>
-          <button type="button" class="mini" title="Renomear" aria-label="Renomear ${escapeHtml(x.nome)}" onclick="abrirFormRenomearSub('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
-          <button type="button" class="mini" title="Excluir" aria-label="Excluir ${escapeHtml(x.nome)}" onclick="excluirSubcategoria('${x.id}')"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
-        </div>`).join('')}</div>
+      <div class="cat-lista">${subs.map(htmlLinhaSub).join('')}</div>
     </details>`;
   }).join('');
   return `
@@ -3719,6 +3800,7 @@ function htmlSubcategoriasConfig(){
       </div>
       <button type="button" class="btn btn-primary btn-sm" onclick="adicionarSubDaConfig()">+ Adicionar subcategoria</button>
     </div>
+    ${comSubs.length?htmlBarraEdicao('sub',comSubs.reduce((n,c)=>n+subcategoriasDe(c.id).filter(x=>selSub.has(x.id)).length,0),(state.subcategorias||[]).length):''}
     <div style="margin-top:14px">${grupos||'<p class="hint">Nenhuma subcategoria ainda.</p>'}</div>`;
 }
 function abrirFormRenomearSub(id){
