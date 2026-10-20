@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P5 — controle sem nenhuma declaração</title>
+
+<style>
+:root{--bg:#f6f3ea;--surface:#fffdf7;--surface-2:#f1ede1;--border:#e3dcc9;--text:#1d1f16;--text-muted:#5e604f;--primary:#16842f;--primary-ink:#fff;--coin:#f6c22c;--icon-nav:#5e604f;} html.dark{--bg:#11130e;--surface:#1b1f17;--surface-2:#2b3123;--border:#4d5742;--text:#f2f4e6;--text-muted:#c3c7b1;--primary:#3cbf57;--primary-ink:#0b1709;--coin:#f6c22c;--icon-nav:#d4d8c2;}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,sans-serif;padding-bottom:90px;}
+.topo{display:flex;align-items:center;gap:10px;padding:14px 16px;font-weight:800;font-size:1.4rem;}
+.topo img{width:36px;height:auto;image-rendering:pixelated;}
+.info{margin:0 16px 12px;padding:12px;border:1.5px dashed var(--border);border-radius:12px;font-size:.85rem;color:var(--text-muted);}
+.info b{color:var(--text);}
+.card{margin:0 16px 12px;padding:16px;background:var(--surface);border:1.5px solid var(--border);border-radius:16px;box-shadow:0 3px 0 var(--border);}
+.card h3{margin:0 0 6px;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);}
+.card .v{font-size:1.6rem;font-weight:800;}
+.lock{margin:0 16px 12px;padding:16px;background:var(--surface);border:1.5px solid var(--border);border-radius:16px;display:flex;align-items:center;gap:14px;}
+.lock .emoji{width:64px;height:64px;border-radius:16px;background:var(--coin);border:2px solid #1d1f16;box-shadow:0 3px 0 #1d1f16;display:flex;align-items:center;justify-content:center;flex:none;}
+.px-ico{display:inline-block;width:24px;height:24px;background-color:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat;}
+.lock .emoji .px-ico{width:36px;height:36px;color:#1d1f16;}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--surface);border-top:1.5px solid var(--border);padding:8px 4px calc(8px + env(safe-area-inset-bottom));}
+nav span{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:.7rem;color:var(--text-muted);}
+nav .px-ico{color:var(--icon-nav);}
+nav span.on{color:var(--primary);font-weight:800;} nav span.on .px-ico{color:var(--primary);}
+a{color:var(--primary);}
+</style>
+<script>window.addEventListener("load",()=>setTimeout(()=>document.documentElement.classList.add("dark"),300));</script>
+</head>
+<body>
+<div class="topo"><img src="../../assets/logo-moeda.png" alt="">caixinha</div>
+<div class="info"><b>P5 — controle sem nenhuma declaração</b><br>sem meta, sem color-scheme, sem @media; tema escuro por JavaScript depois do carregamento.<br><br><b>Como deve ficar:</b> fundo quase preto esverdeado, cartões um pouco mais claros, ícones <b>claros e bem visíveis</b> na barra de baixo, caixa do cadeado <b>dourada</b> com cadeado preto, moeda com contorno <b>preto</b>.</div>
+<div class="card"><h3>Saldo em contas</h3><div class="v">R$ 1.234,56</div></div>
+<div class="lock"><div class="emoji"><span class="px-ico" style="--i:url(../../assets/icons/lock.svg)"></span></div><div><b>Caixinha trancada</b><br><span style="color:var(--text-muted)">Digite seu PIN para continuar</span></div></div>
+<div class="card"><h3>Ícones</h3><div style="display:flex;gap:14px;color:var(--text)"><span class="px-ico" style="--i:url(../../assets/icons/home.svg)"></span><span class="px-ico" style="--i:url(../../assets/icons/receipt.svg)"></span><span class="px-ico" style="--i:url(../../assets/icons/pie.svg)"></span><span class="px-ico" style="--i:url(../../assets/icons/bank.svg)"></span><span class="px-ico" style="--i:url(../../assets/icons/gear.svg)"></span></div></div>
+<p style="margin:0 16px"><a href="./index.html">← voltar à lista de testes</a></p>
+<nav><span class="on"><span class="px-ico" style="--i:url(../../assets/icons/home.svg)"></span>Início</span><span><span class="px-ico" style="--i:url(../../assets/icons/receipt.svg)"></span>Lanç.</span><span><span class="px-ico" style="--i:url(../../assets/icons/pie.svg)"></span>Gráf.</span><span><span class="px-ico" style="--i:url(../../assets/icons/bank.svg)"></span>Contas</span><span><span class="px-ico" style="--i:url(../../assets/icons/gear.svg)"></span>Config</span></nav>
+</body>
+</html>

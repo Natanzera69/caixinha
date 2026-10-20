@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Testes de tema escuro</title>
+<style>body{font:17px/1.5 system-ui,sans-serif;margin:0;padding:20px;max-width:560px;}li{margin:10px 0;}small{color:#555}</style></head>
+<body><h1>Testes de tema escuro</h1>
+<p>Abra cada página no Samsung Internet com o <b>modo escuro do celular ligado</b>. Em cada uma, confira se os ícones da barra de baixo ficam claros, se a caixa do cadeado é dourada e se a moeda tem contorno preto. Mande um print de cada (ou diga quais estão certas).</p>
+<ol><li><a href="./p1.html">P1 — como o app é hoje</a><br><small>meta "only light"; tema escuro aplicado por JavaScript depois do carregamento.</small></li><li><a href="./p2.html">P2 — escuro desde o primeiro byte</a><br><small><html class="dark"> já no HTML, meta "dark" e color-scheme: dark.</small></li><li><a href="./p3.html">P3 — claro e escuro declarados + regra do sistema</a><br><small>meta "light dark" e @media (prefers-color-scheme: dark) com as cores escuras (sem classe, sem JavaScript).</small></li><li><a href="./p4.html">P4 — sem declarar color-scheme, só a regra do sistema</a><br><small>nenhuma meta color-scheme e nenhum color-scheme no CSS; só @media (prefers-color-scheme: dark).</small></li><li><a href="./p5.html">P5 — controle sem nenhuma declaração</a><br><small>sem meta, sem color-scheme, sem @media; tema escuro por JavaScript depois do carregamento.</small></li></ol>
+</body></html>
