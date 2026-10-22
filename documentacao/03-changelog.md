@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-22 — PIN só depois de 10 minutos fora (v27)
+
+O bloqueio deixou de travar a cada vez que se sai da aba ou se minimiza: agora guarda o horário em que o app saiu de cena (`planilhaFinanceiro_saiuEm`) e só pede o PIN ao voltar se passaram **10 minutos ou mais**. Sair e voltar antes disso não faz nada, e ficar 10 minutos na tela sem sair também não. Vale também quando o celular fecha a página em segundo plano (abrir de novo em menos de 10 min não pede PIN). Continua valendo: login ativo, PIN criado e a opção "Ligado" em Config → Segurança. Para trocar o tempo, mude `BLOQUEIO_MIN`.
+
 ## 2026-10-20 (5) — Ícones e cadeado resistentes ao modo escuro do Samsung (v26)
 
 Teste no Samsung Internet (modo escuro ligado): ícones feitos com máscara + `background-color` ficam quase pretos, e a caixa dourada do cadeado vira marrom. SVG inline com `<path fill=currentColor>` ficou claro e visível, e fundo desenhado com `<rect>` em SVG inline ficou dourado. Agora os ícones 8-bit (`.px-ico`) viram SVG inline em tempo de execução (mapa embutido, gerado por `ferramentas/gerar-icones-inline.js`) e a caixa do cadeado é um SVG inline. Se o mapa não tiver o ícone, vale a máscara antiga.

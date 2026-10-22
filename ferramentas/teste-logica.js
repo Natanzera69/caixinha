@@ -15,7 +15,7 @@ function extrair(nome) {
   }
 }
 const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 'pad2', 'ultimoDiaDoMes', 'anoMesStr', 'tocar',
-  'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
+  'cartaoById', 'perfilTemDados', 'decidirSincronia', 'resumoPerfil', 'codigoErroSync', 'semAcento', 'filtrarLancamentos', 'totaisLancamentos', 'usosDe', 'sanearPerfilBackup', 'lerObjetoBackup', 'resumoBackup', 'aplicarBackupNoPerfil', 'escapeHtml', 'emailChave', 'iconeSeguro', 'corSegura', 'hashTexto', 'pinDoAparelho', 'definirPinAparelho', 'removerPinAparelho', 'bloqueioAoMinimizarAtivo','foraMuito', 'sessaoExpirada', 'fimDaSessao', 'mesCompetencia', 'recorrenciaDevidaNoMes', 'gerarTransacoesRecorrentesDoMes', 'mesclarEstadoEm', 'rotuloMes',
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
   'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo',
@@ -91,6 +91,12 @@ t('bloqueio ao minimizar: ligado por padrão, "0" desliga', () => {
   run('localStorage.removeItem(SEG.lockMin)'); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), true);
   run("localStorage.setItem(SEG.lockMin,'0')"); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), false);
   run("localStorage.setItem(SEG.lockMin,'1')"); assert.strictEqual(run('bloqueioAoMinimizarAtivo()'), true);
+});
+t('bloqueio por ausência: só a partir de 10 minutos fora', () => {
+  run('var BLOQUEIO_MIN=10'); const ag = Date.now();
+  assert.strictEqual(run('foraMuito(' + (ag - 9 * 60000) + ')'), false);
+  assert.strictEqual(run('foraMuito(' + (ag - 10 * 60000 - 50) + ')'), true);
+  assert.strictEqual(run('foraMuito(' + (ag - 3600000) + ')'), true);
 });
 t('PIN antigo por perfil migra pro aparelho', () => {
   run('removerPinAparelho()');

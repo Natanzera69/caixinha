@@ -988,7 +988,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-20 · v26';
+const APP_VERSAO='2026-10-22 · v27';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1069,7 +1069,7 @@ async function hashTexto(txt){
 
 /* ================= Segurança do aparelho: PIN, bloqueio ao minimizar e validade do login =================
    Tudo em localStorage, FORA do state: o PIN é do aparelho (vale pros perfis Pessoal e PJ) e nunca vai pro Firestore nem pro backup. */
-const SEG={pin:'planilhaFinanceiro_pin',pinLen:'planilhaFinanceiro_pinLen',lockMin:'planilhaFinanceiro_lockMin',loginEm:'planilhaFinanceiro_loginEm',pinVisto:'planilhaFinanceiro_pinVisto'};
+const SEG={pin:'planilhaFinanceiro_pin',pinLen:'planilhaFinanceiro_pinLen',lockMin:'planilhaFinanceiro_lockMin',saiuEm:'planilhaFinanceiro_saiuEm',loginEm:'planilhaFinanceiro_loginEm',pinVisto:'planilhaFinanceiro_pinVisto'};
 const SESSAO_DIAS=30; // depois disso (contado desde o login) pede e-mail e senha de novo
 const lsGet=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const lsSet=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
@@ -1122,8 +1122,10 @@ function aplicarPinDaConta(promover){
     if(h){ p.config.pinConta={hash:h,len:Number(lsGet(SEG.pinLen))||4,em:nowISO()}; enviarPinDaConta(); }
   }
 }
-function bloqueioAoMinimizarAtivo(){ return lsGet(SEG.lockMin)!=='0'; } // padrão: ligado
-function definirBloqueioAoMinimizar(ligado){ lsSet(SEG.lockMin,ligado?'1':'0'); renderConfig(); toast(ligado?'Vai bloquear ao minimizar.':'Bloqueio ao minimizar desligado.'); }
+function bloqueioAoMinimizarAtivo(){ return lsGet(SEG.lockMin)!=='0'; } // padrão: ligado (a chave se chama "minimizar" por histórico: hoje vale "depois de ficar fora por BLOQUEIO_MIN minutos")
+function definirBloqueioAoMinimizar(ligado){ lsSet(SEG.lockMin,ligado?'1':'0'); renderConfig(); toast(ligado?'Vai bloquear depois de '+BLOQUEIO_MIN+' min fora do app.':'Bloqueio automático desligado.'); }
+const BLOQUEIO_MIN=10; // minutos fora da aba/app antes de pedir o PIN de novo
+function foraMuito(saiuEm){ return Date.now()-saiuEm>=BLOQUEIO_MIN*60000; }
 function sessaoExpirada(){ const t=Number(lsGet(SEG.loginEm)); return !!t && Date.now()-t>SESSAO_DIAS*86400000; }
 function fimDaSessao(){ const t=Number(lsGet(SEG.loginEm)); return t? new Date(t+SESSAO_DIAS*86400000) : null; }
 function mostrarLogin(){
@@ -1202,11 +1204,17 @@ function bloquearApp(){
   document.getElementById('lockScreen').classList.remove('hidden');
   document.getElementById('lockInput').focus();
 }
+// Só pede o PIN se você ficou FORA da aba/app por BLOQUEIO_MIN minutos ou mais. Sair e voltar antes disso não faz nada,
+// e ficar na tela sem sair também não. O horário de saída fica guardado para valer até se o celular fechar a página em segundo plano.
 document.addEventListener('visibilitychange',()=>{
+  const ativo=window.fbUid && pinDoAparelho() && bloqueioAoMinimizarAtivo();
   if(document.hidden){
-    // só trava com login ativo, PIN criado e a opção ligada (padrão)
-    if(window.fbUid && pinDoAparelho() && bloqueioAoMinimizarAtivo()) bloquearApp();
-  }else verificarSessao();
+    if(ativo) lsSet(SEG.saiuEm,String(Date.now()));
+  }else{
+    const t=Number(lsGet(SEG.saiuEm)); lsDel(SEG.saiuEm);
+    if(ativo && t && foraMuito(t)) bloquearApp();
+    verificarSessao();
+  }
 });
 
 /* ================= Onboarding (primeiro login) =================
@@ -1237,7 +1245,7 @@ async function promptSalvarPin(){
   if(!/^\d{4}$/.test(a)){ erro.textContent='O PIN tem exatamente 4 números.'; return; }
   if(a!==b){ erro.textContent='Os PINs não coincidem.'; return; }
   await definirPinAparelho(a); lsSet(SEG.pinVisto,'1');
-  fecharModal(); toast('PIN criado. O app trava ao minimizar.');
+  fecharModal(); toast('PIN criado. O app trava depois de '+BLOQUEIO_MIN+' min fora.');
 }
 function possivelmenteAbrirWizard(){
   if(state.config.onboardingConcluido){ possivelmentePedirPin(); return; }
@@ -3949,7 +3957,7 @@ function renderConfig(){
       </div>
       ${!suportaFS?'<p class="hint">Seu navegador vai baixar o arquivo normalmente.</p>':'<p class="hint">No Chrome, o backup abre já sugerindo salvar dentro da pasta <b>backups</b> depois da primeira vez.</p>'}`;
   const seguranca=`
-      <p class="hint" style="margin:10px 0 8px">Bloquear ao minimizar o app (celular ou computador): pede o PIN de 4 dígitos toda vez que você sai e volta.</p>
+      <p class="hint" style="margin:10px 0 8px">Bloqueio automático (celular ou computador): pede o PIN de 4 dígitos só depois de <b>${BLOQUEIO_MIN} minutos</b> fora do app ou da aba. Sair e voltar antes disso não pede nada.</p>
       <div class="seg">
         <button type="button" class="${bloqueioAoMinimizarAtivo()?'active':''}" onclick="definirBloqueioAoMinimizar(true)">Ligado</button>
         <button type="button" class="${bloqueioAoMinimizarAtivo()?'':'active'}" onclick="definirBloqueioAoMinimizar(false)">Desligado</button>
@@ -3993,7 +4001,7 @@ function renderConfig(){
     htmlSecaoConfig('sync','repeat','Sincronização',escapeHtml(email)||'Conta',sync),
     ehAdmin(window.fbAuth?.currentUser)?htmlSecaoConfig('convites','bank','Convites','Quem pode usar o Caixinha',convites):'',
     htmlSecaoConfig('backup','receipt','Backup dos dados','Cópia em arquivo',backup),
-    htmlSecaoConfig('seguranca','lock','Segurança',`PIN ${pinDoAparelho()?'ligado':'desligado'} · bloqueio ${bloqueioAoMinimizarAtivo()?'ao minimizar':'desligado'}`,seguranca),
+    htmlSecaoConfig('seguranca','lock','Segurança',`PIN ${pinDoAparelho()?'ligado':'desligado'} · bloqueio ${bloqueioAoMinimizarAtivo()?'após '+BLOQUEIO_MIN+' min fora':'desligado'}`,seguranca),
     htmlSecaoConfig('categorias','pie','Categorias',`${nCat} categoria${nCat===1?'':'s'}`,categorias),
     htmlSecaoConfig('subs','bill','Subcategorias',nSub? `${nSub} subcategoria${nSub===1?'':'s'}` : 'Detalhe uma categoria (opcional)',htmlSubcategoriasConfig()),
     htmlSecaoConfig('orcamentos','chart','Orçamento por categoria',nOrc?`${nOrc} com limite`:'Nenhum limite definido',orcamentos),
@@ -4430,7 +4438,9 @@ async function abrirSeletorIcone(aoEscolher){
 function mostrarAppLogado(){
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('loginScreen').classList.add('hidden');
-  if(pinDoAparelho() && !window.__sessaoNova){ // login recém-feito com e-mail e senha já provou quem é: não pede PIN em seguida
+  const saiu=Number(lsGet(SEG.saiuEm)); lsDel(SEG.saiuEm);
+  const voltouRapido=!!saiu && !foraMuito(saiu) && bloqueioAoMinimizarAtivo(); // o celular fechou a página em segundo plano, mas faz menos de BLOQUEIO_MIN min
+  if(pinDoAparelho() && !window.__sessaoNova && !voltouRapido){ // login recém-feito com e-mail e senha já provou quem é: não pede PIN em seguida
     document.getElementById('app').classList.add('hidden');
     document.getElementById('lockScreen').classList.remove('hidden');
   }else{

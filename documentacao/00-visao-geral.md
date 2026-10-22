@@ -21,7 +21,7 @@ Pelo link `https://natanzera69.github.io/caixinha/Planilha%20Financeiro.html` (q
 ## PIN, bloqueio ao minimizar e validade do login
 
 - **PIN de 4 dígitos**, um por aparelho (vale para o perfil pessoal e o empresarial). Fica no `localStorage` do aparelho (hash SHA-256), **nunca** vai para a nuvem nem para o backup. É só um deterrente local: não criptografa nada; a segurança de verdade é a senha da conta.
-- **Bloquear ao minimizar** (Config → Segurança, vem **ligado** por padrão): ao minimizar ou trocar de app/aba, a tela trava e pede o PIN. O 4º dígito entra sozinho. Só trava com login ativo e PIN criado. "Esqueci o PIN" faz sair e entrar de novo com e-mail e senha (login recém-feito não pede PIN em seguida).
+- **Bloquear ao minimizar** (Config → Segurança, vem **ligado** por padrão): a tela trava e pede o PIN só se você ficou **10 minutos ou mais** fora do app/aba (sair e voltar antes disso não pede nada; ficar na tela também não). O 4º dígito entra sozinho. Só trava com login ativo e PIN criado. "Esqueci o PIN" faz sair e entrar de novo com e-mail e senha (login recém-feito não pede PIN em seguida).
 - **Login lembrado por 30 dias fixos** desde o último login com e-mail e senha; depois pede de novo (como app de banco). 5 PINs errados seguidos também pedem e-mail e senha. Sem login o PIN não abre o app.
 - Quem ainda não tem PIN recebe um aviso para criar (pode escolher "Agora não").
 
