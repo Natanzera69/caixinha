@@ -1,4 +1,4 @@
-const CACHE = 'caixinha-v27';
+const CACHE = 'caixinha-v28';
 const SHELL = ['./Planilha Financeiro.html', './manifest.json', './assets/logo-moeda.png', './assets/moeda-girando.png', './assets/emojis-pt.js'];
 
 self.addEventListener('install', e => {

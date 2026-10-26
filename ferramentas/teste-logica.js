@@ -19,7 +19,7 @@ const nomes = ['uuid', 'nowISO', 'isoLocal', 'todayStr', 'addMonths', 'round2', 
   'fmtMoney', 'fmtDate', 'validarTexto', 'validarValor', 'validarInteiro', 'validarData', 'nomeDuplicado', 'parcelasRestantes', 'validarParcelasPagas',
   'fmtCurto', 'tetoGrafico', 'distribuicaoDoMes', 'agruparOutros', 'serieMensal', 'compararCategorias', 'kpisDoMes', 'contaById', 'categoriaById', 'metodoInfo', 'metodosPagamento', 'transacoesEfetivasDoMes',
   'subcategoriaById', 'subcategoriasDe', 'subcategoriaValida', 'paraNuvem', 'ehMarcadorPJ', 'aplicarRemocaoPJ', 'storageKey', 'criarSubcategoria', 'mostrarErros', 'diaVirada', 'mesDaData', 'periodoDoMes', 'anoMesAtualPeriodo', 'mesNaLista', 'dicaPeriodo',
-  'hashPin', 'pinConfere', 'enviarPinDaConta', 'aplicarPinDaConta', 'mesNoVerde'];
+  'hashPin', 'pinConfere', 'enviarPinDaConta', 'aplicarPinDaConta', 'mesNoVerde','dataNoMes','calendarioParcelas','statusTransacao','validarParcelasAtraso','saldoConta'];
 const ctx = { crypto: require('crypto'), state: null, salvarEstado() {}, CHAVES_SINCRONIZAVEIS: ['contas', 'cartoes', 'categorias', 'subcategorias', 'transacoes', 'financiamentos', 'investimentos', 'recorrencias'] };
 const store = {};
 ctx.localStorage = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; } };
@@ -243,6 +243,34 @@ t('Parcelas: já pagas nunca passam do total; só as que faltam são criadas', (
   assert.strictEqual(r[0].valor, 83.33); assert.strictEqual(r[8].valor, 83.37);                          // resto de centavos na última
   assert.strictEqual(run("parcelasRestantes(1000,12,0,'2026-10-05')").length, 12);
   assert.strictEqual(run("parcelasRestantes(600,6,2,'2026-10-05').reduce((s,p)=>s+p.valor,0)"), 400);   // 4 parcelas de 100
+});
+t('dívidas em atraso: calendário das parcelas, status e saldo', () => {
+  const cal = (o) => JSON.parse(JSON.stringify(run('calendarioParcelas(' + JSON.stringify(o) + ')')));
+  // 12 parcelas, 4 pagas, 2 em atraso, vence dia 10, hoje 22/10/2026: atrasadas 10/08 e 10/09; a vencer 10/11 em diante
+  let c = cal({ total: 12, pagas: 4, atraso: 2, dia: 10, hoje: '2026-10-22' });
+  assert.strictEqual(c.length, 8); assert.deepStrictEqual([c[0].n, c[0].data, c[0].emAberto], [5, '2026-09-10', true]);
+  assert.deepStrictEqual([c[1].data, c[1].emAberto], ['2026-10-10', true]);
+  assert.deepStrictEqual([c[2].n, c[2].data, c[2].emAberto], [7, '2026-11-10', false]); assert.strictEqual(c[7].data, '2027-04-10');
+  // sem atraso: a primeira é a próxima ocorrência do dia; hoje = dia do vencimento conta como hoje
+  c = cal({ total: 3, pagas: 0, atraso: 0, dia: 22, hoje: '2026-10-22' }); assert.strictEqual(c[0].data, '2026-10-22'); assert.strictEqual(c[2].data, '2026-12-22');
+  // dia 31 vira o último dia do mês; virada de ano
+  c = cal({ total: 4, pagas: 0, atraso: 0, dia: 31, hoje: '2026-12-05' }); assert.deepStrictEqual(c.map(p => p.data), ['2026-12-31', '2027-01-31', '2027-02-28', '2027-03-31']);
+  // tudo em atraso e quitado
+  c = cal({ total: 3, pagas: 1, atraso: 2, dia: 5, hoje: '2026-10-22' }); assert.deepStrictEqual(c.map(p => [p.data, p.emAberto]), [['2026-09-05', true], ['2026-10-05', true]].map(x => x).slice(0, 0).concat([['2026-09-05', true], ['2026-10-05', true]]));
+  assert.strictEqual(cal({ total: 3, pagas: 3, atraso: 0, dia: 5, hoje: '2026-10-22' }).length, 0);
+  // validação do atraso
+  const va = (x, tot, pg) => run('validarParcelasAtraso(' + JSON.stringify(x) + ',' + tot + ',' + pg + ')');
+  assert.strictEqual(va('', 12, 4).valor, 0); assert.strictEqual(va('8', 12, 4).valor, 8);
+  assert.match(va('9', 12, 4).erro, /só restam 8/); assert.match(va('-1', 12, 4).erro, /sem sinal/);
+  // status e saldo: em aberto não sai da conta; paga volta a valer
+  assert.strictEqual(run("statusTransacao({data:'2026-10-01',emAberto:true},'2026-10-22')"), 'atrasado');
+  assert.strictEqual(run("statusTransacao({data:'2026-11-01',emAberto:true},'2026-10-22')"), 'pendente');
+  assert.strictEqual(run("statusTransacao({data:'2026-10-01'},'2026-10-22')"), 'pago');
+  ctx.state = Object.assign(novo(), { contas: [{ id: 'a', nome: 'A', saldoInicial: 1000 }], transacoes: [
+    { id: '1', tipo: 'despesa', contaId: 'a', valor: 100, data: '2020-01-01', metodoPagamento: 'pix' },
+    { id: '2', tipo: 'despesa', contaId: 'a', valor: 300, data: '2020-02-01', metodoPagamento: 'boleto', emAberto: true }] });
+  assert.strictEqual(run("saldoConta('a')"), 900);
+  ctx.state.transacoes[1].emAberto = false; assert.strictEqual(run("saldoConta('a')"), 600);
 });
 const eq = (a, b) => assert.deepStrictEqual(JSON.parse(JSON.stringify(a)), b); // arrays do vm são de outro 'realm'
 t('Gráficos: distribuição por categoria/banco/pagamento, Outros, comparação e KPIs', () => {

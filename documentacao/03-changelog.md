@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-26 — Dívidas em atraso e financiamento que gera "a pagar" (v28)
+
+- **Financiamento/empréstimo agora lança as parcelas.** Antes era só um contador e nada aparecia como "a pagar". Agora o formulário pede também **dia do vencimento** e **parcelas em atraso** (e categoria); o app calcula as datas (as atrasadas são os meses imediatamente antes da próxima ocorrência do dia; o resto vai mês a mês) e cria **uma parcela por mês como "em aberto"**. Elas aparecem em Próximos vencimentos, em Despesas do mês de cada mês e no Saldo projetado. Dá para **editar** (as parcelas ainda não pagas são refeitas) e **excluir** (leva as em aberto junto). Financiamentos antigos mostram "Definir vencimento".
+- **Conceito novo: lançamento "em aberto" (`emAberto:true`).** Devo e ainda não paguei: não sai do saldo da conta, aparece como **atrasado** depois da data e tem botão **Pagar** (na lista de Lançamentos, nos Próximos vencimentos do Início e no cartão do financiamento). Pagar antes do vencimento traz a data para hoje.
+- **Cartão parcelado:** campo **"Parcelas em atraso"** ao lado de "já pagas" e prévia "X pagas · Y em atraso (já na fatura) · Z a vencer". Quitar a fatura fechada limpa a marca de atraso das compras dela.
+- **"Ainda não paguei"** no lançamento de despesa comum (fora do crédito).
+- Saldo projetado desconta as dívidas já vencidas e não pagas. Testes: 39 casos (calendário das parcelas, validação, status e saldo).
+
 ## 2026-10-22 — PIN só depois de 10 minutos fora (v27)
 
 O bloqueio deixou de travar a cada vez que se sai da aba ou se minimiza: agora guarda o horário em que o app saiu de cena (`planilhaFinanceiro_saiuEm`) e só pede o PIN ao voltar se passaram **10 minutos ou mais**. Sair e voltar antes disso não faz nada, e ficar 10 minutos na tela sem sair também não. Vale também quando o celular fecha a página em segundo plano (abrir de novo em menos de 10 min não pede PIN). Continua valendo: login ativo, PIN criado e a opção "Ligado" em Config → Segurança. Para trocar o tempo, mude `BLOQUEIO_MIN`.

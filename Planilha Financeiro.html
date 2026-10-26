@@ -715,6 +715,11 @@ button.cal-tit{cursor:pointer;}
 }
 @media(prefers-reduced-motion:reduce){.btn-mes-atual,.btn-mes-atual.on{transform:none;transition:opacity 120ms linear,visibility 0s;}}
 
+/* ---------- Dívidas em atraso ---------- */
+.badge.atrasado{background:var(--expense-soft);color:var(--expense);}
+.pagar-linha{margin-top:6px;}
+.chk-linha{display:flex;align-items:center;gap:10px;min-height:44px;margin:4px 0 8px;font-weight:700;font-size:.9rem;cursor:pointer;}
+
 </style>
 </head>
 <body>
@@ -988,7 +993,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-22 · v27';
+const APP_VERSAO='2026-10-26 · v28';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -1871,12 +1876,53 @@ function metodosPagamento(){
 }
 function metodoInfo(id){ return metodosPagamento().find(m=>m.id===id) || {nome:id,icone:'💠'}; }
 
+/* ---- Dívidas em aberto ----
+   Transação com emAberto:true = "devo e ainda não paguei": não mexe no saldo da conta até ser paga, aparece como atrasada
+   quando a data passa e some do "em aberto" ao pagar (pagarTransacao). Sem a marca, vale a regra de sempre: data <= hoje já saiu da conta. */
+function dataNoMes(ano,mesIdx,dia){ const dt=new Date(ano,mesIdx,1); dt.setDate(Math.min(dia,new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate())); return isoLocal(dt); }
+// Datas das parcelas que faltam (n = pagas+1…total) de uma dívida mensal com vencimento no `dia`. A próxima data (D0) é a
+// próxima ocorrência do dia (hoje incluído); as `atraso` parcelas em atraso são os meses imediatamente anteriores a D0.
+function calendarioParcelas(o){
+  const {total,pagas,atraso,dia,hoje}=o, [y,m]=hoje.split('-').map(Number); let mi=m-1;
+  if(dataNoMes(y,mi,dia)<hoje) mi++;
+  const out=[];
+  for(let n=pagas+1;n<=total;n++){
+    const off=n-pagas-1-atraso, dt=new Date(y,mi+off,1);
+    out.push({n,data:dataNoMes(dt.getFullYear(),dt.getMonth(),dia),emAberto:off<0});
+  }
+  return out;
+}
+function statusTransacao(t,hoje){
+  if(t.emAberto) return t.data<hoje?'atrasado':'pendente';
+  return t.data<=hoje?'pago':'pendente';
+}
+function validarParcelasAtraso(raw,total,pagas){
+  const s=String(raw??'').trim();
+  if(s==='') return {valor:0};
+  if(!/^\d+$/.test(s)) return {erro:'Parcelas em atraso: use um número inteiro, sem sinal e sem vírgula.'};
+  const n=parseInt(s,10), resta=total-pagas;
+  if(n>resta) return {erro:`Parcelas em atraso: só restam ${resta} parcela${resta===1?'':'s'} (${total} − ${pagas} já pagas).`};
+  return {valor:n};
+}
+// Marca como paga uma dívida em aberto. Pagar antes do vencimento traz a data para hoje (o dinheiro sai agora).
+function pagarTransacao(id){
+  const t=state.transacoes.find(x=>x.id===id); if(!t||!t.emAberto) return;
+  const hoje=todayStr(), adiantado=t.data>hoje;
+  if(!confirm(`Marcar "${t.descricao}" (${fmtMoney(t.valor)}) como paga${adiantado?' hoje, antes do vencimento':''}?`)) return;
+  concluirPagamento(t,hoje); salvarEstado(); renderTudo(); toast('Pago.');
+}
+function concluirPagamento(t,hoje,manterData){
+  delete t.emAberto; t.pagoEm=hoje; t.status=t.data<=hoje||!manterData?'pago':'pendente'; if(t.data>hoje && !manterData) t.data=hoje; tocar(t);
+  const f=t.financiamentoId? state.financiamentos.find(x=>x.id===t.financiamentoId) : null;
+  if(f){ f.parcelasPagas=Math.min(f.parcelasTotal,(f.parcelasPagas||0)+1); tocar(f); }
+}
 function saldoConta(contaId){
   const conta=contaById(contaId); if(!conta) return 0;
   let saldo=Number(conta.saldoInicial)||0;
   const hoje=todayStr();
   state.transacoes.forEach(t=>{
     if(t.metodoPagamento==='credito') return;
+    if(t.emAberto) return; // devendo: só sai da conta quando for paga
     if(t.data>hoje) return;
     if(t.tipo==='receita' && t.contaId===contaId) saldo+=t.valor;
     else if(t.tipo==='despesa' && t.contaId===contaId) saldo-=t.valor;
@@ -2096,12 +2142,13 @@ function renderDashboard(){
   }).filter(x=>x && x.data<=isoLocal(emBreve)); // atrasadas (data < hoje) aparecem também
   const proximosVenc=[
     ...state.transacoes.filter(t=>{
-      if(t.tipo!=='despesa' || t.data<hoje || t.data>isoLocal(emBreve)) return false;
+      if(t.tipo!=='despesa' || t.data>isoLocal(emBreve)) return false;
+      if(t.data<hoje && !t.emAberto) return false; // já saiu da conta; só as em aberto (atrasadas) continuam aparecendo
       const c=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
       return !(c && !c.titular && c.diaVencimento);
     }),
     ...vencFaturas
-  ].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,6);
+  ].sort((a,b)=>a.data.localeCompare(b.data)).slice(0,8);
 
   const alertasCartao=state.cartoes.filter(c=>c.limite>0).map(c=>{
     const uso=divendaTotalCartao(c.id); const pct=uso/c.limite;
@@ -2119,8 +2166,11 @@ function renderDashboard(){
     const [,fimMes]=periodoDoMes(ano,mesIdx,diaVirada());
     const futuras=doMes.filter(t=>t.data>hoje && t.data<=fimMes && t.metodoPagamento!=='credito');
     const delta=futuras.reduce((s,t)=>s+(t.tipo==='receita'?t.valor:t.tipo==='despesa'?-t.valor:0),0);
-    const projetado=saldoTotalContas()+delta;
-    cardProjetado=`<div class="card projetado"><h3 style="--c:var(--primary)">Saldo projetado</h3><div class="value ${projetado>=0?'income':'expense'}">${fmtMoney(projetado)}</div><div class="sub">hoje + o que ainda entra/sai até ${fmtDate(fimMes)}</div></div>`;
+    // dívidas já vencidas e ainda não pagas (não saíram da conta) também vão sair
+    const atrasadas=state.transacoes.filter(t=>t.emAberto && t.data<=hoje && t.tipo==='despesa' && t.metodoPagamento!=='credito');
+    const somaAtrasadas=round2(atrasadas.reduce((s,t)=>s+t.valor,0));
+    const projetado=saldoTotalContas()+delta-somaAtrasadas;
+    cardProjetado=`<div class="card projetado"><h3 style="--c:var(--primary)">Saldo projetado</h3><div class="value ${projetado>=0?'income':'expense'}">${fmtMoney(projetado)}</div><div class="sub">hoje + o que ainda entra/sai até ${fmtDate(fimMes)}${somaAtrasadas>0?` (inclui ${fmtMoney(somaAtrasadas)} em atraso)`:''}</div></div>`;
   }
 
   el.innerHTML=`
@@ -2153,7 +2203,8 @@ function renderDashboard(){
         <h3>Próximos vencimentos</h3>
         ${proximosVenc.length?`<div class="list mt8">${proximosVenc.map(t=>`
           <div class="row-card"><div class="row-icon">${t.fatura?'<span class="px-ico" style="--i:url(assets/icons/card.svg)"></span>':(categoriaById(t.categoriaId)?iconeSeguro(categoriaById(t.categoriaId).icone):'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>')}</div>
-            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):''}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}</div></div>
+            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):(t.emAberto&&t.data<hoje?'atrasada desde ':'')}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}${t.emAberto&&t.data<hoje?' <span class="badge atrasado">atrasada</span>':''}</div>
+              ${t.fatura?`<button type="button" class="btn btn-sm btn-primary pagar-linha" onclick="pagarFaturaCartao('${t.id.slice(7)}')">Pagar fatura</button>`:(t.emAberto?`<button type="button" class="btn btn-sm btn-primary pagar-linha" onclick="pagarTransacao('${t.id}')">Pagar</button>`:'')}</div>
             <div class="row-value expense">${fmtMoney(t.valor)}</div>
           </div>`).join('')}</div>`:'<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/calendar.svg)"></span></span>Nada vencendo nos próximos 14 dias.</div>'}
       </div>
@@ -2722,7 +2773,7 @@ function renderListaLancamentos(){
     const local = (t.metodoPagamento==='credito'||t.metodoPagamento==='debito')? cartaoById(t.cartaoId)?.nome : contaById(t.contaId)?.nome;
     const sinalCls=t.tipo==='receita'?'income':t.tipo==='despesa'?'expense':'';
     const sinal=t.tipo==='receita'?'+':t.tipo==='despesa'?'-':'';
-    const st=t.data<=todayStr()?'pago':'pendente'; // calculado na hora: o campo salvo não vira "pago" sozinho
+    const st=statusTransacao(t,todayStr()); // calculado na hora: o campo salvo não vira "pago" sozinho
     const cartaoT=t.metodoPagamento==='credito'? cartaoById(t.cartaoId) : null;
     const fat=(cartaoT && !cartaoT.titular && cartaoT.diaFechamento)? rotuloMes(mesCompetencia(t)) : '';
     return `<div class="row-card" onclick="tocarLinhaLanc('${t.id}')">
@@ -2730,6 +2781,7 @@ function renderListaLancamentos(){
       <div class="row-main">
         <div class="t1">${escapeHtml(t.descricao)}${t.parcelaTotal?` <span class="muted">(${t.parcelaAtual}/${t.parcelaTotal})</span>`:''}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span>fixo</span>':''}</div>
         <div class="t2">${fmtDate(t.data)} · ${met.nome}${local?' · '+escapeHtml(local):''}${sub?' · '+escapeHtml(cat.nome)+' › '+escapeHtml(sub.nome):''}${fat?' · fatura '+fat:''} <span class="badge ${st}">${st}</span></div>
+        ${t.emAberto?`<button type="button" class="btn btn-sm btn-primary pagar-linha" onclick="event.stopPropagation();pagarTransacao('${t.id}')">Pagar</button>`:''}
       </div>
       <div class="row-value ${sinalCls}">${sinal}${fmtMoney(t.valor)}</div>
       <div class="row-actions">
@@ -2755,9 +2807,12 @@ function tocarLinhaLanc(id){
 
 /* ---- Formulário de transação ---- */
 // Parcelas que ainda faltam de uma compra: n = pagas+1..total, uma por mês a partir da data da compra; o resto de centavos vai na última.
-function parcelasRestantes(valor,total,pagas,dataCompra){
-  const base=round2(valor/total), r=[];
-  for(let i=pagas+1;i<=total;i++) r.push({n:i,data:addMonths(dataCompra,i-1),valor: i===total? round2(valor-base*(total-1)) : base});
+// Com `atraso` > 0 as datas seguem o dia da data informada (calendarioParcelas) e as vencidas vêm com emAberto:true.
+function parcelasRestantes(valor,total,pagas,dataCompra,atraso,hoje){
+  const base=round2(valor/total), v=i=>i===total? round2(valor-base*(total-1)) : base;
+  if(atraso>0) return calendarioParcelas({total,pagas,atraso,dia:Number(dataCompra.slice(8,10)),hoje:hoje||todayStr()}).map(p=>({...p,valor:v(p.n)}));
+  const r=[];
+  for(let i=pagas+1;i<=total;i++) r.push({n:i,data:addMonths(dataCompra,i-1),valor:v(i)});
   return r;
 }
 // "Já pagas" não pode passar do total, nem ser igual a ele (aí não há o que lançar).
@@ -2834,8 +2889,10 @@ function abrirFormTransacao(id){
           <div class="field"><label>Parcelar em quantas vezes?</label><input type="number" inputmode="numeric" min="1" max="120" step="1" name="parcelas" value="1"></div>
           <div class="field hidden" id="campoPagas"><label>Parcelas já pagas</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasPagas" value="0"></div>
         </div>
+        <div class="field hidden" id="campoAtraso"><label>Parcelas em atraso</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasAtraso" value="0"></div>
         <div class="preview-parc hidden" id="previewParc" aria-live="polite"></div>
       </div>`:''}
+      <label class="chk-linha hidden" id="campoAberto"><input type="checkbox" class="chk" name="emAberto" ${t&&t.emAberto?'checked':''}> Ainda não paguei (fica em aberto, sem sair da conta)</label>
       <div class="field"><label>Notas (opcional)</label><textarea name="notas" maxlength="300">${t?escapeHtml(t.notas||''):''}</textarea></div>
       <div class="modal-actions">
         ${t?`<button type="button" class="btn btn-danger" onclick="if(excluirTransacao('${t.id}')) fecharModal()">Excluir</button>`:''}
@@ -2853,6 +2910,12 @@ function abrirFormTransacao(id){
     const catSel=form.categoriaId;
     catSel.innerHTML=state.categorias.filter(c=>c.tipo===v).map(c=>`<option value="${c.id}">${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('');
     preencherSubcategorias(form,'campoSub',v==='transferencia'?'':catSel.value,'');
+    atualizarAberto();
+  }
+  // "Ainda não paguei" só faz sentido em despesa que sai da conta (crédito vira fatura; receita/transferência não)
+  function atualizarAberto(){
+    const tipoAtual=form.querySelector('#segTipo button.active').dataset.v;
+    document.getElementById('campoAberto').classList.toggle('hidden',!(tipoAtual==='despesa' && form.metodoPagamento.value!=='credito'));
   }
   segBtns.forEach(b=>b.addEventListener('click',()=>setTipo(b.dataset.v)));
   form.categoriaId.addEventListener('change',()=>preencherSubcategorias(form,'campoSub',form.categoriaId.value,''));
@@ -2873,30 +2936,35 @@ function abrirFormTransacao(id){
     const parc=document.getElementById('campoParcelas');
     if(parc) parc.style.display = v==='credito' ? '' : 'none';
     atualizarParcelas();
+    atualizarAberto();
   }
   // Mostra "já pagas" só com 2+ parcelas e a prévia do que será criado; a data vira "data da compra" quando há parcelas pagas.
   function atualizarParcelas(){
-    const prev=document.getElementById('previewParc'), campoPagas=document.getElementById('campoPagas');
+    const prev=document.getElementById('previewParc'), campoPagas=document.getElementById('campoPagas'), campoAtraso=document.getElementById('campoAtraso');
     if(!prev) return;
     const rotData=document.querySelector('#campoData label');
     const total=parseInt(form.parcelas.value,10), credito=form.metodoPagamento.value==='credito';
     const multi=credito && total>=2 && total<=120;
-    campoPagas.classList.toggle('hidden',!multi);
+    campoPagas.classList.toggle('hidden',!multi); campoAtraso.classList.toggle('hidden',!multi);
     prev.classList.add('hidden'); if(rotData) rotData.textContent='Data';
     if(!multi) return;
     const rp=validarParcelasPagas(form.parcelasPagas.value,total), rv=validarValor(form.valor.value);
     if(rp.erro){ prev.textContent=rp.erro; prev.classList.remove('hidden'); return; }
-    if(rp.valor>0 && rotData) rotData.textContent='Data da compra (1ª parcela)';
+    const ra=validarParcelasAtraso(form.parcelasAtraso.value,total,rp.valor);
+    if(ra.erro){ prev.textContent=ra.erro; prev.classList.remove('hidden'); return; }
+    if((rp.valor>0||ra.valor>0) && rotData) rotData.textContent='Data da compra (1ª parcela)';
     if(rv.erro) return;
-    const rest=parcelasRestantes(rv.valor,total,rp.valor,form.data.value||todayStr());
+    const hoje=todayStr(), rest=parcelasRestantes(rv.valor,total,rp.valor,form.data.value||hoje,ra.valor,hoje);
     if(!rest.length) return;
     const soma=round2(rest.reduce((s,p)=>s+p.valor,0));
+    const vencidas=ra.valor>0? ra.valor : rest.filter(p=>p.data<hoje).length, prox=rest.find(p=>!p.emAberto && p.data>=hoje);
     prev.innerHTML=`<b>${total}x de ${fmtMoney(round2(rv.valor/total))}</b>`+
-      (rp.valor>0?` · ${rp.valor} já paga${rp.valor===1?'':'s'} · restam <b>${rest.length}</b> (${fmtMoney(soma)}) · próxima: ${rest[0].n}/${total} em ${fmtDate(rest[0].data)}`:'');
+      ((rp.valor>0||ra.valor>0||vencidas>0)?` · ${rp.valor} paga${rp.valor===1?'':'s'} · <b>${vencidas}</b> em atraso (já na fatura) · <b>${rest.length-vencidas}</b> a vencer (${fmtMoney(soma)} restam)${prox?` · próxima: ${prox.n}/${total} em ${fmtDate(prox.data)}`:''}`:'');
     prev.classList.remove('hidden');
   }
   form.metodoPagamento.addEventListener('change',metodoMudou);
-  ['parcelas','parcelasPagas','valor','data'].forEach(n=>{ if(form[n]) form[n].addEventListener('input',atualizarParcelas); });
+  ['parcelas','parcelasPagas','parcelasAtraso','valor','data'].forEach(n=>{ if(form[n]) form[n].addEventListener('input',atualizarParcelas); });
+  form.addEventListener('change',e=>{ if(e.target.name==='data') atualizarParcelas(); }); // o calendário próprio dispara "change"
   metodoMudou();
   if(!t) setTipo('despesa');
 
@@ -2911,7 +2979,7 @@ function abrirFormTransacao(id){
     const rData=validarData(fd.get('data'));
     const rNotas=validarTexto(fd.get('notas'),{rotulo:'Notas',max:300,opcional:true,multilinha:true});
     const checks=[['descricao',rDesc],['valor',rValor],['data',rData],['notas',rNotas]];
-    let parcelas=1, pagas=0;
+    let parcelas=1, pagas=0, atraso=0;
     if(!t && metodo==='credito'){
       const rParc=validarInteiro(fd.get('parcelas'),{rotulo:'Parcelas',min:1,max:120});
       checks.push(['parcelas',rParc]);
@@ -2920,7 +2988,12 @@ function abrirFormTransacao(id){
         if(parcelas>1){
           const rPagas=validarParcelasPagas(fd.get('parcelasPagas'),parcelas);
           checks.push(['parcelasPagas',rPagas]);
-          if(!rPagas.erro) pagas=rPagas.valor;
+          if(!rPagas.erro){
+            pagas=rPagas.valor;
+            const rAtraso=validarParcelasAtraso(fd.get('parcelasAtraso'),parcelas,pagas);
+            checks.push(['parcelasAtraso',rAtraso]);
+            if(!rAtraso.erro) atraso=rAtraso.valor;
+          }
           if(!rValor.erro && round2(rValor.valor/parcelas)<0.01) checks.push(['parcelas',{erro:'Parcelas: o valor é pequeno demais para tantas parcelas.'}]);
         }
       }
@@ -2944,20 +3017,31 @@ function abrirFormTransacao(id){
       cartaoId: usaCartao? fd.get('cartaoId') : null,
       notas:rNotas.valor
     };
+    // "Ainda não paguei": só despesa que sai da conta (o checkbox some nos outros casos)
+    const emAberto=tipoSel==='despesa' && metodo!=='credito' && fd.get('emAberto')==='on';
     let msg=t?'Lançamento atualizado.':'Lançamento adicionado.';
     if(t){
-      Object.assign(t,base,{valor}); tocar(t);
+      const estavaAberto=!!t.emAberto;
+      Object.assign(t,base,{valor});
+      if(emAberto){ t.emAberto=true; t.status='pendente'; }
+      else{
+        delete t.emAberto;
+        if(estavaAberto){ concluirPagamento(t,todayStr(),true); } // desmarcou "ainda não paguei": virou pago (e conta no financiamento, se for parcela dele)
+        else tocar(t);
+      }
+      if(emAberto) tocar(t);
     }else if(metodo==='credito' && parcelas>1){
       const grupoId=uuid(); const hoje=todayStr();
       // Só as parcelas que faltam: as já pagas não viram lançamento (não mexem em dívida do cartão, saldo nem relatórios).
-      parcelasRestantes(valor,parcelas,pagas,base.data).forEach(p=>{
+      parcelasRestantes(valor,parcelas,pagas,base.data,atraso,hoje).forEach(p=>{
         state.transacoes.push(tocar({id:uuid(),...base,data:p.data,valor:p.valor,
           parcelaGrupoId:grupoId,parcelaAtual:p.n,parcelaTotal:parcelas,
-          status: p.data<=hoje?'pago':'pendente'}));
+          ...(p.emAberto?{emAberto:true}:{}),
+          status: p.emAberto? 'pendente' : (p.data<=hoje?'pago':'pendente')}));
       });
-      msg = pagas>0 ? `Parcelamento adicionado: restam ${parcelas-pagas} de ${parcelas} parcelas.` : `Parcelamento adicionado em ${parcelas}x.`;
+      msg = (pagas>0||atraso>0) ? `Parcelamento adicionado: restam ${parcelas-pagas} de ${parcelas} parcelas${atraso>0?` (${atraso} em atraso)`:''}.` : `Parcelamento adicionado em ${parcelas}x.`;
     }else{
-      state.transacoes.push(tocar({id:uuid(),...base,valor,status: base.data<=todayStr()?'pago':'pendente'}));
+      state.transacoes.push(tocar({id:uuid(),...base,valor,...(emAberto?{emAberto:true}:{}),status: emAberto? 'pendente' : (base.data<=todayStr()?'pago':'pendente')}));
     }
     salvarEstado(); fecharModal(); renderTudo(); toast(msg);
   });
@@ -3270,6 +3354,11 @@ function pagarFaturaCartao(cartaoId){
     state.transacoes.push(tocar({id:uuid(),descricao:`Pagamento fatura ${c.nome}`,data:rData.valor,
       valor:rValor.valor,tipo:'transferencia',categoriaId:null,metodoPagamento:'transferencia',
       contaId:fd.get('contaId'),contaDestinoId:null,cartaoId,pagamentoFatura:true,status:'pago',notas:''}));
+    // fatura fechada quitada: as parcelas "em atraso" dela deixam de estar em aberto
+    if(faturaFechadaCartao(cartaoId)<=0.004){
+      const ciclo=isoLocal(inicioCicloCartao(c));
+      state.transacoes.forEach(t=>{ if(t.emAberto && t.metodoPagamento==='credito' && t.cartaoId===cartaoId && t.data<ciclo){ delete t.emAberto; t.pagoEm=rData.valor; t.status='pago'; tocar(t); } });
+    }
     salvarEstado(); fecharModal(); renderTudo();
     const quitou=divendaTotalCartao(cartaoId)<=0.004; // zerou a dívida do cartão: único momento "grande" do app
     toast(quitou?'Fatura paga por inteiro.':'Fatura paga.'); if(quitou) chuvaDeMoedas();
@@ -3339,17 +3428,26 @@ function renderParcelamentos(){
     <div class="list">${state.financiamentos.length? state.financiamentos.map(f=>{
       const pct=Math.round(f.parcelasPagas/f.parcelasTotal*100);
       const saldoDevedor=round2((f.parcelasTotal-f.parcelasPagas)*f.valorParcela);
+      const ab=state.transacoes.filter(t=>t.financiamentoId===f.id && t.emAberto).sort((a,b)=>a.data.localeCompare(b.data));
+      const atras=ab.filter(t=>t.data<hoje), somaAtras=round2(atras.reduce((s,t)=>s+t.valor,0));
+      const quitado=f.parcelasPagas>=f.parcelasTotal;
       return `<div class="row-card" style="align-items:flex-start">
         <div class="row-icon"><span class="px-ico" style="--i:url(assets/icons/building.svg)"></span></div>
         <div class="row-main">
           <div class="t1">${escapeHtml(f.descricao)}</div>
-          <div class="t2">${escapeHtml(f.instituicao||'')} · ${f.parcelasPagas}/${f.parcelasTotal} parcelas · ${fmtMoney(f.valorParcela)}/mês</div>
+          <div class="t2">${escapeHtml(f.instituicao||'')} · ${f.parcelasPagas}/${f.parcelasTotal} parcelas · ${fmtMoney(f.valorParcela)}/mês${f.diaVencimento?` · vence dia ${f.diaVencimento}`:''}</div>
           <div class="progress"><div style="width:${pct}%"></div></div>
           <div class="t2 mt8">Saldo devedor: ${fmtMoney(saldoDevedor)}</div>
+          ${atras.length?`<div class="t2 mt8"><span class="badge atrasado">${atras.length} em atraso</span> ${fmtMoney(somaAtras)} · a mais antiga venceu em ${fmtDate(atras[0].data)}</div>`
+            : (ab[0]?`<div class="t2 mt8">Próxima: ${fmtDate(ab[0].data)} · ${fmtMoney(ab[0].valor)}</div>`
+            : (!quitado?'<div class="t2 mt8">Sem vencimento definido: as parcelas ainda não aparecem como "a pagar".</div>':''))}
         </div>
         <div class="row-actions" style="flex-direction:column">
-          ${f.parcelasPagas<f.parcelasTotal?`<button class="btn btn-sm btn-primary" onclick="pagarParcelaFinanciamento('${f.id}')">Marcar parcela paga</button>`:''}
-          <button onclick="excluirFinanciamento('${f.id}')" title="Excluir"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+          ${ab.length?`<button class="btn btn-sm btn-primary" onclick="pagarTransacao('${ab[0].id}')">Pagar parcela</button>`:(!quitado?`<button class="btn btn-sm btn-primary" onclick="abrirFormFinanciamento('${f.id}')">Definir vencimento</button>`:'')}
+          <div style="display:flex;gap:6px">
+            <button onclick="abrirFormFinanciamento('${f.id}')" title="Editar"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
+            <button onclick="excluirFinanciamento('${f.id}')" title="Excluir"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+          </div>
         </div>
       </div>`;
     }).join('') : '<div class="empty-state"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/building.svg)"></span></span>Nenhum financiamento cadastrado.</div>'}
@@ -3517,67 +3615,107 @@ function excluirRecorrencia(id){
   excluirRegistro('recorrencias', id);
   salvarEstado(); renderTudo(); toast('Fixo mensal excluído.');
 }
-function abrirFormFinanciamento(){
+// Financiamento/empréstimo: cadastra o contador E gera uma parcela "em aberto" por mês (com data), então o que falta pagar aparece em
+// Próximos vencimentos, Despesas do mês e Saldo projetado. Na edição, as parcelas ainda não pagas são apagadas e geradas de novo.
+function abrirFormFinanciamento(id){
+  const f=id? state.financiamentos.find(x=>x.id===id) : null; if(id&&!f) return;
+  const hoje=todayStr();
+  const atrasoAtual=f? state.transacoes.filter(t=>t.financiamentoId===f.id && t.emAberto && t.data<hoje).length : 0;
+  const catPadrao=(state.categorias.find(c=>c.nome==='Taxas & Juros')||state.categorias.find(c=>c.tipo==='despesa')||{}).id;
+  const catSel=f&&f.categoriaId? f.categoriaId : catPadrao;
   document.getElementById('modalCard').innerHTML=`
     <button class="close-x" onclick="fecharModal()"><span class="px-ico sm" style="--i:url(assets/icons/close.svg)"></span></button>
-    <h2>Novo financiamento</h2>
+    <h2>${f?'Editar financiamento':'Novo financiamento'}</h2>
     <form id="formFinanciamento" novalidate>
-      <div class="field"><label>Descrição</label><input required name="descricao" maxlength="60" autocomplete="off" placeholder="Ex: Financiamento do carro"></div>
-      <div class="field"><label>Instituição</label><input name="instituicao" maxlength="40" autocomplete="off" placeholder="Ex: Banco XYZ"></div>
+      <div class="field"><label>Descrição</label><input required name="descricao" maxlength="60" autocomplete="off" placeholder="Ex: Empréstimo, financiamento do carro" value="${f?escapeHtml(f.descricao):''}"></div>
+      <div class="field"><label>Instituição</label><input name="instituicao" maxlength="40" autocomplete="off" placeholder="Ex: Banco XYZ" value="${f?escapeHtml(f.instituicao||''):''}"></div>
       <div class="row2">
-        <div class="field"><label>Valor da parcela (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" name="valorParcela"></div>
-        <div class="field"><label>Nº total de parcelas</label><input required type="number" inputmode="numeric" min="1" max="600" step="1" name="parcelasTotal"></div>
+        <div class="field"><label>Valor da parcela (R$)</label><input required type="number" inputmode="decimal" step="0.01" min="0.01" name="valorParcela" value="${f?f.valorParcela:''}"></div>
+        <div class="field"><label>Nº total de parcelas</label><input required type="number" inputmode="numeric" min="1" max="600" step="1" name="parcelasTotal" value="${f?f.parcelasTotal:''}"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Parcelas já pagas</label><input required type="number" inputmode="numeric" min="0" step="1" name="parcelasPagas" value="0"></div>
+        <div class="field"><label>Parcelas já pagas</label><input required type="number" inputmode="numeric" min="0" step="1" name="parcelasPagas" value="${f?f.parcelasPagas:0}"></div>
+        <div class="field"><label>Parcelas em atraso</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasAtraso" value="${atrasoAtual}"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Dia do vencimento (1 a 31)</label><input required type="number" inputmode="numeric" min="1" max="31" step="1" name="diaVencimento" value="${f&&f.diaVencimento?f.diaVencimento:Number(hoje.slice(8,10))}"></div>
         <div class="field"><label>Conta para debitar pagamentos</label>
-          <select name="contaId">${state.contas.map(c=>`<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('')}</select>
+          <select name="contaId">${state.contas.map(c=>`<option value="${c.id}" ${f&&f.contaId===c.id?'selected':''}>${escapeHtml(c.nome)}</option>`).join('')}</select>
         </div>
       </div>
+      <div class="field"><label>Categoria</label>
+        <select name="categoriaId">${state.categorias.filter(c=>c.tipo==='despesa').map(c=>`<option value="${c.id}" ${c.id===catSel?'selected':''}>${iconeSeguro(c.icone)} ${escapeHtml(c.nome)}</option>`).join('')}</select>
+      </div>
+      <div class="preview-parc hidden" id="previewFin" aria-live="polite"></div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Adicionar</button>
+        <button type="submit" class="btn btn-primary">${f?'Salvar':'Adicionar'}</button>
       </div>
     </form>
   `;
-  document.getElementById('formFinanciamento').addEventListener('submit',e=>{
+  const form=document.getElementById('formFinanciamento');
+  // lê os campos já validados; devolve {erro} ou os números
+  const ler=()=>{
+    const rTotal=validarInteiro(form.parcelasTotal.value,{rotulo:'Total de parcelas',min:1,max:600});
+    if(rTotal.erro) return {erro:rTotal.erro};
+    const s=String(form.parcelasPagas.value||'').trim();
+    if(s!=='' && !/^\d+$/.test(s)) return {erro:'Parcelas já pagas: use um número inteiro, sem sinal e sem vírgula.'};
+    const pagas=s===''?0:parseInt(s,10);
+    if(pagas>rTotal.valor) return {erro:`Parcelas já pagas: não dá para ter pago ${pagas} de ${rTotal.valor} parcelas.`};
+    const rAtraso=validarParcelasAtraso(form.parcelasAtraso.value,rTotal.valor,pagas);
+    if(rAtraso.erro) return {erro:rAtraso.erro};
+    const rDia=validarInteiro(form.diaVencimento.value,{rotulo:'Dia do vencimento',min:1,max:31});
+    if(rDia.erro) return {erro:rDia.erro};
+    return {total:rTotal.valor,pagas,atraso:rAtraso.valor,dia:rDia.valor};
+  };
+  const atualizarPrevia=()=>{
+    const prev=document.getElementById('previewFin'), r=ler();
+    if(r.erro){ prev.textContent=r.erro; prev.classList.remove('hidden'); return; }
+    const cal=calendarioParcelas({total:r.total,pagas:r.pagas,atraso:r.atraso,dia:r.dia,hoje});
+    const aVencer=cal.filter(p=>!p.emAberto);
+    prev.innerHTML=cal.length? `<b>${r.pagas}</b> paga${r.pagas===1?'':'s'} · <b>${r.atraso}</b> em atraso · <b>${aVencer.length}</b> a vencer${aVencer[0]?` · próxima: ${aVencer[0].n}/${r.total} em ${fmtDate(aVencer[0].data)}`:''}${r.atraso?` · a mais antiga venceu em ${fmtDate(cal[0].data)}`:''}` : 'Financiamento já quitado: nada a lançar.';
+    prev.classList.remove('hidden');
+  };
+  ['parcelasTotal','parcelasPagas','parcelasAtraso','diaVencimento'].forEach(n=>form[n].addEventListener('input',atualizarPrevia));
+  atualizarPrevia();
+  form.addEventListener('submit',e=>{
     e.preventDefault();
-    const fd=new FormData(e.target);
+    const fd=new FormData(form);
     const rDesc=validarTexto(fd.get('descricao'),{rotulo:'Descrição',min:2,max:60});
     const rInst=validarTexto(fd.get('instituicao'),{rotulo:'Instituição',max:40,opcional:true});
     const rParc=validarValor(fd.get('valorParcela'),{rotulo:'Valor da parcela'});
     const rTotal=validarInteiro(fd.get('parcelasTotal'),{rotulo:'Total de parcelas',min:1,max:600});
     const checks=[['descricao',rDesc],['instituicao',rInst],['valorParcela',rParc],['parcelasTotal',rTotal]];
-    let pagas=0;
-    if(!rTotal.erro){
-      const s=String(fd.get('parcelasPagas')||'').trim();
-      if(s!=='' && !/^\d+$/.test(s)) checks.push(['parcelasPagas',{erro:'Parcelas já pagas: use um número inteiro, sem sinal e sem vírgula.'}]);
-      else{
-        pagas=s===''?0:parseInt(s,10);
-        if(pagas>rTotal.valor) checks.push(['parcelasPagas',{erro:`Parcelas já pagas: não dá para ter pago ${pagas} de ${rTotal.valor} parcelas.`}]);
-      }
+    const r=rTotal.erro? null : ler();
+    if(r && r.erro){
+      const campo=/atraso/i.test(r.erro)?'parcelasAtraso':/vencimento/i.test(r.erro)?'diaVencimento':'parcelasPagas';
+      checks.push([campo,{erro:r.erro}]);
     }
     if(!fd.get('contaId')) checks.push(['contaId',{erro:'Conta: cadastre uma conta em Contas antes.'}]);
-    if(mostrarErros(e.target,checks)) return;
-    state.financiamentos.push(tocar({id:uuid(),descricao:rDesc.valor,instituicao:rInst.valor,
-      valorParcela:rParc.valor,parcelasTotal:rTotal.valor,
-      parcelasPagas:pagas,contaId:fd.get('contaId'),dataInicio:todayStr()}));
-    salvarEstado(); fecharModal(); renderTudo(); toast(pagas===rTotal.valor?'Financiamento adicionado (já quitado).':'Financiamento adicionado.');
+    if(mostrarErros(form,checks)) return;
+    const dados={descricao:rDesc.valor,instituicao:rInst.valor,valorParcela:rParc.valor,parcelasTotal:r.total,parcelasPagas:r.pagas,
+      contaId:fd.get('contaId'),categoriaId:fd.get('categoriaId')||null,diaVencimento:r.dia};
+    let fin=f;
+    if(f){
+      Object.assign(f,dados); tocar(f);
+      state.transacoes.filter(t=>t.financiamentoId===f.id && t.emAberto).forEach(t=>excluirRegistro('transacoes',t.id)); // as já pagas ficam
+    }else{
+      fin=tocar({id:uuid(),...dados,dataInicio:hoje}); state.financiamentos.push(fin);
+    }
+    calendarioParcelas({total:r.total,pagas:r.pagas,atraso:r.atraso,dia:r.dia,hoje}).forEach(p=>{
+      state.transacoes.push(tocar({id:uuid(),descricao:dados.descricao,data:p.data,valor:dados.valorParcela,
+        tipo:'despesa',categoriaId:dados.categoriaId,metodoPagamento:'boleto',contaId:dados.contaId,financiamentoId:fin.id,
+        parcelaAtual:p.n,parcelaTotal:r.total,emAberto:true,status:'pendente',notas:''}));
+    });
+    salvarEstado(); fecharModal(); renderTudo();
+    toast(r.pagas===r.total? 'Financiamento salvo (já quitado).' : (f?'Financiamento atualizado.':'Financiamento adicionado.')+(r.atraso?` ${r.atraso} em atraso.`:''));
   });
   abrirModal();
 }
-function pagarParcelaFinanciamento(id){
-  const f=state.financiamentos.find(x=>x.id===id); if(!f) return;
-  if(!confirm(`Marcar parcela ${f.parcelasPagas+1}/${f.parcelasTotal} de "${f.descricao}" como paga e lançar ${fmtMoney(f.valorParcela)} como despesa?`)) return;
-  f.parcelasPagas++; tocar(f);
-  let cat=state.categorias.find(c=>c.nome==='Taxas & Juros');
-  state.transacoes.push(tocar({id:uuid(),descricao:`${f.descricao} (parcela ${f.parcelasPagas}/${f.parcelasTotal})`,
-    data:todayStr(),valor:f.valorParcela,tipo:'despesa',categoriaId:cat?cat.id:null,
-    metodoPagamento:'debito',contaId:f.contaId,status:'pago'}));
-  salvarEstado(); renderTudo(); toast('Parcela registrada.');
-}
 function excluirFinanciamento(id){
-  if(!confirm('Excluir este financiamento? (os lançamentos de parcelas já pagas não serão apagados)')) return;
+  const ab=state.transacoes.filter(t=>t.financiamentoId===id && t.emAberto);
+  if(!confirm(ab.length? `Excluir este financiamento e as ${ab.length} parcela${ab.length===1?'':'s'} em aberto? (os lançamentos de parcelas já pagas não serão apagados)` : 'Excluir este financiamento? (os lançamentos de parcelas já pagas não serão apagados)')) return;
+  ab.forEach(t=>excluirRegistro('transacoes',t.id));
   excluirRegistro('financiamentos', id); salvarEstado(); renderTudo(); toast('Financiamento excluído.');
 }
 

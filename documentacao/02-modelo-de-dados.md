@@ -71,3 +71,8 @@ Receitas/despesas fixas (salário, aluguel, telefone, revisão do carro, IPVA...
 ## Virada do mês (2026-10-11)
 - `config.diaVirada` (1–28; ausente = 1, mês do calendário) e `config.diaViradaEm` (ISO; o carimbo mais novo vence entre aparelhos). Por perfil.
 - `mesCompetencia(t)`: 1) crédito com cartão próprio e dia de fechamento → fatura; 2) fixo (`recorrenciaId`) → mês do calendário; 3) resto → `mesDaData(data, diaVirada)` (antes do dia da virada = mês anterior).
+
+
+## Dívidas em aberto (v28)
+- **Transação:** `emAberto:true` = devo e ainda não paguei (não entra em `saldoConta` até ser paga); `pagoEm` (data do pagamento, ao pagar); `financiamentoId` (parcela gerada por um financiamento; também `parcelaAtual/parcelaTotal`, sem `parcelaGrupoId`). Status exibido: `statusTransacao` → atrasado (em aberto e data < hoje), pendente, pago.
+- **Financiamento:** além de `parcelasPagas/parcelasTotal/valorParcela/contaId`, tem `diaVencimento` e `categoriaId`. As parcelas restantes são transações `emAberto` (uma por mês, de `calendarioParcelas`); `parcelasPagas` sobe a cada `pagarTransacao`.
