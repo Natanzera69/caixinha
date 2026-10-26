@@ -720,6 +720,18 @@ button.cal-tit{cursor:pointer;}
 .pagar-linha{margin-top:6px;}
 .chk-linha{display:flex;align-items:center;gap:10px;min-height:44px;margin:4px 0 8px;font-weight:700;font-size:.9rem;cursor:pointer;}
 
+/* ---------- Alinhamento de botões (rodada de acabamento) ---------- */
+.section-title{gap:12px;} .section-title h2{min-width:0;} .section-title .btn{flex:none;white-space:nowrap;} /* "+ Novo" nunca quebra em duas linhas */
+.btn-mes-atual{justify-content:center;margin-top:0;translate:0 -50%;height:40px;} .btn-mes-atual .px-ico{margin-right:0;}
+@media(pointer:coarse){.btn-mes-atual{height:44px;}}
+@media(max-width:559px){.btn-mes-atual{width:44px;right:48px;}}
+.fin-acoes{display:flex;align-items:center;gap:8px;margin-top:12px;}
+.fin-icones{display:flex;gap:2px;margin-left:auto;}
+.edit-bar.on{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 12px;}
+.edit-bar.on>.btn-ghost{grid-row:1;grid-column:1;}
+.edit-bar.on>.btn-danger{grid-row:1;grid-column:2;justify-self:end;}
+.edit-bar.on>.chk-tudo{grid-row:2;grid-column:1/-1;margin:0;}
+
 </style>
 </head>
 <body>
@@ -993,7 +1005,7 @@ function normalizarEstado(alvo){
   return alvo;
 }
 // Mesma numeração do CACHE em sw.js (um teste confere): aparece em Config → Sobre para saber o que o aparelho está rodando.
-const APP_VERSAO='2026-10-26 · v28';
+const APP_VERSAO='2026-10-26 · v29';
 let estadoEraNovo=false;
 function carregarPerfilLocal(perfil){
   try{
@@ -2203,7 +2215,7 @@ function renderDashboard(){
         <h3>Próximos vencimentos</h3>
         ${proximosVenc.length?`<div class="list mt8">${proximosVenc.map(t=>`
           <div class="row-card"><div class="row-icon">${t.fatura?'<span class="px-ico" style="--i:url(assets/icons/card.svg)"></span>':(categoriaById(t.categoriaId)?iconeSeguro(categoriaById(t.categoriaId).icone):'<span class="px-ico" style="--i:url(assets/icons/bill.svg)"></span>')}</div>
-            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):(t.emAberto&&t.data<hoje?'atrasada desde ':'')}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}${t.emAberto&&t.data<hoje?' <span class="badge atrasado">atrasada</span>':''}</div>
+            <div class="row-main"><div class="t1">${escapeHtml(t.descricao)}${t.recorrenciaId?' <span class="muted"><span class="px-ico sm" style="--i:url(assets/icons/repeat.svg)"></span></span>':''}</div><div class="t2">${t.fatura?(t.data<hoje?'vencida em ':'vence '):''}${fmtDate(t.data)}${t.parcelaTotal?` · parcela ${t.parcelaAtual}/${t.parcelaTotal}`:''}${t.emAberto&&t.data<hoje?' <span class="badge atrasado">atrasada</span>':''}</div>
               ${t.fatura?`<button type="button" class="btn btn-sm btn-primary pagar-linha" onclick="pagarFaturaCartao('${t.id.slice(7)}')">Pagar fatura</button>`:(t.emAberto?`<button type="button" class="btn btn-sm btn-primary pagar-linha" onclick="pagarTransacao('${t.id}')">Pagar</button>`:'')}</div>
             <div class="row-value expense">${fmtMoney(t.valor)}</div>
           </div>`).join('')}</div>`:'<div class="empty-state mt8"><span class="emoji"><span class="px-ico lg" style="--i:url(assets/icons/calendar.svg)"></span></span>Nada vencendo nos próximos 14 dias.</div>'}
@@ -2892,7 +2904,7 @@ function abrirFormTransacao(id){
         <div class="field hidden" id="campoAtraso"><label>Parcelas em atraso</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasAtraso" value="0"></div>
         <div class="preview-parc hidden" id="previewParc" aria-live="polite"></div>
       </div>`:''}
-      <label class="chk-linha hidden" id="campoAberto"><input type="checkbox" class="chk" name="emAberto" ${t&&t.emAberto?'checked':''}> Ainda não paguei (fica em aberto, sem sair da conta)</label>
+      <label class="chk-linha hidden" id="campoAberto"><input type="checkbox" class="chk" name="emAberto" ${t&&t.emAberto?'checked':''}> Ainda não paguei (em aberto)</label>
       <div class="field"><label>Notas (opcional)</label><textarea name="notas" maxlength="300">${t?escapeHtml(t.notas||''):''}</textarea></div>
       <div class="modal-actions">
         ${t?`<button type="button" class="btn btn-danger" onclick="if(excluirTransacao('${t.id}')) fecharModal()">Excluir</button>`:''}
@@ -3441,12 +3453,12 @@ function renderParcelamentos(){
           ${atras.length?`<div class="t2 mt8"><span class="badge atrasado">${atras.length} em atraso</span> ${fmtMoney(somaAtras)} · a mais antiga venceu em ${fmtDate(atras[0].data)}</div>`
             : (ab[0]?`<div class="t2 mt8">Próxima: ${fmtDate(ab[0].data)} · ${fmtMoney(ab[0].valor)}</div>`
             : (!quitado?'<div class="t2 mt8">Sem vencimento definido: as parcelas ainda não aparecem como "a pagar".</div>':''))}
-        </div>
-        <div class="row-actions" style="flex-direction:column">
-          ${ab.length?`<button class="btn btn-sm btn-primary" onclick="pagarTransacao('${ab[0].id}')">Pagar parcela</button>`:(!quitado?`<button class="btn btn-sm btn-primary" onclick="abrirFormFinanciamento('${f.id}')">Definir vencimento</button>`:'')}
-          <div style="display:flex;gap:6px">
-            <button onclick="abrirFormFinanciamento('${f.id}')" title="Editar"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
-            <button onclick="excluirFinanciamento('${f.id}')" title="Excluir"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+          <div class="fin-acoes">
+            ${ab.length?`<button type="button" class="btn btn-sm btn-primary" onclick="pagarTransacao('${ab[0].id}')">Pagar parcela</button>`:(!quitado?`<button type="button" class="btn btn-sm btn-primary" onclick="abrirFormFinanciamento('${f.id}')">Definir vencimento</button>`:'')}
+            <span class="fin-icones">
+              <button type="button" class="mini" onclick="abrirFormFinanciamento('${f.id}')" title="Editar" aria-label="Editar ${escapeHtml(f.descricao)}"><span class="px-ico" style="--i:url(assets/icons/edit.svg)"></span></button>
+              <button type="button" class="mini" onclick="excluirFinanciamento('${f.id}')" title="Excluir" aria-label="Excluir ${escapeHtml(f.descricao)}"><span class="px-ico" style="--i:url(assets/icons/trash.svg)"></span></button>
+            </span>
           </div>
         </div>
       </div>`;
@@ -3638,8 +3650,8 @@ function abrirFormFinanciamento(id){
         <div class="field"><label>Parcelas em atraso</label><input type="number" inputmode="numeric" min="0" step="1" name="parcelasAtraso" value="${atrasoAtual}"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Dia do vencimento (1 a 31)</label><input required type="number" inputmode="numeric" min="1" max="31" step="1" name="diaVencimento" value="${f&&f.diaVencimento?f.diaVencimento:Number(hoje.slice(8,10))}"></div>
-        <div class="field"><label>Conta para debitar pagamentos</label>
+        <div class="field"><label>Dia do vencimento</label><input required type="number" inputmode="numeric" min="1" max="31" step="1" name="diaVencimento" value="${f&&f.diaVencimento?f.diaVencimento:Number(hoje.slice(8,10))}"></div>
+        <div class="field"><label>Pagar com a conta</label>
           <select name="contaId">${state.contas.map(c=>`<option value="${c.id}" ${f&&f.contaId===c.id?'selected':''}>${escapeHtml(c.nome)}</option>`).join('')}</select>
         </div>
       </div>
@@ -3670,7 +3682,9 @@ function abrirFormFinanciamento(id){
   };
   const atualizarPrevia=()=>{
     const prev=document.getElementById('previewFin'), r=ler();
-    if(r.erro){ prev.textContent=r.erro; prev.classList.remove('hidden'); return; }
+    if(r.erro){ // só avisa quando o campo já foi preenchido: aberto vazio não mostra erro
+      const vazio=!form.parcelasTotal.value; prev.textContent=vazio?'':r.erro; prev.classList.toggle('hidden',vazio); return;
+    }
     const cal=calendarioParcelas({total:r.total,pagas:r.pagas,atraso:r.atraso,dia:r.dia,hoje});
     const aVencer=cal.filter(p=>!p.emAberto);
     prev.innerHTML=cal.length? `<b>${r.pagas}</b> paga${r.pagas===1?'':'s'} · <b>${r.atraso}</b> em atraso · <b>${aVencer.length}</b> a vencer${aVencer[0]?` · próxima: ${aVencer[0].n}/${r.total} em ${fmtDate(aVencer[0].data)}`:''}${r.atraso?` · a mais antiga venceu em ${fmtDate(cal[0].data)}`:''}` : 'Financiamento já quitado: nada a lançar.';

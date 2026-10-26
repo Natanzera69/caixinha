@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 (2) — Alinhamento dos botões novos (v29)
+
+Revisão de layout (impeccable) em 375/768/1280 px, claro e escuro:
+- **"+ Novo"** das seções deixou de quebrar em duas linhas; título e botão ganharam espaço entre si.
+- **Financiamento:** os botões deixaram de ficar espremidos numa coluna ao lado do texto; agora ficam numa linha própria embaixo ("Pagar parcela" à esquerda, editar e excluir à direita, 44 px no toque).
+- **Próximos vencimentos:** tirei o "atrasada desde" repetido (fica a data + selo ATRASADA); botão Pagar sempre embaixo do texto, valor alinhado à direita.
+- **Modo de edição das categorias:** "Concluir" e "Excluir (N)" na mesma linha e "Selecionar tudo" embaixo.
+- **Botão "Mês atual":** conteúdo centralizado e altura igual à dos botões vizinhos (44 px no toque).
+- **Formulário de financiamento:** rótulos curtos (a linha "Dia do vencimento / conta" alinhava torta), sem mensagem de erro com o campo vazio.
+
 ## 2026-10-26 — Dívidas em atraso e financiamento que gera "a pagar" (v28)
 
 - **Financiamento/empréstimo agora lança as parcelas.** Antes era só um contador e nada aparecia como "a pagar". Agora o formulário pede também **dia do vencimento** e **parcelas em atraso** (e categoria); o app calcula as datas (as atrasadas são os meses imediatamente antes da próxima ocorrência do dia; o resto vai mês a mês) e cria **uma parcela por mês como "em aberto"**. Elas aparecem em Próximos vencimentos, em Despesas do mês de cada mês e no Saldo projetado. Dá para **editar** (as parcelas ainda não pagas são refeitas) e **excluir** (leva as em aberto junto). Financiamentos antigos mostram "Definir vencimento".
